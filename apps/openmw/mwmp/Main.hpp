@@ -36,6 +36,9 @@ namespace mwmp
 
         static std::string getResDir();
 
+        // For automated tests: completes character generation with this name and default choices
+        static const std::string& getAutoLoginName();
+
         Networking *getNetworking() const;
         LocalSystem *getLocalSystem() const;
         LocalPlayer *getLocalPlayer() const;
@@ -48,6 +51,8 @@ namespace mwmp
         static std::string resourceDir;
         static std::string address;
         static std::string serverPassword;
+        static std::string autoLoginName;
+
         Main (const Main&);
         ///< not implemented
         Main& operator= (const Main&);

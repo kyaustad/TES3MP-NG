@@ -61,6 +61,13 @@ std::string Main::getResDir()
     return resourceDir;
 }
 
+std::string Main::autoLoginName;
+
+const std::string& Main::getAutoLoginName()
+{
+    return autoLoginName;
+}
+
 Main::Main()
 {
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "tes3mp started");
@@ -92,13 +99,17 @@ void Main::optionsDesc(boost::program_options::options_description *desc)
             ("connect", bpo::value<std::string>()->default_value(""),
                         "connect to server (e.g. --connect=127.0.0.1:25565)")
             ("password", bpo::value<std::string>()->default_value(TES3MP_DEFAULT_PASSW),
-                        "сonnect to a secured server. (e.g. --password=AnyPassword");
+                        "сonnect to a secured server. (e.g. --password=AnyPassword")
+            ("tes3mp-autologin", bpo::value<std::string>()->default_value(""),
+                        "for automated tests: complete character generation with this name and default choices");
 }
 
 void Main::configure(const boost::program_options::variables_map &variables)
 {
     Main::address = variables["connect"].as<std::string>();
     Main::serverPassword = variables["password"].as<std::string>();
+    Main::autoLoginName = variables["tes3mp-autologin"].as<std::string>();
+
     resourceDir = Files::pathToUnicodeString(variables["resources"].as<Files::MaybeQuotedPath>());
 }
 

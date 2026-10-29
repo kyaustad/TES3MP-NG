@@ -20,6 +20,34 @@
 #include "../mwworld/esmstore.hpp"
 #include "../mwworld/player.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
+namespace
+{
+    /*
+        Start of tes3mp addition
+
+        Track the character generation stage for the LocalPlayer, because servers drive character generation
+    */
+    void changeMultiplayerCharGenStage(int change)
+    {
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getLocalPlayer()->charGenState.currentStage += change;
+    }
+    /*
+        End of tes3mp addition
+    */
+}
+
 #include "birth.hpp"
 #include "class.hpp"
 #include "inventorywindow.hpp"
@@ -315,6 +343,8 @@ namespace MWGui
 
         MWBase::Environment::get().getWindowManager()->popGuiMode();
         MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Birth);
+
+        changeMultiplayerCharGenStage(-1); // tes3mp addition
     }
 
     void CharacterCreation::onReviewActivateDialog(int parDialog)
@@ -391,6 +421,7 @@ namespace MWGui
                 break;
             case ClassChoiceDialog::Class_Back:
                 MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Race);
+                changeMultiplayerCharGenStage(-1); // tes3mp addition
                 break;
         };
     }
@@ -400,6 +431,18 @@ namespace MWGui
         if (mNameDialog)
         {
             mPlayerName = mNameDialog->getTextInput();
+
+            /*
+                Start of tes3mp addition
+
+                Ensure names are not longer than the original game's 31 character maximum
+            */
+            if (mPlayerName.length() > 31)
+                mPlayerName = mPlayerName.substr(0, 31);
+            /*
+                End of tes3mp addition
+            */
+
             MWBase::Environment::get().getMechanicsManager()->setPlayerName(mPlayerName);
             MWBase::Environment::get().getWindowManager()->removeDialog(std::move(mNameDialog));
         }
@@ -459,6 +502,7 @@ namespace MWGui
 
     void CharacterCreation::onBirthSignDialogBack()
     {
+        changeMultiplayerCharGenStage(-1); // tes3mp addition
         selectBirthSign();
 
         MWBase::Environment::get().getWindowManager()->popGuiMode();
@@ -508,6 +552,7 @@ namespace MWGui
 
     void CharacterCreation::onCreateClassDialogBack()
     {
+        changeMultiplayerCharGenStage(-1); // tes3mp addition
         // not done in MW, but we do it for consistency with the other dialogs
         selectCreatedClass();
 
@@ -707,6 +752,25 @@ namespace MWGui
     void CharacterCreation::handleDialogDone(CSE currentStage, int nextMode)
     {
         MWBase::Environment::get().getWindowManager()->popGuiMode();
+
+        /*
+            Start of tes3mp change (major)
+
+            Servers have control over character generation in multiplayer, so instead of automatically
+            transitioning to the next character generation menu, advance the stage tracked for the LocalPlayer
+            and let mwmp::LocalPlayer::processCharGen() open the next menu
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            if (mCreationStage < currentStage)
+                mCreationStage = currentStage;
+            changeMultiplayerCharGenStage(1);
+            return;
+        }
+        /*
+            End of tes3mp change (major)
+        */
+
         if (mCreationStage == CSE_ReviewNext)
         {
             MWBase::Environment::get().getWindowManager()->pushGuiMode(GM_Review);
@@ -719,5 +783,6 @@ namespace MWGui
         {
             mCreationStage = currentStage;
         }
+
     }
 }

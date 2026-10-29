@@ -139,7 +139,24 @@ bool LocalPlayer::processCharGen()
     // move to the next one
     else if (charGenState.currentStage < charGenState.endStage)
     {
+        /*
+            For automated tests, skip the menus: set the name and keep the default race, class and birthsign
+        */
+        if (!Main::getAutoLoginName().empty())
+        {
+            if (charGenState.currentStage == 0)
+                MWBase::Environment::get().getMechanicsManager()->setPlayerName(Main::getAutoLoginName());
+
+            LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Auto-login: completing character generation stage %i",
+                charGenState.currentStage);
+            charGenState.currentStage++;
+            getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->setPlayer(this);
+            getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->Send();
+            return false;
+        }
+
         switch (charGenState.currentStage)
+
         {
         case 0:
             windowManager->pushGuiMode(MWGui::GM_Name);
