@@ -56,6 +56,25 @@ The server sends a policy (CoreScripts `data/lua/scriptPolicy.json`) that maps s
 The default is `client` because it matches how TES3MP has always treated mwscript global scripts and how most
 OpenMW Lua mods are written (as if there were one player). Operators opt world-simulation mods into `authority`.
 
+## Required Lua mods
+
+Lua mods are enforced like plugins, through CoreScripts' `data/requiredDataFiles.json`. A mod's `.omwscripts`
+manifest is a content file, and its checksum covers the manifest and every file in the directories of the scripts it
+lists, so modules loaded with `require()` count too. Files are resolved across data directories the way the VFS
+resolves them: later directories override earlier ones.
+
+```json
+[
+    {"Morrowind.esm": ["0x7B6AF5B9", "0x34282D67"]},
+    {"MyLuaMod.omwscripts": ["0x1A2B3C4D"]},
+    {"AnotherLuaMod.omwscripts": []}
+]
+```
+
+An empty list accepts any version of the mod. A client logs the checksum of every content file it has when it
+connects (`checksum: ...` lines), and a mismatch disconnects it with the usual plugin comparison. OpenMW's own
+`builtin.omwscripts` is not listed: it ships with the engine, whose version is enforced separately.
+
 ## Object identity
 
 Lua data refers to objects by `ESM::RefNum`. On the network these become `mwmp::NetObjectId`

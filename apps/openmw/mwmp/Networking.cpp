@@ -32,6 +32,23 @@
 #include <iomanip>
 #include <components/version/version.hpp>
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <fstream>
+#include <set>
+#include <sstream>
+#include <boost/crc.hpp>
+#include <components/resource/resourcesystem.hpp>
+#include <components/vfs/manager.hpp>
+#include <components/vfs/pathutil.hpp>
+#include <components/vfs/recursivedirectoryiterator.hpp>
+/*
+    End of tes3mp addition
+*/
+
 #include "Networking.hpp"
 #include "Main.hpp"
 #include "processors/ProcessorInitializer.hpp"
@@ -355,6 +372,79 @@ void Networking::connect(const std::string &ip, unsigned short port, std::vector
     getLocalPlayer()->guid = getLocalSystem()->guid = peer->GetMyGUID();
 }
 
+/*
+    Start of tes3mp addition
+
+    Lua mods are enforced like plugins: the checksum of an .omwscripts manifest also covers the code it runs, which is
+    every file in the directories of the scripts it lists (so modules loaded with require() are included), resolved
+    across data directories like the VFS resolves them. Server operators list the resulting
+    checksums for the manifest in requiredDataFiles.json, like any other data file.
+*/
+static unsigned int luaManifestChecksum(const std::filesystem::path& manifestPath, const Files::Collections& collections)
+{
+    boost::crc_32_type crc32;
+
+    std::ifstream manifest(manifestPath, std::ios::binary);
+    const std::string manifestData((std::istreambuf_iterator<char>(manifest)), std::istreambuf_iterator<char>());
+    crc32.process_bytes(manifestData.data(), manifestData.size());
+
+    // Script lines look like "PLAYER, NPC: scripts/mymod/player.lua"
+    std::set<std::string> directories;
+    std::istringstream lines(manifestData);
+    std::string line;
+    while (std::getline(lines, line))
+    {
+        const std::size_t colon = line.find(':');
+        if (line.empty() || line[0] == '#' || colon == std::string::npos)
+            continue;
+        std::string script = line.substr(colon + 1);
+        script.erase(0, script.find_first_not_of(" 	"));
+        script.erase(script.find_last_not_of(" 	") + 1);
+        const VFS::Path::Normalized scriptPath(script);
+        const std::string_view value = scriptPath.value();
+        const std::size_t slash = value.rfind('/');
+        if (slash != std::string_view::npos)
+            directories.emplace(value.substr(0, slash));
+    }
+
+    // This runs before the engine builds its VFS, so resolve files like the VFS does: later data directories
+    // override earlier ones. Lua mods are loose files, so archives aren't considered
+    std::map<std::string, std::filesystem::path> files;
+    for (const std::filesystem::path& dataDirectory : collections.getPaths())
+    {
+        for (const std::string& directory : directories)
+        {
+            std::error_code ec;
+            const std::filesystem::path root = dataDirectory / directory;
+            if (!std::filesystem::is_directory(root, ec))
+                continue;
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(root, ec))
+            {
+                if (!entry.is_regular_file(ec))
+                    continue;
+                const std::string relative
+                    = VFS::Path::Normalized(Files::pathToUnicodeString(entry.path().lexically_relative(dataDirectory))).value();
+                files[relative] = entry.path();
+            }
+        }
+    }
+
+    for (const auto& [relative, path] : files)
+    {
+        crc32.process_bytes(relative.data(), relative.size());
+        std::ifstream file(path, std::ios::binary);
+        const std::string data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        crc32.process_bytes(data.data(), data.size());
+    }
+
+    LOG_APPEND(TimedLog::LOG_INFO, "- Lua manifest %s covers %zu script files",
+        Files::pathToUnicodeString(manifestPath.filename()).c_str(), files.size());
+    return crc32.checksum();
+}
+/*
+    End of tes3mp addition
+*/
+
 void Networking::preInit(std::vector<std::string> &content, Files::Collections &collections)
 {
     PacketPreInit::PluginContainer checksums;
@@ -382,7 +472,10 @@ void Networking::preInit(std::vector<std::string> &content, Files::Collections &
         if (col.doesExist(*it))
         {
             PacketPreInit::HashList hashList;
-            unsigned crc32 = Utils::crc32Checksum(Files::pathToUnicodeString(col.getPath(*it)));
+            // tes3mp change (major): Lua mods' checksums include their scripts
+            unsigned crc32 = Misc::StringUtils::ciEqual(Misc::getFileExtension(*it), "omwscripts")
+                ? luaManifestChecksum(col.getPath(*it), collections)
+                : Utils::crc32Checksum(Files::pathToUnicodeString(col.getPath(*it)));
             hashList.push_back(crc32);
             checksums.push_back(make_pair(*it, hashList));
 
