@@ -56,6 +56,8 @@ namespace MWGui
             container window, and to start dragging an item from it
         */
         bool isOnDragAndDrop() const;
+        // Whether item transfers with this container are decided by the server
+        bool isMultiplayerContainer() const;
         bool dragItemByPtr(const MWWorld::Ptr& itemPtr, int dragCount);
         /*
             End of tes3mp addition

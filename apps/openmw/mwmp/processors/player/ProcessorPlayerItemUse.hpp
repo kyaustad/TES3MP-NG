@@ -10,6 +10,16 @@
 
 #include "../PlayerProcessor.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../../../mwbase/luamanager.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace mwmp
 {
     class ProcessorPlayerItemUse final: public PlayerProcessor
@@ -39,7 +49,8 @@ namespace mwmp
 
                 if (itemPtr)
                 {
-                    MWBase::Environment::get().getWindowManager()->getInventoryWindow()->useItem(itemPtr);
+                    // OpenMW 0.49+ uses items through Lua, which runs use handlers and then the standard action
+                    MWBase::Environment::get().getLuaManager()->useItem(itemPtr, playerPtr, false);
 
                     if (player->usingItemMagic)
                     {

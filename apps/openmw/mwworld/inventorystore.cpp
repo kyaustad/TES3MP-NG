@@ -15,6 +15,18 @@
 #include "class.hpp"
 #include "esmstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/CellController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 void MWWorld::InventoryStore::copySlots(const InventoryStore& store)
 {
     for (const MWWorld::ContainerStoreIterator& it : store.mSlots)
@@ -505,6 +517,22 @@ void MWWorld::InventoryStore::autoEquipArmor(TSlots& slots)
 
 void MWWorld::InventoryStore::autoEquip()
 {
+    /*
+        Start of tes3mp addition
+
+        We need DedicatedPlayers and DedicatedActors to wear exactly what they're wearing on their
+        authority client, so don't auto-equip for them
+    */
+    if (mwmp::Main::isInitialized())
+    {
+        const Ptr& actor = getPtr();
+        if (mwmp::PlayerList::isDedicatedPlayer(actor) || mwmp::Main::get().getCellController()->isDedicatedActor(actor))
+            return;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     TSlots slots;
     initSlots(slots);
 

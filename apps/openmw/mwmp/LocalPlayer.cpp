@@ -1457,7 +1457,9 @@ void LocalPlayer::setSelectedSpell()
 
     const ESM::RefId spellId = Utils::toRefId(selectedSpellId);
 
-    if (!spells.hasSpell(spellId))
+    // Spells::hasSpell() looks the id up in the store, which throws for an empty id
+    if (spellId.empty() || !MWBase::Environment::get().getESMStore()->get<ESM::Spell>().search(spellId)
+        || !spells.hasSpell(spellId))
         return;
 
     MWBase::Environment::get().getWindowManager()->setSelectedSpell(spellId,

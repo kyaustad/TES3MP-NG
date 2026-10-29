@@ -28,6 +28,17 @@
 #include "refdata.hpp"
 #include "worldmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     void addScripts(MWWorld::ContainerStore& store, MWWorld::CellStore* cell)
@@ -319,6 +330,26 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::unstack(const Ptr& ptr,
         return end();
     MWWorld::ContainerStoreIterator it = addNewStack(ptr, subtractItems(ptr.getCellRef().getCount(false), count));
 
+    /*
+        Start of tes3mp addition
+
+        Send an ID_PLAYER_INVENTORY packet every time an item stack gets added for a player here; the removal from the
+        original stack below is sent as well
+    */
+    if (mwmp::Main::isInitialized())
+    {
+        Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
+        if (this == &player.getClass().getContainerStore(player))
+        {
+            mwmp::LocalPlayer* localPlayer = mwmp::Main::get().getLocalPlayer();
+            if (!localPlayer->avoidSendingInventoryPackets)
+                localPlayer->sendItemChange(*it, ptr.getCellRef().getCount() - count, mwmp::InventoryChanges::ADD);
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
+
     MWWorld::Ptr newPtr = *it;
     newPtr.getCellRef().unsetRefNum();
     newPtr.getRefData().setLuaScripts(nullptr);
@@ -461,6 +492,26 @@ MWWorld::ContainerStoreIterator MWWorld::ContainerStore::add(
         if (contPtr == player)
             item.getRefData().getLocals().setVarByInt(script, "onpcadd", 1);
     }
+
+    /*
+        Start of tes3mp addition
+
+        Send an ID_PLAYER_INVENTORY packet every time an item gets added for a player here
+    */
+    if (mwmp::Main::isInitialized() && contPtr == player)
+    {
+        mwmp::LocalPlayer* localPlayer = mwmp::Main::get().getLocalPlayer();
+        if (!localPlayer->avoidSendingInventoryPackets)
+        {
+            int realCount = count;
+            if (item.getClass().isGold(item))
+                realCount = realCount * item.getClass().getValue(item);
+            localPlayer->sendItemChange(item, realCount, mwmp::InventoryChanges::ADD);
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
 
     // we should not fire event for InventoryStore yet - it has some custom logic
     if (mListener && typeid(*this) == typeid(ContainerStore))
@@ -696,6 +747,25 @@ int MWWorld::ContainerStore::remove(const Ptr& item, int count, bool equipReplac
     }
 
     flagAsModified();
+
+    /*
+        Start of tes3mp addition
+
+        Send an ID_PLAYER_INVENTORY packet every time an item gets removed for a player here
+    */
+    if (mwmp::Main::isInitialized() && count - toRemove > 0)
+    {
+        Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
+        if (this == &player.getClass().getContainerStore(player))
+        {
+            mwmp::LocalPlayer* localPlayer = mwmp::Main::get().getLocalPlayer();
+            if (!localPlayer->avoidSendingInventoryPackets)
+                localPlayer->sendItemChange(item, count - toRemove, mwmp::InventoryChanges::REMOVE);
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
 
     // we should not fire event for InventoryStore yet - it has some custom logic
     if (mListener && typeid(*this) == typeid(ContainerStore))

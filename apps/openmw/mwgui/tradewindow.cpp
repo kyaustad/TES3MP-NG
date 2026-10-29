@@ -32,6 +32,19 @@
 #include "tooltips.hpp"
 #include "tradeitemmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -470,8 +483,28 @@ namespace MWGui
         if (mCurrentBalance != 0)
         {
             addOrRemoveGold(mCurrentBalance, player);
-            mPtr.getClass().getCreatureStats(mPtr).setGoldPool(
-                mPtr.getClass().getCreatureStats(mPtr).getGoldPool() - mCurrentBalance);
+            /*
+                Start of tes3mp change (major)
+
+                Don't unilaterally change the merchant's gold pool on our client and instead let the server do it
+            */
+            if (mwmp::Main::isInitialized())
+            {
+                mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                objectList->reset();
+                objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                MWMechanics::CreatureStats& merchantStats = mPtr.getClass().getCreatureStats(mPtr);
+                objectList->addObjectMiscellaneous(mPtr, merchantStats.getGoldPool() - mCurrentBalance,
+                    static_cast<float>(merchantStats.getLastRestockTime().getHour()),
+                    merchantStats.getLastRestockTime().getDay());
+                objectList->sendObjectMiscellaneous();
+            }
+            else
+                mPtr.getClass().getCreatureStats(mPtr).setGoldPool(
+                    mPtr.getClass().getCreatureStats(mPtr).getGoldPool() - mCurrentBalance);
+            /*
+                End of tes3mp change (major)
+            */
         }
 
         eventTradeDone();
