@@ -343,7 +343,7 @@ bool DedicatedActor::hasItem(std::string itemId, int charge)
 {
     for (const auto &itemPtr : ptr.getClass().getInventoryStore(ptr))
     {
-        if ((itemPtr.getCellRef().getRefId() == itemId) && itemPtr.getCellRef().getCharge() == charge)
+        if ((Utils::refIdEquals(itemPtr.getCellRef().getRefId(), itemId)) && itemPtr.getCellRef().getCharge() == charge)
             return true;
     }
 
@@ -354,7 +354,7 @@ void DedicatedActor::equipItem(std::string itemId, int charge, bool noSound)
 {
     for (const auto &itemPtr : ptr.getClass().getInventoryStore(ptr))
     {
-        if ((itemPtr.getCellRef().getRefId() == itemId) && itemPtr.getCellRef().getCharge() == charge)
+        if ((Utils::refIdEquals(itemPtr.getCellRef().getRefId(), itemId)) && itemPtr.getCellRef().getCharge() == charge)
         {
             std::shared_ptr<MWWorld::Action> action = itemPtr.getClass().use(itemPtr);
             action->execute(ptr, noSound);

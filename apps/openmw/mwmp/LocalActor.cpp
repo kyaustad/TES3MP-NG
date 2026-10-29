@@ -234,7 +234,7 @@ void LocalActor::updateEquipment(bool forceUpdate, bool sendImmediately)
         if (it != invStore.end())
         {
             auto &cellRef = it->getCellRef();
-            if (!(cellRef.getRefId() == item.refId))
+            if (!(Utils::refIdEquals(cellRef.getRefId(), item.refId)))
             {
                 equipmentChanged = true;
 

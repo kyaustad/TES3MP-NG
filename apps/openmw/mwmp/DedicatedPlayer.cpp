@@ -470,7 +470,7 @@ void DedicatedPlayer::equipItem(std::string itemId, bool noSound)
 {
     for (const auto& itemPtr : ptr.getClass().getInventoryStore(ptr))
     {
-        if ((itemPtr.getCellRef().getRefId() == itemId))
+        if ((Utils::refIdEquals(itemPtr.getCellRef().getRefId(), itemId)))
         {
             std::shared_ptr<MWWorld::Action> action = itemPtr.getClass().use(itemPtr);
             action->execute(ptr, noSound);

@@ -520,7 +520,7 @@ void LocalPlayer::updateEquipment(bool forceUpdate)
         {
             MWWorld::CellRef &cellRef = it->getCellRef();
 
-            if ((cellRef.getRefId() == item.refId) == false ||
+            if ((Utils::refIdEquals(cellRef.getRefId(), item.refId)) == false ||
                 cellRef.getCharge() != item.charge ||
                 Utils::compareFloats(cellRef.getEnchantmentCharge(), item.enchantmentCharge, 1.0f) == false ||
                 it->getCellRef().getCount() != item.count ||
@@ -1236,7 +1236,7 @@ void LocalPlayer::setEquipment()
         if (!currentItem.refId.empty())
         {
             auto it = std::find_if(ptrInventory.begin(), ptrInventory.end(), [&currentItem](const MWWorld::Ptr &itemPtr) {
-                return (itemPtr.getCellRef().getRefId() == currentItem.refId);
+                return (Utils::refIdEquals(itemPtr.getCellRef().getRefId(), currentItem.refId));
             });
 
             // If the item is not in our inventory, add it as long as it's not a bound item
@@ -1351,7 +1351,7 @@ void LocalPlayer::setQuickKeys()
             MWWorld::InventoryStore &ptrInventory = ptrPlayer.getClass().getInventoryStore(ptrPlayer);
 
             auto it = std::find_if(ptrInventory.begin(), ptrInventory.end(), [&quickKey](const MWWorld::Ptr &inventoryItem) {
-                return (inventoryItem.getCellRef().getRefId() == quickKey.itemId);
+                return (Utils::refIdEquals(inventoryItem.getCellRef().getRefId(), quickKey.itemId));
             });
 
             if (it != ptrInventory.end())

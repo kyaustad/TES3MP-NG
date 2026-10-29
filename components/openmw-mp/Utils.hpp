@@ -32,6 +32,10 @@ namespace Utils
         Plain string ids stay as they are; other RefId kinds use ESM::RefId::serializeText().
     */
     ESM::RefId toRefId(std::string_view text);
+
+    // Compares a RefId with its network text form. Comparing a RefId with a string directly only works for string
+    // ids: empty, generated and other ids never compare equal to their text
+    bool refIdEquals(const ESM::RefId& refId, std::string_view text);
     std::string refIdToString(const ESM::RefId &refId);
     // The returned pointer stays valid forever for string ids and until the next call on this thread otherwise
     const char *refIdToCString(const ESM::RefId &refId);

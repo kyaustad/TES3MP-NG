@@ -255,11 +255,11 @@ void ObjectList::editContainers(MWWorld::CellStore* cellStore)
                     // accounting for charge
                     for (const auto itemPtr : containerStore)
                     {
-                        if ((itemPtr.getCellRef().getRefId() == containerItem.refId))
+                        if ((Utils::refIdEquals(itemPtr.getCellRef().getRefId(), containerItem.refId)))
                         {
                             if (itemPtr.getCellRef().getCharge() == containerItem.charge &&
                                 itemPtr.getCellRef().getEnchantmentCharge() == containerItem.enchantmentCharge &&
-                                (itemPtr.getCellRef().getSoul() == containerItem.soul))
+                                (Utils::refIdEquals(itemPtr.getCellRef().getSoul(), containerItem.soul)))
                             {
                                 // Store the sound of the first item in a TAKE_ALL
                                 if (isLocalTakeAll && takeAllSound.empty())

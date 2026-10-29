@@ -514,7 +514,7 @@ void MechanicsHelper::processAttack(Attack attack, const MWWorld::Ptr& attacker)
             // no longer exists, add it back temporarily.
             if (isRanged)
             {
-                if (!weaponPtr || !(weaponPtr.getCellRef().getRefId() == attack.rangedWeaponId))
+                if (!weaponPtr || !(Utils::refIdEquals(weaponPtr.getCellRef().getRefId(), attack.rangedWeaponId)))
                 {
                     weaponPtr = inventoryStore.search(Utils::toRefId(attack.rangedWeaponId));
 
@@ -531,7 +531,7 @@ void MechanicsHelper::processAttack(Attack attack, const MWWorld::Ptr& attacker)
                         MWWorld::InventoryStore::Slot_Ammunition);
                     ammoPtr = ammoSlot != inventoryStore.end() ? *ammoSlot : MWWorld::Ptr();
 
-                    if (!ammoPtr || !(ammoPtr.getCellRef().getRefId() == attack.rangedAmmoId))
+                    if (!ammoPtr || !(Utils::refIdEquals(ammoPtr.getCellRef().getRefId(), attack.rangedAmmoId)))
                     {
                         ammoPtr = inventoryStore.search(Utils::toRefId(attack.rangedAmmoId));
 
@@ -657,7 +657,7 @@ void MechanicsHelper::processCast(Cast cast, const MWWorld::Ptr& caster)
         MWWorld::ContainerStoreIterator it = inventoryStore.begin();
         for (; it != inventoryStore.end(); ++it)
         {
-            if ((it->getCellRef().getRefId() == cast.itemId))
+            if ((Utils::refIdEquals(it->getCellRef().getRefId(), cast.itemId)))
                 break;
         }
 
@@ -755,10 +755,10 @@ MWWorld::Ptr MechanicsHelper::getItemPtrFromStore(const mwmp::Item& item, MWWorl
     for (MWWorld::ContainerStoreIterator storeIterator = store.begin(); storeIterator != store.end(); ++storeIterator)
     {
         // Enchantment charges are often in the process of refilling themselves, so don't check for them here
-        if ((storeIterator->getCellRef().getRefId() == item.refId) &&
+        if ((Utils::refIdEquals(storeIterator->getCellRef().getRefId(), item.refId)) &&
             item.count == storeIterator->getCellRef().getCount() &&
             item.charge == storeIterator->getCellRef().getCharge() &&
-            storeIterator->getCellRef().getSoul() == item.soul)
+            Utils::refIdEquals(storeIterator->getCellRef().getSoul(), item.soul))
 
         {
             // If we have no closestPtr, set it to the Ptr corresponding to this storeIterator; otherwise, make

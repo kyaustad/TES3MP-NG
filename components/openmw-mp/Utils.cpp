@@ -38,6 +38,11 @@ ESM::RefId Utils::toRefId(std::string_view text)
     return refId;
 }
 
+bool Utils::refIdEquals(const ESM::RefId& refId, std::string_view text)
+{
+    return refId == toRefId(text);
+}
+
 std::string Utils::refIdToString(const ESM::RefId &refId)
 {
     if (refId.empty())
