@@ -1,3 +1,21 @@
+TES3MP-NG
+=========
+
+TES3MP-NG is a continuation of [TES3MP](https://github.com/TES3MP/TES3MP), the multiplayer fork of OpenMW, rebased on
+OpenMW 0.51 with synchronization for OpenMW's Lua scripting. It is used with
+[CoreScripts-NG](https://github.com/kyaustad/CoreScripts-NG) on the server.
+
+* **Versioning:** TES3MP-NG follows OpenMW's version numbers instead of TES3MP's own: version 0.51.x is based on
+  OpenMW 0.51.x. This replaces TES3MP's 0.8.x numbering (TES3MP 0.8.1 was based on OpenMW 0.47). The client, the
+  server and CoreScripts-NG must share the same major.minor version.
+* **Multiplayer documentation:** [docs/tes3mp](docs/tes3mp), including the
+  [OpenMW Lua multiplayer design](docs/tes3mp/lua-multiplayer.md) and the [port status](docs/tes3mp/port-status.md)
+  relative to TES3MP 0.8.1.
+* **Building:** like OpenMW, with CrabNet (TES3MP's RakNet fork) available through `-DRAKNET_ROOT=<install dir>`.
+  The client (`openmw`), the dedicated server (`tes3mp-server`) and CoreScripts-NG must come from matching commits.
+
+The rest of this file is OpenMW's own README.
+
 OpenMW
 ======
 
