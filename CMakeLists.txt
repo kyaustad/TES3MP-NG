@@ -48,14 +48,14 @@ option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
 # Start of tes3mp addition
 option(BUILD_TES3MP             "Build the TES3MP multiplayer client layer into openmw" ON)
 option(BUILD_TES3MP_SERVER      "Build the TES3MP dedicated server (tes3mp-server)" ON)
-option(BUILD_TES3MP_BROWSER     "Build the TES3MP server browser" OFF)
-option(BUILD_TES3MP_MASTER      "Build the TES3MP master server" OFF)
+option(BUILD_TES3MP_BROWSER     "Build the TES3MP server browser (tes3mp-browser, needs Qt)" ON)
+option(BUILD_TES3MP_MASTER      "Build the TES3MP master server (masterserver)" ON)
 # End of tes3mp addition
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
 
-if (BUILD_LAUNCHER OR BUILD_OPENCS OR BUILD_WIZARD OR BUILD_OPENCS_TESTS)
+if (BUILD_LAUNCHER OR BUILD_OPENCS OR BUILD_WIZARD OR BUILD_OPENCS_TESTS OR BUILD_TES3MP_BROWSER) # tes3mp change (minor)
     set(USE_QT TRUE)
 else()
     set(USE_QT FALSE)

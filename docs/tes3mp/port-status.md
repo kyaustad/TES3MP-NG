@@ -21,6 +21,8 @@ behavior into Lua have been adapted rather than copied.
 | Physics | `mwphysics/actor.cpp`, `mwworld/class.cpp` | Collision settings from the server apply to players, actors and placed items |
 | Jail and menus | `jailscreen.cpp`, `playerskillhandlers.lua`, `settingswindow.cpp`, `race.cpp` | The server's jail overrides apply, including `ignoreJailSkillIncreases` (passed to the Lua jail handler). The difficulty slider is hidden; the race menu has no back button after login |
 | Character creation | `mwgui/charactercreation.cpp`, `mwmp/LocalPlayer.cpp` | The server drives the stages. Automated tests can log in with `--tes3mp-autologin <name> --tes3mp-autologin-password <test password>` |
+| Server browser | `apps/browser` | Built with Qt 6 like OpenMW's launcher, and settings read with `mwmp::IniSettings`. Play starts `openmw` with `--connect` |
+| Master server | `apps/master` | The HTTP API runs on CrabNet's `TCPInterface` instead of Simple-Web-Server (which needs Boost.Asio APIs that current Boost removed), with the read-only routes only. Ports: `masterserver [master port] [HTTP port]` (25560 and 8080 by default) |
 
 The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `cellref.cpp`, `dialogue.cpp`,
 `windowmanagerimp.cpp`, `mapwindow.cpp`, `interpretercontext.cpp` and `engine.cpp`.
@@ -32,10 +34,14 @@ The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `ce
 * **Lua handlers:** activation and item use go through OpenMW's Lua handlers when the server approves them, so Lua
   mods see them once, on the acting player's client.
 * **Lua sync:** see `lua-multiplayer.md`.
+* **Chat key:** F8 instead of F2, which OpenMW uses for its post-processing HUD.
+* **Master server HTTP API:** the POST and PUT routes for servers older than 0.6 are removed.
 
 ## Not ported or not verified
 
-* **Server browser:** `tes3mp-browser` hasn't been ported to Qt 6.
-* **Testing:** played by hand so far: movement, NPCs, cell loading, equipping, NPC dialogue, weather and map sharing.
-  Other hooks are compile-tested and covered by the automated login, Lua sync, Lua mod and persistence tests;
-  trading, containers, combat, spells, doors, jail and crafting still need hands-on testing.
+* **Server browser:** the Favorites tab stays hidden, as in 0.8.1, where it was broken. Windows packaging of the
+  browser's Qt DLLs isn't set up.
+* **Testing:** played by hand so far: movement, NPCs, cell loading, equipping, NPC dialogue, weather, combat, death
+  messages and bartering. Other hooks are compile-tested and covered by the automated login, Lua sync, Lua mod,
+  persistence, map tile and master server tests; containers, spells, doors, jail and crafting still need hands-on
+  testing.

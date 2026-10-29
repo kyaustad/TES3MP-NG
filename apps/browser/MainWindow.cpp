@@ -143,7 +143,8 @@ void MainWindow::play()
         arguments.append(QLatin1String("--password=") + passw.toLatin1());
     }
 
-    if (mGameInvoker->startProcess(QLatin1String("tes3mp"), arguments, true))
+    // tes3mp-ng change (minor): the multiplayer client is built as openmw, like OpenMW's own executable
+    if (mGameInvoker->startProcess(QLatin1String("openmw"), arguments, true))
         return qApp->quit();
 }
 
