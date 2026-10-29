@@ -1,5 +1,9 @@
 #include "PacketRecordDynamic.hpp"
 
+#include <components/esm/attr.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadskil.hpp>
+
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 #include <components/openmw-mp/Utils.hpp>
@@ -183,7 +187,7 @@ void PacketRecordDynamic::Packet(RakNet::BitStream *newBitstream, bool send)
             RW(recordData.mIcon, send, true);
             RW(recordData.mData.mWeight, send);
             RW(recordData.mData.mValue, send);
-            RW(recordData.mData.mAutoCalc, send);
+            RW(recordData.mData.mFlags, send);
             RW(recordData.mScript, send, true);
             ProcessEffects(recordData.mEffects, send);
 
@@ -350,7 +354,7 @@ void PacketRecordDynamic::Packet(RakNet::BitStream *newBitstream, bool send)
             RW(recordData.mIcon, send, true);
             RW(recordData.mData.mWeight, send);
             RW(recordData.mData.mValue, send);
-            RW(recordData.mData.mIsKey, send);
+            RW(recordData.mData.mFlags, send);
             RW(recordData.mScript, send, true);
 
             if (!record.baseId.empty())
@@ -665,9 +669,12 @@ void PacketRecordDynamic::Packet(RakNet::BitStream *newBitstream, bool send)
             RW(recordData.mIcon, send, true);
             RW(recordData.mData.mWeight, send);
             RW(recordData.mData.mValue, send);
-            RW(recordData.mData.mEffectID, send);
-            RW(recordData.mData.mAttributes, send);
-            RW(recordData.mData.mSkills, send);
+            for (int i = 0; i < 4; ++i)
+            {
+                RWIndexedRefId(recordData.mData.mEffectID[i], send, ESM::MagicEffect::refIdToIndex, ESM::MagicEffect::indexToRefId);
+                RWIndexedRefId(recordData.mData.mAttributes[i], send, ESM::Attribute::refIdToIndex, ESM::Attribute::indexToRefId);
+                RWIndexedRefId(recordData.mData.mSkills[i], send, ESM::Skill::refIdToIndex, ESM::Skill::indexToRefId);
+            }
             RW(recordData.mScript, send, true);
 
             if (!record.baseId.empty())
@@ -949,15 +956,18 @@ void PacketRecordDynamic::ProcessEffects(ESM::EffectList &effectList, bool send)
 
     for (auto &&effect : effectList.mList)
     {
-        RW(effect.mEffectID, send);
-        RW(effect.mAttribute, send);
-        RW(effect.mSkill, send);
-        RW(effect.mRange, send);
-        RW(effect.mArea, send);
-        RW(effect.mDuration, send);
-        RW(effect.mMagnMax, send);
-        RW(effect.mMagnMin, send);
+        RWIndexedRefId(effect.mData.mEffectID, send, ESM::MagicEffect::refIdToIndex, ESM::MagicEffect::indexToRefId);
+        RWIndexedRefId(effect.mData.mAttribute, send, ESM::Attribute::refIdToIndex, ESM::Attribute::indexToRefId);
+        RWIndexedRefId(effect.mData.mSkill, send, ESM::Skill::refIdToIndex, ESM::Skill::indexToRefId);
+        RW(effect.mData.mRange, send);
+        RW(effect.mData.mArea, send);
+        RW(effect.mData.mDuration, send);
+        RW(effect.mData.mMagnMax, send);
+        RW(effect.mData.mMagnMin, send);
     }
+
+    if (!send)
+        effectList.updateIndexes();
 }
 
 void PacketRecordDynamic::ProcessBodyParts(ESM::PartReferenceList &partList, bool send)
@@ -1019,7 +1029,7 @@ void PacketRecordDynamic::ProcessInventoryList(std::vector<mwmp::Item> &inventor
         if (!send)
         {
             ESM::ContItem contItem;
-            contItem.mItem.assign(item.refId);
+            contItem.mItem = ESM::RefId::deserializeText(item.refId);
             contItem.mCount = item.count;
             inventoryList.mList.push_back(contItem);
         }

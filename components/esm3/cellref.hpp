@@ -30,6 +30,17 @@ namespace ESM
         // Note: Currently unused for items in containers
         RefNum mRefNum;
 
+        /*
+            Start of tes3mp addition
+
+            Keep track of a multiplayer-only number unique to this object, assigned by the server to objects
+            placed or spawned during a multiplayer session
+        */
+        unsigned int mMpNum = 0;
+        /*
+            End of tes3mp addition
+        */
+
         ESM::RefId mRefID; // ID of object being referenced
 
         float mScale; // Scale applied to mesh

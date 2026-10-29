@@ -1,4 +1,5 @@
 #include "Cells.hpp"
+#include <components/openmw-mp/Utils.hpp>
 
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
@@ -75,7 +76,7 @@ const char *CellFunctions::GetRegion(unsigned short pid) noexcept
     Player *player;
     GET_PLAYER(pid, player, 0);
 
-    return player->cell.mRegion.c_str();
+    return Utils::refIdToCString(player->cell.mRegion);
 }
 
 bool CellFunctions::IsChangingRegion(unsigned short pid) noexcept

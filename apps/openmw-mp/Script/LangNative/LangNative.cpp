@@ -28,7 +28,7 @@ void LangNative::LoadProgram(const char *filename)
     fclose(file);
 
 #ifdef _WIN32
-    lib = LoadLibrary(filename);
+    lib = LoadLibraryA(filename);
 #else
     lib = dlopen(filename, RTLD_LAZY);
 #endif

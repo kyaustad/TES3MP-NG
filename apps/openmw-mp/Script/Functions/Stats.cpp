@@ -1,10 +1,11 @@
 #include "Stats.hpp"
+#include <components/openmw-mp/Utils.hpp>
 
 #include <iostream>
 
 #include <components/esm/attr.hpp>
-#include <components/esm/loadskil.hpp>
-#include <components/misc/stringops.hpp>
+#include <components/esm3/loadskil.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 
@@ -25,7 +26,7 @@ int StatsFunctions::GetAttributeId(const char *name) noexcept
 {
     for (int x = 0; x < ESM::Attribute::Length; x++)
     {
-        if (Misc::StringUtils::ciEqual(name, ESM::Attribute::sAttributeNames[x]))
+        if (Misc::StringUtils::ciEqual(name, Utils::getAttributeName(x)))
         {
             return x;
         }
@@ -38,7 +39,7 @@ int StatsFunctions::GetSkillId(const char *name) noexcept
 {
     for (int x = 0; x < ESM::Skill::Length; x++)
     {
-        if (Misc::StringUtils::ciEqual(name, ESM::Skill::sSkillNames[x]))
+        if (Misc::StringUtils::ciEqual(name, Utils::getSkillName(x)))
         {
             return x;
         }
@@ -52,7 +53,7 @@ const char *StatsFunctions::GetAttributeName(unsigned short attributeId) noexcep
     if (attributeId >= ESM::Attribute::Length)
         return "invalid";
 
-    return ESM::Attribute::sAttributeNames[attributeId].c_str();
+    return Utils::getAttributeName(attributeId);
 }
 
 const char *StatsFunctions::GetSkillName(unsigned short skillId) noexcept
@@ -60,7 +61,7 @@ const char *StatsFunctions::GetSkillName(unsigned short skillId) noexcept
     if (skillId >= ESM::Skill::Length)
         return "invalid";
 
-    return ESM::Skill::sSkillNames[skillId].c_str();
+    return Utils::getSkillName(skillId);
 }
 
 const char *StatsFunctions::GetName(unsigned short pid) noexcept
@@ -77,7 +78,7 @@ const char *StatsFunctions::GetRace(unsigned short pid) noexcept
     Player *player;
     GET_PLAYER(pid, player, 0);
 
-    return player->npc.mRace.c_str();
+    return Utils::refIdToCString(player->npc.mRace);
 }
 
 const char *StatsFunctions::GetHead(unsigned short pid) noexcept
@@ -85,7 +86,7 @@ const char *StatsFunctions::GetHead(unsigned short pid) noexcept
     Player *player;
     GET_PLAYER(pid, player, 0);
 
-    return player->npc.mHead.c_str();
+    return Utils::refIdToCString(player->npc.mHead);
 }
 
 const char *StatsFunctions::GetHairstyle(unsigned short pid) noexcept
@@ -93,7 +94,7 @@ const char *StatsFunctions::GetHairstyle(unsigned short pid) noexcept
     Player *player;
     GET_PLAYER(pid, player, 0);
 
-    return player->npc.mHair.c_str();
+    return Utils::refIdToCString(player->npc.mHair);
 }
 
 int StatsFunctions::GetIsMale(unsigned short pid) noexcept
@@ -300,9 +301,9 @@ void StatsFunctions::SetRace(unsigned short pid, const char *race) noexcept
         return;
 
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "Setting race for %s: %s -> %s", player->npc.mName.c_str(),
-                       player->npc.mRace.c_str(), race);
+                       Utils::refIdToCString(player->npc.mRace), race);
 
-    player->npc.mRace = race;
+    player->npc.mRace = Utils::toRefId(race);
 }
 
 void StatsFunctions::SetHead(unsigned short pid, const char *head) noexcept
@@ -313,7 +314,7 @@ void StatsFunctions::SetHead(unsigned short pid, const char *head) noexcept
     if (player->npc.mHead == head)
         return;
 
-    player->npc.mHead = head;
+    player->npc.mHead = Utils::toRefId(head);
 }
 
 void StatsFunctions::SetHairstyle(unsigned short pid, const char *hairstyle) noexcept
@@ -324,7 +325,7 @@ void StatsFunctions::SetHairstyle(unsigned short pid, const char *hairstyle) noe
     if (player->npc.mHair == hairstyle)
         return;
 
-    player->npc.mHair = hairstyle;
+    player->npc.mHair = Utils::toRefId(hairstyle);
 }
 
 void StatsFunctions::SetIsMale(unsigned short pid, int state) noexcept

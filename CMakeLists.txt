@@ -45,6 +45,12 @@ option(BUILD_NAVMESHTOOL        "Build navmesh tool" ON)
 option(BUILD_BULLETOBJECTTOOL   "Build Bullet object tool" ON)
 option(BUILD_OPENCS_TESTS       "Build OpenMW Construction Set tests" OFF)
 option(BUILD_OPENMW_TESTS       "Build OpenMW tests" OFF)
+# Start of tes3mp addition
+option(BUILD_TES3MP             "Build the TES3MP multiplayer client layer into openmw" ON)
+option(BUILD_TES3MP_SERVER      "Build the TES3MP dedicated server (tes3mp-server)" ON)
+option(BUILD_TES3MP_BROWSER     "Build the TES3MP server browser" OFF)
+option(BUILD_TES3MP_MASTER      "Build the TES3MP master server" OFF)
+# End of tes3mp addition
 option(PRECOMPILE_HEADERS_WITH_MSVC "Precompile most common used headers with MSVC (alternative to ccache)" ON)
 
 set(OpenGL_GL_PREFERENCE LEGACY)  # Use LEGACY as we use GL2; GLNVD is for GL3 and up.
@@ -676,6 +682,21 @@ endif()
 
 # Components
 add_subdirectory (components)
+# Start of tes3mp addition
+if (BUILD_TES3MP OR BUILD_TES3MP_SERVER OR BUILD_TES3MP_MASTER)
+    find_package(RakNet REQUIRED)
+    add_subdirectory (components/openmw-mp)
+endif()
+if (BUILD_TES3MP_SERVER)
+    add_subdirectory (apps/openmw-mp)
+endif()
+if (BUILD_TES3MP_BROWSER)
+    add_subdirectory (apps/browser)
+endif()
+if (BUILD_TES3MP_MASTER)
+    add_subdirectory (apps/master)
+endif()
+# End of tes3mp addition
 
 # Apps and tools
 if (BUILD_OPENMW OR BUILD_OPENMW_TESTS)

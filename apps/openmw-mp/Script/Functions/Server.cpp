@@ -1,6 +1,9 @@
+#include <filesystem>
+
+#include <components/files/conversion.hpp>
 #include "Server.hpp"
 
-#include <components/misc/stringops.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/Version.hpp>
@@ -50,20 +53,21 @@ void ServerFunctions::UnbanAddress(const char *ipAddress) noexcept
 
 bool ServerFunctions::DoesFilePathExist(const char *filePath) noexcept
 {
-    return boost::filesystem::exists(filePath);
+    return std::filesystem::exists(Files::pathFromUnicodeString(filePath));
 }
 
 const char *ServerFunctions::GetCaseInsensitiveFilename(const char *folderPath, const char *filename) noexcept
 {
-    if (!boost::filesystem::exists(folderPath)) return "invalid";
+    const std::filesystem::path folder = Files::pathFromUnicodeString(folderPath);
+    std::error_code ec;
+    if (!std::filesystem::exists(folder, ec)) return "invalid";
 
-    boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
-
-    for (boost::filesystem::directory_iterator itr(folderPath); itr != end_itr; ++itr)
+    for (const auto &entry : std::filesystem::directory_iterator(folder, ec))
     {
-        if (Misc::StringUtils::ciEqual(itr->path().filename().string(), filename))
+        const std::string entryName = Files::pathToUnicodeString(entry.path().filename());
+        if (Misc::StringUtils::ciEqual(entryName, filename))
         {
-            tempFilename = itr->path().filename().string();
+            tempFilename = entryName;
             return tempFilename.c_str();
         }
     }

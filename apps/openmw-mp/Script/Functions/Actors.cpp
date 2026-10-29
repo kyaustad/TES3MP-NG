@@ -1,3 +1,4 @@
+#include <components/openmw-mp/Utils.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 #include <components/openmw-mp/Base/BaseActor.hpp>
 
@@ -6,7 +7,7 @@
 #include <apps/openmw-mp/Utils.hpp>
 #include <apps/openmw-mp/Script/ScriptFunctions.hpp>
 
-#include <components/esm/creaturestats.hpp>
+#include <components/esm3/creaturestats.hpp>
 
 #include "Actors.hpp"
 
@@ -257,12 +258,12 @@ unsigned int ActorFunctions::GetActorSpellsActiveEffectCount(unsigned int actorI
 
 unsigned int ActorFunctions::GetActorSpellsActiveEffectId(unsigned int actorIndex, unsigned int spellIndex, unsigned int effectIndex) noexcept
 {
-    return readActorList->baseActors.at(actorIndex).spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mEffectId;
+    return Utils::getEffectIndex(readActorList->baseActors.at(actorIndex).spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mEffectId);
 }
 
 int ActorFunctions::GetActorSpellsActiveEffectArg(unsigned int actorIndex, unsigned int spellIndex, unsigned int effectIndex) noexcept
 {
-    return readActorList->baseActors.at(actorIndex).spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mArg;
+    return Utils::getActiveEffectArg(readActorList->baseActors.at(actorIndex).spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex));
 }
 
 double ActorFunctions::GetActorSpellsActiveEffectMagnitude(unsigned int actorIndex, unsigned int spellIndex, unsigned int effectIndex) noexcept
@@ -505,11 +506,11 @@ void ActorFunctions::AddActorSpellActive(const char* spellId, const char* displa
 void ActorFunctions::AddActorSpellActiveEffect(int effectId, double magnitude, double duration, double timeLeft, int arg) noexcept
 {
     ESM::ActiveEffect effect;
-    effect.mEffectId = effectId;
+    effect.mEffectId = Utils::getEffectId(effectId);
     effect.mMagnitude = magnitude;
     effect.mDuration = duration;
     effect.mTimeLeft = timeLeft;
-    effect.mArg = arg;
+    Utils::setActiveEffectArg(effect, arg);
 
     storedActorActiveEffects.push_back(effect);
 }

@@ -1,77 +1,55 @@
-# Comes form project edunetgames
-# - Try to find RakNet
-# Once done this will define
+# Locate RakNet (TES3MP uses the CrabNet fork: https://github.com/TES3MP/CrabNet)
 #
-#  RakNet_FOUND - system has RakNet
-#  RakNet_INCLUDES - the RakNet include directory
-#  RakNet_LIBRARY - Link these to use RakNet
+# Hints: RAKNET_ROOT (CMake or environment variable) pointing at an install prefix
+# that contains include/raknet/RakPeer.h and lib/RakNetLibStatic[d].lib
+#
+# Defines:
+#  RakNet_FOUND
+#  RakNet_INCLUDES  - the include directory (already pointing at include/raknet)
+#  RakNet_LIBRARY   - libraries to link
+#  RakNet::RakNet   - imported target
 
-FIND_LIBRARY (RakNet_LIBRARY_RELEASE NAMES RakNetLibStatic
-    PATHS
-    ENV LD_LIBRARY_PATH
-    ENV LIBRARY_PATH
-    /usr/lib64
-    /usr/lib
-    /usr/local/lib64
-    /usr/local/lib
-    /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
-    )
-	
-FIND_LIBRARY (RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd
-    PATHS
-    ENV LD_LIBRARY_PATH
-    ENV LIBRARY_PATH
-    /usr/lib64
-    /usr/lib
-    /usr/local/lib64
-    /usr/local/lib
-    /opt/local/lib
-    $ENV{RAKNET_ROOT}/lib
-    )	
-	
-	
+set(_RAKNET_HINTS ${RAKNET_ROOT} $ENV{RAKNET_ROOT})
 
-FIND_PATH (RakNet_INCLUDES raknet/RakPeer.h
-    ENV CPATH
-    /usr/include
-    /usr/local/include
-    /opt/local/include
-	$ENV{RAKNET_ROOT}/include
-    )
- 
-MESSAGE(STATUS ${RakNet_INCLUDES})
-MESSAGE(STATUS ${RakNet_LIBRARY_RELEASE})
- 
-IF(RakNet_INCLUDES AND RakNet_LIBRARY_RELEASE)
-    SET(RakNet_FOUND TRUE)
-ENDIF(RakNet_INCLUDES AND RakNet_LIBRARY_RELEASE)
+find_library(RakNet_LIBRARY_RELEASE NAMES RakNetLibStatic
+    HINTS ${_RAKNET_HINTS} PATH_SUFFIXES lib lib/Release
+    PATHS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH /usr/lib64 /usr/lib /usr/local/lib64 /usr/local/lib /opt/local/lib)
 
-IF(RakNet_FOUND)
-  SET(RakNet_INCLUDES ${RakNet_INCLUDES}/raknet)
-  
-  
-   IF (CMAKE_CONFIGURATION_TYPES OR CMAKE_BUILD_TYPE)
-        SET(RakNet_LIBRARY optimized ${RakNet_LIBRARY_RELEASE} debug ${RakNet_LIBRARY_DEBUG})
-		IF(WIN32)
-			SET(RakNet_LIBRARY optimized ${RakNet_LIBRARY_RELEASE} debug ${RakNet_LIBRARY_DEBUG} ws2_32.lib)
-		ENDIF(WIN32)
-   ELSE()
-        # if there are no configuration types and CMAKE_BUILD_TYPE has no value
-        # then just use the release libraries
-        SET(RakNet_LIBRARY ${RakNet_LIBRARY_RELEASE} )
-		IF(WIN32)
-			SET(RakNet_LIBRARY ${RakNet_LIBRARY_RELEASE} ws2_32.lib)
-		ENDIF(WIN32)
-   ENDIF()
-   
-  IF(NOT RakNet_FIND_QUIETLY)
-    MESSAGE(STATUS "Found RakNet_LIBRARY_RELEASE: ${RakNet_LIBRARY_RELEASE}")
-    MESSAGE(STATUS "Found RakNet_INCLUDES: ${RakNet_INCLUDES}")
-  ENDIF(NOT RakNet_FIND_QUIETLY)
-ELSE(RakNet_FOUND)
-  IF(RakNet_FIND_REQUIRED)
-    MESSAGE(FATAL_ERROR "Could not find RakNet")
-  ENDIF(RakNet_FIND_REQUIRED)
-ENDIF(RakNet_FOUND)
+find_library(RakNet_LIBRARY_DEBUG NAMES RakNetLibStaticd RakNetLibStaticD
+    HINTS ${_RAKNET_HINTS} PATH_SUFFIXES lib lib/Debug
+    PATHS ENV LD_LIBRARY_PATH ENV LIBRARY_PATH /usr/lib64 /usr/lib /usr/local/lib64 /usr/local/lib /opt/local/lib)
 
+find_path(RakNet_INCLUDE_ROOT raknet/RakPeer.h
+    HINTS ${_RAKNET_HINTS} PATH_SUFFIXES include
+    PATHS ENV CPATH /usr/include /usr/local/include /opt/local/include)
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(RakNet DEFAULT_MSG RakNet_LIBRARY_RELEASE RakNet_INCLUDE_ROOT)
+
+if(RakNet_FOUND)
+    set(RakNet_INCLUDES ${RakNet_INCLUDE_ROOT}/raknet)
+    if(NOT RakNet_LIBRARY_DEBUG)
+        set(RakNet_LIBRARY_DEBUG ${RakNet_LIBRARY_RELEASE})
+    endif()
+    set(RakNet_LIBRARY optimized ${RakNet_LIBRARY_RELEASE} debug ${RakNet_LIBRARY_DEBUG})
+    if(WIN32)
+        list(APPEND RakNet_LIBRARY ws2_32)
+    endif()
+
+    if(NOT TARGET RakNet::RakNet)
+        add_library(RakNet::RakNet STATIC IMPORTED)
+        set_target_properties(RakNet::RakNet PROPERTIES
+            IMPORTED_LOCATION "${RakNet_LIBRARY_RELEASE}"
+            IMPORTED_LOCATION_RELEASE "${RakNet_LIBRARY_RELEASE}"
+            IMPORTED_LOCATION_DEBUG "${RakNet_LIBRARY_DEBUG}"
+            IMPORTED_CONFIGURATIONS "RELEASE;DEBUG"
+            MAP_IMPORTED_CONFIG_RELWITHDEBINFO RELEASE
+            MAP_IMPORTED_CONFIG_MINSIZEREL RELEASE
+            INTERFACE_INCLUDE_DIRECTORIES "${RakNet_INCLUDES}")
+        if(WIN32)
+            set_property(TARGET RakNet::RakNet APPEND PROPERTY INTERFACE_LINK_LIBRARIES ws2_32)
+        endif()
+    endif()
+endif()
+
+mark_as_advanced(RakNet_LIBRARY_RELEASE RakNet_LIBRARY_DEBUG RakNet_INCLUDE_ROOT)

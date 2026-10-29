@@ -14,23 +14,14 @@ if(ENABLE_BREAKPAD)
     include_directories(${CMAKE_SOURCE_DIR}/extern/breakpad/src ${Breakpad_Headers})
 endif(ENABLE_BREAKPAD)
 
-option(BUILD_WITH_LUA "Enable Lua language" ON)
-if(BUILD_WITH_LUA)
-
-    find_package(LuaJit REQUIRED)
-
-    MESSAGE(STATUS "Found LuaJit_LIBRARIES: ${LuaJit_LIBRARIES}")
-    MESSAGE(STATUS "Found LuaJit_INCLUDE_DIRS: ${LuaJit_INCLUDE_DIRS}")
-
-    set(LuaScript_Sources
-            Script/LangLua/LangLua.cpp
-            Script/LangLua/LuaFunc.cpp)
-    set(LuaScript_Headers ${LUA_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/extern/LuaBridge ${CMAKE_SOURCE_DIR}/extern/LuaBridge/detail
-            Script/LangLua/LangLua.hpp)
-
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DENABLE_LUA")
-    include_directories(SYSTEM ${LuaJit_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/extern/LuaBridge)
-endif(BUILD_WITH_LUA)
+# The server always uses the same Lua runtime as the client (LuaJIT by default, see USE_LUAJIT)
+set(LuaScript_Sources
+        Script/LangLua/LangLua.cpp
+        Script/LangLua/LuaFunc.cpp)
+set(LuaScript_Headers
+        Script/LangLua/LangLua.hpp)
+add_compile_definitions(ENABLE_LUA)
+include_directories(SYSTEM ${LUA_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/extern/LuaBridge)
 
 include_directories(${CMAKE_SOURCE_DIR}/extern/PicoSHA2)
 
@@ -161,28 +152,20 @@ add_executable(tes3mp-server
 
 target_compile_options(tes3mp-server PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/permissive->)
 
-if (OPENMW_MP_BUILD)
-	target_compile_options(tes3mp-server PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/MP>)
+if (MSVC)
+    target_compile_options(tes3mp-server PRIVATE /MP /bigobj /wd4244 /wd4267 /wd4996)
 endif()
 
-set_target_properties(tes3mp-server PROPERTIES
-    CXX_STANDARD 17
-    CXX_STANDARD_REQUIRED YES
-    CXX_EXTENSIONS YES
-)
 
 if (UNIX)
 	target_compile_options(tes3mp-server PRIVATE -Wno-ignored-qualifiers)
 endif()
 
 target_link_libraries(tes3mp-server
-    #${Boost_SYSTEM_LIBRARY}
-    #${Boost_THREAD_LIBRARY}
-    #${Boost_FILESYSTEM_LIBRARY}
-    #${Boost_PROGRAM_OPTIONS_LIBRARY}
-    ${RakNet_LIBRARY}
+    openmw-mp
     components
-    ${LuaJit_LIBRARIES}
+    Boost::program_options
+    ${LUA_LIBRARIES}
     ${Breakpad_Library}
 )
 

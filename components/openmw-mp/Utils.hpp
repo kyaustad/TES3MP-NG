@@ -5,7 +5,15 @@
 #include <cstdint>
 #include <string>
 #include <sstream>
+#include <string_view>
 #include <vector>
+
+#include <components/esm/refid.hpp>
+
+namespace ESM
+{
+    struct ActiveEffect;
+}
 
 #if (defined __WIN32__ || defined _WIN32 || defined WIN32)
 #define __WINDOWS
@@ -18,6 +26,30 @@ int setenv(const char *name, const char *value, int overwrite);
 namespace Utils
 {
     std::string convertPath(std::string str);
+
+    /*
+        Conversions between ESM::RefId and the textual ids used on the network and by server scripts.
+        Plain string ids stay as they are; other RefId kinds use ESM::RefId::serializeText().
+    */
+    ESM::RefId toRefId(std::string_view text);
+    std::string refIdToString(const ESM::RefId &refId);
+    // The returned pointer stays valid forever for string ids and until the next call on this thread otherwise
+    const char *refIdToCString(const ESM::RefId &refId);
+
+    /*
+        TES3MP's server API exposes magic effects, skills and attributes by their integer index, while
+        OpenMW 0.49+ identifies them by RefId. An active effect's argument is the index of the affected
+        skill or attribute (depending on the effect), or -1.
+    */
+    int getEffectIndex(const ESM::RefId &effectId);
+    ESM::RefId getEffectId(int effectIndex);
+    int getActiveEffectArg(const ESM::ActiveEffect &effect);
+    void setActiveEffectArg(ESM::ActiveEffect &effect, int arg);
+    bool effectTargetsSkill(const ESM::RefId &effectId);
+    bool effectTargetsAttribute(const ESM::RefId &effectId);
+    // Skill and attribute names in their usual capitalization ("Block", "Strength"), or nullptr for bad indexes
+    const char *getSkillName(int skillIndex);
+    const char *getAttributeName(int attributeIndex);
     bool doesFileHaveChecksum(std::string filePath, unsigned int requiredChecksum);
 
     void timestamp();

@@ -1,7 +1,6 @@
 #ifndef OPENMW_LOG_HPP
 #define OPENMW_LOG_HPP
 
-#include <boost/filesystem.hpp>
 
 #ifdef __GNUC__
 #pragma GCC system_header

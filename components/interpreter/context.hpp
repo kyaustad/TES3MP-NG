@@ -13,6 +13,30 @@ namespace Interpreter
     public:
         virtual ~Context() {}
 
+        /*
+            Start of tes3mp addition
+
+            Keep an enumeration of the possible context types
+        */
+        enum CONTEXT_TYPE
+        {
+            CONSOLE = 0,
+            DIALOGUE = 1,
+            SCRIPT_LOCAL = 2,
+            SCRIPT_GLOBAL = 3
+        };
+
+        /*
+            Used for tracking and checking the type of this Context, as well as its current script
+        */
+        virtual unsigned short getContextType() const = 0;
+        virtual ESM::RefId getCurrentScriptName() const = 0;
+        virtual void trackContextType(unsigned short interpreterType) = 0;
+        virtual void trackCurrentScriptName(const ESM::RefId& name) = 0;
+        /*
+            End of tes3mp addition
+        */
+
         virtual ESM::RefId getTarget() const = 0;
 
         virtual int getLocalShort(int index) const = 0;

@@ -177,6 +177,17 @@ namespace ESM
         void restore(ESMReader& esm, size_t iCtx) const;
 
         std::string getDescription() const;
+
+        /*
+            Start of tes3mp addition
+
+            Return cell descriptions in OpenMW's previous way ("Balmora, Guild of Mages" or "-3, 6"), because they
+            are used as cell keys by TES3MP's server and its scripts
+        */
+        std::string getShortDescription() const;
+        /*
+            End of tes3mp addition
+        */
         ///< Return a short string describing the cell (mostly used for debugging/logging purpose)
 
         /* Get the next reference in this cell, if any. Returns false when

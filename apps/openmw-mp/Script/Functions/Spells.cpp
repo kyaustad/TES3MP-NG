@@ -1,6 +1,7 @@
 #include "Spells.hpp"
+#include <components/openmw-mp/Utils.hpp>
 
-#include <components/misc/stringops.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 
 #include <apps/openmw-mp/Script/ScriptFunctions.hpp>
@@ -96,7 +97,7 @@ void SpellFunctions::AddSpell(unsigned short pid, const char* spellId) noexcept
     GET_PLAYER(pid, player, );
 
     ESM::Spell spell;
-    spell.mId = spellId;
+    spell.mId = Utils::toRefId(spellId);
 
     player->spellbookChanges.spells.push_back(spell);
 }
@@ -123,11 +124,11 @@ void SpellFunctions::AddSpellActiveEffect(unsigned short pid, int effectId, doub
     GET_PLAYER(pid, player, );
 
     ESM::ActiveEffect effect;
-    effect.mEffectId = effectId;
+    effect.mEffectId = Utils::getEffectId(effectId);
     effect.mMagnitude = magnitude;
     effect.mDuration = duration;
     effect.mTimeLeft = timeLeft;
-    effect.mArg = arg;
+    Utils::setActiveEffectArg(effect, arg);
 
     storedActiveEffects.push_back(effect);
 }
@@ -153,7 +154,7 @@ const char *SpellFunctions::GetSpellId(unsigned short pid, unsigned int index) n
     if (index >= player->spellbookChanges.spells.size())
         return "invalid";
 
-    return player->spellbookChanges.spells.at(index).mId.c_str();
+    return Utils::refIdToCString(player->spellbookChanges.spells.at(index).mId);
 }
 
 const char* SpellFunctions::GetSpellsActiveId(unsigned short pid, unsigned int index) noexcept
@@ -208,7 +209,7 @@ unsigned int SpellFunctions::GetSpellsActiveEffectId(unsigned short pid, unsigne
     if (spellIndex >= player->spellsActiveChanges.activeSpells.size())
         return 0;
 
-    return player->spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mEffectId;
+    return Utils::getEffectIndex(player->spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mEffectId);
 }
 
 int SpellFunctions::GetSpellsActiveEffectArg(unsigned short pid, unsigned int spellIndex, unsigned int effectIndex) noexcept
@@ -219,7 +220,7 @@ int SpellFunctions::GetSpellsActiveEffectArg(unsigned short pid, unsigned int sp
     if (spellIndex >= player->spellsActiveChanges.activeSpells.size())
         return 0;
 
-    return player->spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex).mArg;
+    return Utils::getActiveEffectArg(player->spellsActiveChanges.activeSpells.at(spellIndex).params.mEffects.at(effectIndex));
 }
 
 double SpellFunctions::GetSpellsActiveEffectMagnitude(unsigned short pid, unsigned int spellIndex, unsigned int effectIndex) noexcept

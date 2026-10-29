@@ -36,6 +36,8 @@ namespace luabridge {
 // These are for Lua versions prior to 5.2.0.
 //
 #if LUA_VERSION_NUM < 502
+// tes3mp change: lua-compat-5.3 (bundled with sol2, which OpenMW components use) already provides these
+#ifndef COMPAT53_PREFIX
 inline int lua_absindex (lua_State* L, int idx)
 {
   if (idx > LUA_REGISTRYINDEX && idx < 0)
@@ -84,6 +86,8 @@ inline int lua_compare (lua_State* L, int idx1, int idx2, int op)
     return 0;
   };
 }
+
+#endif // COMPAT53_PREFIX
 
 inline int get_length (lua_State* L, int idx)
 {

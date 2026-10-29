@@ -1,3 +1,8 @@
+#include <components/esm/attr.hpp>
+#include <components/esm3/activespells.hpp>
+#include <components/esm3/loadmgef.hpp>
+#include <components/esm3/loadskil.hpp>
+
 #include "Utils.hpp"
 
 #include <cstdio>
@@ -8,7 +13,8 @@
 #include <iostream>
 #include <sstream>
 #include <boost/crc.hpp>
-#include <boost/filesystem/fstream.hpp>
+#include <filesystem>
+#include <fstream>
 #include <iomanip>
 
 #ifdef _WIN32
@@ -19,6 +25,91 @@ int setenv(const char *name, const char *value, int overwrite)
 }
 #endif
 
+
+ESM::RefId Utils::toRefId(std::string_view text)
+{
+    if (text.empty())
+        return ESM::RefId();
+    return ESM::RefId::deserializeText(text);
+}
+
+std::string Utils::refIdToString(const ESM::RefId &refId)
+{
+    if (refId.empty())
+        return std::string();
+    return refId.serializeText();
+}
+
+const char *Utils::refIdToCString(const ESM::RefId &refId)
+{
+    if (refId.empty())
+        return "";
+    if (refId.is<ESM::StringRefId>())
+        return refId.getRefIdString().c_str(); // String ids are interned and never freed
+
+    thread_local std::string buffers[8];
+    thread_local unsigned int next = 0;
+    std::string &buffer = buffers[next++ % 8];
+    buffer = refId.serializeText();
+    return buffer.c_str();
+}
+
+int Utils::getEffectIndex(const ESM::RefId &effectId)
+{
+    return ESM::MagicEffect::refIdToIndex(effectId);
+}
+
+ESM::RefId Utils::getEffectId(int effectIndex)
+{
+    return ESM::MagicEffect::indexToRefId(effectIndex);
+}
+
+bool Utils::effectTargetsSkill(const ESM::RefId &effectId)
+{
+    return effectId == ESM::MagicEffect::DrainSkill || effectId == ESM::MagicEffect::DamageSkill
+        || effectId == ESM::MagicEffect::RestoreSkill || effectId == ESM::MagicEffect::FortifySkill
+        || effectId == ESM::MagicEffect::AbsorbSkill;
+}
+
+bool Utils::effectTargetsAttribute(const ESM::RefId &effectId)
+{
+    return effectId == ESM::MagicEffect::DrainAttribute || effectId == ESM::MagicEffect::DamageAttribute
+        || effectId == ESM::MagicEffect::RestoreAttribute || effectId == ESM::MagicEffect::FortifyAttribute
+        || effectId == ESM::MagicEffect::AbsorbAttribute;
+}
+
+int Utils::getActiveEffectArg(const ESM::ActiveEffect &effect)
+{
+    const ESM::RefId *arg = std::get_if<ESM::RefId>(&effect.mArg);
+    if (arg == nullptr || arg->empty())
+        return -1;
+    int index = ESM::Skill::refIdToIndex(*arg);
+    if (index >= 0)
+        return index;
+    return ESM::Attribute::refIdToIndex(*arg);
+}
+
+void Utils::setActiveEffectArg(ESM::ActiveEffect &effect, int arg)
+{
+    if (effectTargetsSkill(effect.mEffectId))
+        effect.mArg = ESM::Skill::indexToRefId(arg);
+    else if (effectTargetsAttribute(effect.mEffectId))
+        effect.mArg = ESM::Attribute::indexToRefId(arg);
+    else
+        effect.mArg = ESM::RefId();
+}
+
+const char *Utils::getSkillName(int skillIndex)
+{
+    ESM::RefId id = ESM::Skill::indexToRefId(skillIndex);
+    return id.empty() ? nullptr : id.getRefIdString().c_str();
+}
+
+const char *Utils::getAttributeName(int attributeIndex)
+{
+    ESM::RefId id = ESM::Attribute::indexToRefId(attributeIndex);
+    return id.empty() ? nullptr : id.getRefIdString().c_str();
+}
 
 std::string Utils::convertPath(std::string str)
 {
@@ -159,7 +250,7 @@ long int Utils::getFileLength(const char* file)
 unsigned int ::Utils::crc32Checksum(const std::string &file)
 {
     boost::crc_32_type  crc32;
-    boost::filesystem::ifstream  ifs(file, std::ios_base::binary);
+    std::ifstream ifs(std::filesystem::u8path(file), std::ios_base::binary);
     if (ifs)
     {
         do

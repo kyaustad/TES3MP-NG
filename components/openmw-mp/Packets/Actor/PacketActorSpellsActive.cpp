@@ -67,11 +67,7 @@ void PacketActorSpellsActive::Actor(BaseActor &actor, bool send)
 
         for (auto&& effect : activeSpell.params.mEffects)
         {
-            RW(effect.mEffectId, send);
-            RW(effect.mArg, send);
-            RW(effect.mMagnitude, send);
-            RW(effect.mDuration, send);
-            RW(effect.mTimeLeft, send);
+            RWActiveEffect(effect, send);
         }
     }
 }

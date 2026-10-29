@@ -1,6 +1,6 @@
 #include "Factions.hpp"
 
-#include <components/misc/stringops.hpp>
+#include <components/misc/strings/algorithm.hpp>
 #include <components/openmw-mp/NetworkMessages.hpp>
 
 #include <apps/openmw-mp/Script/ScriptFunctions.hpp>

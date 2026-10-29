@@ -1,3 +1,4 @@
+#include <utility>
 #include <iostream>
 #include "LangLua.hpp"
 #include <Script/Script.hpp>
@@ -115,56 +116,12 @@ template<> struct LuaFunctionDefinition<2> { static constexpr LuaFunctionData Fu
 template<> struct LuaFunctionDefinition<3> { static constexpr LuaFunctionData FunctionInfo{"CallPublic", LangLua::CallPublic}; };
 
 
-#ifdef __arm__
-template<std::size_t... Is>
-struct indices {};
-template<std::size_t N, std::size_t... Is>
-struct build_indices : build_indices<N-1, N-1, Is...> {};
-template<std::size_t... Is>
-struct build_indices<0, Is...> : indices<Is...> {};
-template<std::size_t N>
-using IndicesFor = build_indices<N>;
-
+// tes3mp change: expand the function table with an index sequence instead of recursive templates, which exceed
+// compiler instantiation depth limits now that there are more than a thousand script functions
 template<size_t... Indices>
-LuaFuctionData *functions(indices<Indices...>)
+LuaFunctionData *GetLuaFunctions(std::index_sequence<Indices...>)
 {
-
-    static LuaFuctionData functions_[sizeof...(Indices)]{
-            F_<Indices>::F...
-    };
-
-    static_assert(
-            sizeof(functions_) / sizeof(functions_[0]) ==
-            sizeof(ScriptFunctions::functions) / sizeof(ScriptFunctions::functions[0]),
-            "Not all functions have been mapped to Lua");
-
-    return functions_;
-}
-#else
-template<unsigned int I>
-struct LuaFunctionInitializer
-{
-    constexpr static void Initialize(LuaFunctionData *functions_)
-    {
-        functions_[I] = LuaFunctionDefinition<I>::FunctionInfo;
-        LuaFunctionInitializer<I - 1>::Initialize(functions_);
-    }
-};
-
-template<>
-struct LuaFunctionInitializer<0>
-{
-    constexpr static void Initialize(LuaFunctionData *functions_)
-    {
-        functions_[0] = LuaFunctionDefinition<0>::FunctionInfo;
-    }
-};
-
-template<size_t LastI>
-LuaFunctionData *GetLuaFunctions()
-{
-    static LuaFunctionData functions_[LastI];
-    LuaFunctionInitializer<LastI - 1>::Initialize(functions_);
+    static LuaFunctionData functions_[sizeof...(Indices)]{ LuaFunctionDefinition<Indices>::FunctionInfo... };
 
     static_assert(
         sizeof(functions_) / sizeof(functions_[0]) ==
@@ -173,7 +130,6 @@ LuaFunctionData *GetLuaFunctions()
 
     return functions_;
 }
-#endif
 
 void LangLua::LoadProgram(const char *filename)
 {
@@ -185,11 +141,7 @@ void LangLua::LoadProgram(const char *filename)
 
     constexpr auto functions_n = sizeof(ScriptFunctions::functions) / sizeof(ScriptFunctions::functions[0]);
 
-#ifdef __arm__
-    LuaFunctionData *functions_ = GetLuaFunctions(IndicesFor<functions_n>{});
-#else
-    LuaFunctionData *functions_ = GetLuaFunctions<sizeof(ScriptFunctions::functions) / sizeof(ScriptFunctions::functions[0])>();
-#endif
+    LuaFunctionData *functions_ = GetLuaFunctions(std::make_index_sequence<functions_n>{});
 luabridge::Namespace tes3mp = luabridge::getGlobalNamespace(lua).beginNamespace("tes3mp");
 
 for (unsigned i = 0; i < functions_n; i++)

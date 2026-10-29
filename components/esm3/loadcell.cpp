@@ -233,6 +233,22 @@ namespace ESM
         esm.restoreContext(mContextList.at(iCtx));
     }
 
+    /*
+        Start of tes3mp addition
+
+        Return cell descriptions in OpenMW's previous way, because they are widely used in TES3MP
+    */
+    std::string Cell::getShortDescription() const
+    {
+        if (mData.mFlags & Interior)
+            return mName;
+
+        return std::to_string(mData.mX) + ", " + std::to_string(mData.mY);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     std::string Cell::getDescription() const
     {
         const auto& nameString = mName;
