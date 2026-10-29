@@ -60,6 +60,17 @@
 #include "../mwphysics/physicssystem.hpp"
 #include "../mwphysics/projectile.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     ESM::EffectList getMagicBoltData(std::vector<ESM::RefId>& projectileIDs, std::set<ESM::RefId>& sounds, float& speed,
@@ -309,6 +320,26 @@ namespace MWWorld
                 * osg::Quat(caster.getRefData().getPosition().rot[2], osg::Vec3f(0, 0, -1));
         else
             orient.makeRotate(osg::Vec3f(0, 1, 0), osg::Vec3f(fallbackDirection));
+
+        /*
+            Start of tes3mp addition
+
+            If the actor casting this is a LocalPlayer or LocalActor, track their projectile origin so it can be sent
+            in the next cast packet; otherwise, use the projectileOrigin of a DedicatedPlayer or DedicatedActor
+        */
+        if (mwmp::Main::isInitialized() && caster.getClass().isActor())
+        {
+            if (mwmp::Cast* localCast = MechanicsHelper::getLocalCast(caster))
+            {
+                localCast->hasProjectile = true;
+                MechanicsHelper::setProjectileOrigin(localCast->projectileOrigin, pos, orient);
+            }
+            else if (mwmp::Cast* dedicatedCast = MechanicsHelper::getDedicatedCast(caster))
+                MechanicsHelper::getProjectileOrigin(dedicatedCast->projectileOrigin, pos, orient);
+        }
+        /*
+            End of tes3mp addition
+        */
 
         MagicBoltState state;
         state.mSpellId = spellId;

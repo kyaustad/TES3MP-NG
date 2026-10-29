@@ -19,6 +19,17 @@
 #include "animation.hpp"
 #include "rotatecontroller.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWRender
 {
 
@@ -118,6 +129,30 @@ namespace MWRender
 
         MWMechanics::applyFatigueLoss(actor, *weapon, attackStrength);
 
+        /*
+            Start of tes3mp addition
+
+            If this is an attack by a LocalPlayer or LocalActor, record its attackStrength and rangedWeaponId and
+            prepare an attack packet for sending. Unlike melee attacks, ranged attacks require the weapon and ammo IDs
+            to be recorded because players and actors can have multiple projectiles in the air at the same time.
+            If it's an attack by a DedicatedPlayer or DedicatedActor, apply the attackStrength from their latest
+            attack packet
+        */
+        mwmp::Attack* localAttack = mwmp::Main::isInitialized() ? MechanicsHelper::getLocalAttack(actor) : nullptr;
+        if (localAttack)
+        {
+            localAttack->attackStrength = attackStrength;
+            localAttack->rangedWeaponId = weapon->getCellRef().getRefId().serializeText();
+            localAttack->rangedAmmoId.clear();
+            localAttack->shouldSend = true;
+        }
+        else if (mwmp::Attack* dedicatedAttack
+                 = mwmp::Main::isInitialized() ? MechanicsHelper::getDedicatedAttack(actor) : nullptr)
+            attackStrength = dedicatedAttack->attackStrength;
+        /*
+            End of tes3mp addition
+        */
+
         if (MWMechanics::getWeaponType(weapon->get<ESM::Weapon>()->mBase->mData.mType)->mWeaponClass
             == ESM::WeaponType::Thrown)
         {
@@ -129,6 +164,18 @@ namespace MWRender
             if (nodepaths.empty())
                 return;
             osg::Vec3f launchPos = osg::computeLocalToWorld(nodepaths[0]).getTrans();
+
+            /*
+                Start of tes3mp addition
+
+                If the actor shooting this is a LocalPlayer or LocalActor, track their projectile origin so it can be
+                sent in the next attack packet; otherwise, use the projectileOrigin of a DedicatedPlayer or
+                DedicatedActor
+            */
+            MechanicsHelper::syncProjectileOrigin(actor, localAttack, launchPos, orient);
+            /*
+                End of tes3mp addition
+            */
 
             float fThrownWeaponMinSpeed = gmst.find("fThrownWeaponMinSpeed")->mValue.getFloat();
             float fThrownWeaponMaxSpeed = gmst.find("fThrownWeaponMaxSpeed")->mValue.getFloat();
@@ -157,6 +204,22 @@ namespace MWRender
             if (nodepaths.empty())
                 return;
             osg::Vec3f launchPos = osg::computeLocalToWorld(nodepaths[0]).getTrans();
+
+            // tes3mp addition: if this is a local attack, record the rangedAmmoId used for it
+            if (localAttack)
+                localAttack->rangedAmmoId = ammo->getCellRef().getRefId().serializeText();
+
+            /*
+                Start of tes3mp addition
+
+                If the actor shooting this is a LocalPlayer or LocalActor, track their projectile origin so it can be
+                sent in the next attack packet; otherwise, use the projectileOrigin of a DedicatedPlayer or
+                DedicatedActor
+            */
+            MechanicsHelper::syncProjectileOrigin(actor, localAttack, launchPos, orient);
+            /*
+                End of tes3mp addition
+            */
 
             float fProjectileMinSpeed = gmst.find("fProjectileMinSpeed")->mValue.getFloat();
             float fProjectileMaxSpeed = gmst.find("fProjectileMaxSpeed")->mValue.getFloat();

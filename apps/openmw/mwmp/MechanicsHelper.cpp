@@ -129,6 +129,31 @@ void MechanicsHelper::finishLocalHit(mwmp::Attack* attack, bool success, float d
     attack->shouldSend = true;
 }
 
+void MechanicsHelper::setProjectileOrigin(mwmp::ProjectileOrigin& origin, const osg::Vec3f& pos, const osg::Quat& orient)
+{
+    for (int i = 0; i < 3; ++i)
+        origin.origin[i] = pos[i];
+    for (int i = 0; i < 4; ++i)
+        origin.orientation[i] = static_cast<float>(orient[i]);
+}
+
+void MechanicsHelper::getProjectileOrigin(const mwmp::ProjectileOrigin& origin, osg::Vec3f& pos, osg::Quat& orient)
+{
+    pos = osg::Vec3f(origin.origin[0], origin.origin[1], origin.origin[2]);
+    orient = osg::Quat(origin.orientation[0], origin.orientation[1], origin.orientation[2], origin.orientation[3]);
+}
+
+void MechanicsHelper::syncProjectileOrigin(
+    const MWWorld::Ptr& actor, mwmp::Attack* localAttack, osg::Vec3f& pos, osg::Quat& orient)
+{
+    if (!mwmp::Main::isInitialized())
+        return;
+    if (localAttack)
+        setProjectileOrigin(localAttack->projectileOrigin, pos, orient);
+    else if (mwmp::Attack* dedicatedAttack = getDedicatedAttack(actor))
+        getProjectileOrigin(dedicatedAttack->projectileOrigin, pos, orient);
+}
+
 void MechanicsHelper::sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel)
 {
     mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();

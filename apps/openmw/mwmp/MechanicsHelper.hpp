@@ -54,6 +54,11 @@ namespace MechanicsHelper
     // Marks a local hit as finished, so it gets sent
     void finishLocalHit(mwmp::Attack* attack, bool success, float damage);
 
+    // Projectile origins of attacks and casts
+    void setProjectileOrigin(mwmp::ProjectileOrigin& origin, const osg::Vec3f& pos, const osg::Quat& orient);
+    void getProjectileOrigin(const mwmp::ProjectileOrigin& origin, osg::Vec3f& pos, osg::Quat& orient);
+    void syncProjectileOrigin(const MWWorld::Ptr& actor, mwmp::Attack* localAttack, osg::Vec3f& pos, osg::Quat& orient);
+
     bool getSpellSuccess(const ESM::RefId& spellId, const MWWorld::Ptr& caster);
 
     void processAttack(mwmp::Attack attack, const MWWorld::Ptr& attacker);

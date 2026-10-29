@@ -28,6 +28,18 @@
 #include "steering.hpp"
 #include "weapontype.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwbase/windowmanager.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -183,6 +195,23 @@ namespace MWMechanics
         MWMechanics::CreatureStats& stats = actorClass.getCreatureStats(actor);
         if (stats.isParalyzed() || stats.getKnockedDown())
             return false;
+
+        /*
+            Start of tes3mp addition
+
+            Because multiplayer doesn't pause the world during dialogue, disallow attacks on
+            a player engaged in dialogue
+        */
+        if (mwmp::Main::isInitialized() && target == MWBase::Environment::get().getWorld()->getPlayerPtr()
+            && MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Dialogue))
+        {
+            storage.stopAttack();
+            stats.setAttackingOrSpell(false);
+            return false;
+        }
+        /*
+            End of tes3mp addition
+        */
 
         bool forceFlee = false;
         if (!canFight(actor, target))
@@ -692,6 +721,28 @@ namespace MWMechanics
                 = !characterController.readyToPrepareAttack() && attackStrength < mStrength && attackStrength != -1.f;
         }
         actor.getClass().getCreatureStats(actor).setAttackingOrSpell(mAttack);
+
+        /*
+            Start of tes3mp addition
+
+            Record that this local actor is starting or stopping an attack so that a packet will be sent about it
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            mwmp::Attack* localAttack = MechanicsHelper::getLocalAttack(actor);
+            if (localAttack && localAttack->pressed != mAttack)
+            {
+                MechanicsHelper::resetAttack(localAttack);
+                localAttack->type
+                    = MechanicsHelper::isUsingRangedWeapon(actor) ? mwmp::Attack::RANGED : mwmp::Attack::MELEE;
+                localAttack->attackAnimation = std::string(actor.getClass().getCreatureStats(actor).getAttackType());
+                localAttack->pressed = mAttack;
+                localAttack->shouldSend = true;
+            }
+        }
+        /*
+            End of tes3mp addition
+        */
     }
 
     void AiCombatStorage::stopAttack()
