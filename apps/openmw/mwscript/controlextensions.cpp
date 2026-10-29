@@ -19,6 +19,17 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Control
@@ -63,6 +74,10 @@ namespace MWScript
             void execute(Interpreter::Runtime& runtime) override
             {
                 bool enabled = MWBase::Environment::get().getWorld()->toggleCollisionMode();
+
+                // tes3mp addition: update the LocalPlayer's tclState so it gets sent to the server
+                if (mwmp::Main::isInitialized())
+                    mwmp::Main::get().getLocalPlayer()->hasTcl = !enabled;
 
                 runtime.getContext().report(enabled ? "Collision -> On" : "Collision -> Off");
             }

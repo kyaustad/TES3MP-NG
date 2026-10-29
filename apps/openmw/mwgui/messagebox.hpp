@@ -25,6 +25,9 @@ namespace MWGui
         void onFrame(float frameDuration);
         void createMessageBox(std::string_view message, bool stat = false);
         void removeStaticMessageBox();
+        // tes3mp addition: marks the current interactive message box as created by the server
+        void setServerOrigin();
+
         bool createInteractiveMessageBox(std::string_view message, const std::vector<std::string>& buttons,
             bool immediate = false, int defaultFocus = -1);
         bool isInteractiveMessageBox();
@@ -102,6 +105,7 @@ namespace MWGui
         bool exit() override { return false; }
 
         bool mMarkedToDelete;
+        bool mHasServerOrigin = false; // tes3mp addition: created by the server, which gets the pressed button
 
         bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
 

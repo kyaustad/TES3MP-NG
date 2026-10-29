@@ -778,6 +778,14 @@ namespace MWGui
         popGuiMode();
     }
 
+    // tes3mp addition
+    void WindowManager::serverMessageBox(std::string_view message, const std::vector<std::string>& buttons)
+    {
+        mMessageBoxManager->createInteractiveMessageBox(message, buttons, false, -1);
+        mMessageBoxManager->setServerOrigin();
+        updateVisible();
+    }
+
     void WindowManager::interactiveMessageBox(
         std::string_view message, const std::vector<std::string>& buttons, bool block, int defaultFocus)
     {

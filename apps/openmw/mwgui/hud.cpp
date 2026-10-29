@@ -30,6 +30,20 @@
 #include "spellicons.hpp"
 #include "worlditemmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmechanics/actorutil.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     HUD::HUD(CustomMarkerCollection& customMarkers, DragAndDrop* dragAndDrop, MWRender::LocalMap* localMapRender)
@@ -204,7 +218,24 @@ namespace MWGui
             else // if ((mode == GM_Container) || (mode == GM_Inventory))
             {
                 // pick up object
-                if (!object.isEmpty())
+                /*
+                    Start of tes3mp change (major)
+
+                    Disable unilateral picking up of objects on this client. Instead, send an ID_OBJECT_ACTIVATE
+                    packet, and expect the server's reply to our packet to cause the actual picking up of items
+                */
+                if (!object.isEmpty() && mwmp::Main::isInitialized())
+                {
+                    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                    objectList->reset();
+                    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                    objectList->addObjectActivate(object, MWMechanics::getPlayer());
+                    objectList->sendObjectActivate();
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+                else if (!object.isEmpty())
                     winMgr->getInventoryWindow()->pickUpObject(object);
             }
         }

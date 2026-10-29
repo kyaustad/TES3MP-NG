@@ -295,6 +295,9 @@ namespace MWBase
             bool block = false, int defaultFocus = -1)
             = 0;
 
+        // tes3mp addition: an interactive message box whose pressed button is sent to the server
+        virtual void serverMessageBox(std::string_view message, const std::vector<std::string>& buttons) = 0;
+
         /// returns the index of the pressed button or -1 if no button was pressed
         /// (->MessageBoxmanager->InteractiveMessageBox)
         virtual int readPressedButton() = 0;

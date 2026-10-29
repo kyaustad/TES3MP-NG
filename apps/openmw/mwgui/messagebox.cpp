@@ -14,6 +14,17 @@
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/GUIController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
 
@@ -87,6 +98,11 @@ namespace MWGui
         if (mInterMessageBoxe != nullptr && mInterMessageBoxe->mMarkedToDelete)
         {
             mLastButtonPressed = mInterMessageBoxe->readPressedButton();
+
+            // tes3mp addition: if this message box was created by the server, send the input back to it
+            if (mInterMessageBoxe->mHasServerOrigin && mwmp::Main::isInitialized())
+                mwmp::Main::get().getGUIController()->processCustomMessageBoxInput(mLastButtonPressed);
+
             mInterMessageBoxe->setVisible(false);
             mInterMessageBoxe.reset();
             MWBase::Environment::get().getInputManager()->changeInputMode(
@@ -141,6 +157,13 @@ namespace MWGui
         mLastButtonPressed = -1;
 
         return true;
+    }
+
+    // tes3mp addition
+    void MessageBoxManager::setServerOrigin()
+    {
+        if (mInterMessageBoxe != nullptr)
+            mInterMessageBoxe->mHasServerOrigin = true;
     }
 
     bool MessageBoxManager::isInteractiveMessageBox()

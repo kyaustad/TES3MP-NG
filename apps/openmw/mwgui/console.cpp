@@ -32,6 +32,19 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/esmstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     bool isWhitespace(MyGUI::UString::code_point c)
@@ -250,6 +263,31 @@ namespace MWGui
             try
             {
                 ConsoleInterpreterContext interpreterContext(*this, mPtr);
+
+                /*
+                    Start of tes3mp addition
+
+                    Send an ID_CONSOLE_COMMAND packet to the server with the command and target used, and mark this
+                    InterpreterContext as having a CONSOLE context, so that packets sent by the Interpreter can have
+                    their origin determined by serverside scripts
+                */
+                interpreterContext.trackContextType(Interpreter::Context::CONSOLE);
+                if (mwmp::Main::isInitialized())
+                {
+                    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                    objectList->reset();
+                    objectList->packetOrigin = mwmp::CLIENT_CONSOLE;
+                    objectList->consoleCommand = command;
+                    if (mPtr.isEmpty() || !mPtr.isInCell() || mPtr.getCell()->getCell()->isEsm4())
+                        objectList->cell = mwmp::Main::get().getLocalPlayer()->cell;
+                    else
+                        objectList->addObjectGeneric(mPtr);
+                    objectList->sendConsoleCommand();
+                }
+                /*
+                    End of tes3mp addition
+                */
+
                 Interpreter::Interpreter interpreter;
                 MWScript::installOpcodes(interpreter, mConsoleOnlyScripts);
                 const Interpreter::Program program = output.getProgram();
