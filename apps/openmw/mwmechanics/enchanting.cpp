@@ -18,6 +18,21 @@
 #include "spellutil.hpp"
 #include "weapontype.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/Worldstate.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
     Enchanting::Enchanting()
@@ -101,6 +116,27 @@ namespace MWMechanics
         const ESM::Enchantment* enchantmentPtr = getRecord(enchantment);
         if (enchantmentPtr == nullptr)
             enchantmentPtr = MWBase::Environment::get().getESMStore()->insert(enchantment);
+
+        /*
+            Start of tes3mp change (major)
+
+            Send the enchantment's record to the server, and don't add the new item to the player's inventory:
+            applyEnchantment() sends the new item's record, and the server sends back the player's inventory with
+            the new item included
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            mwmp::Main::get().getNetworking()->getWorldstate()->sendEnchantmentRecord(enchantmentPtr);
+            store.remove(mOldItemPtr, count);
+            if (!mSelfEnchanting)
+                payForEnchantment(count);
+            mwmp::Main::get().getLocalPlayer()->storeLastEnchantmentQuantity(count);
+            mOldItemPtr.getClass().applyEnchantment(mOldItemPtr, enchantmentPtr->mId, getGemCharge(), mNewItemName);
+            return true;
+        }
+        /*
+            End of tes3mp change (major)
+        */
 
         // Apply the enchantment
         const ESM::RefId& newItemId

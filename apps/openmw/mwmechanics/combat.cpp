@@ -33,6 +33,17 @@
 #include "spellcasting.hpp"
 #include "spellresistance.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -229,6 +240,20 @@ namespace MWMechanics
 
         bool validVictim = !victim.isEmpty() && victim.getClass().isActor();
 
+        /*
+            Start of tes3mp addition
+
+            Ignore projectiles fired by DedicatedPlayers and DedicatedActors, whose hits arrive in Attack packets.
+            If fired by LocalPlayers and LocalActors, get the associated LocalAttack and mark it as a ranged hit
+        */
+        if (MechanicsHelper::isNetworkDriven(attacker))
+            return;
+        mwmp::Attack* localAttack
+            = MechanicsHelper::beginLocalHit(attacker, validVictim ? victim : MWWorld::Ptr(), hitPosition, true);
+        /*
+            End of tes3mp addition
+        */
+
         ESM::RefId weaponSkill = ESM::Skill::Marksman;
         if (!weapon.isEmpty())
             weaponSkill = weapon.getClass().getEquipmentSkill(weapon);
@@ -243,6 +268,9 @@ namespace MWMechanics
 
             if (Misc::Rng::roll0to99(world->getPrng()) >= getHitChance(attacker, victim, skillValue))
             {
+                // tes3mp addition: mark this as a failed LocalAttack now that the hit roll has failed
+                MechanicsHelper::finishLocalHit(localAttack, false, 0.f);
+
                 MWBase::Environment::get().getLuaManager()->onHit(attacker, victim, weapon, projectile, 0,
                     attackStrength, damage, false, hitPosition, false, MWMechanics::DamageSourceType::Ranged);
                 MWMechanics::reduceWeaponCondition(damage, false, weapon, attacker);
@@ -290,6 +318,21 @@ namespace MWMechanics
 
         // Apply "On hit" effect of the projectile
         bool appliedEnchantment = applyOnStrikeEnchantment(attacker, victim, projectile, hitPosition, true);
+
+        /*
+            Start of tes3mp addition
+
+            Track whether the strike enchantment is successful for the projectile, and send the attack, including
+            local attacks that had no victim
+        */
+        if (localAttack)
+        {
+            localAttack->applyAmmoEnchantment = appliedEnchantment;
+            MechanicsHelper::finishLocalHit(localAttack, validVictim, damage);
+        }
+        /*
+            End of tes3mp addition
+        */
 
         if (validVictim)
         {

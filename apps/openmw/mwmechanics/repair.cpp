@@ -14,6 +14,20 @@
 #include "actorutil.hpp"
 #include "creaturestats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
 
@@ -59,7 +73,25 @@ namespace MWMechanics
             // repair by 'y' points
             int charge = itemToRepair.getClass().getItemHealth(itemToRepair);
             charge = std::min(charge + y, itemToRepair.getClass().getItemMaxHealth(itemToRepair));
+
+            /*
+                Start of tes3mp change (minor)
+
+                Send PlayerInventory packets that replace the original item with the new one
+            */
+            mwmp::Item removedItem;
+            if (mwmp::Main::isInitialized())
+                removedItem = MechanicsHelper::getItem(itemToRepair, 1);
             itemToRepair.getCellRef().setCharge(charge);
+            if (mwmp::Main::isInitialized())
+            {
+                mwmp::LocalPlayer* localPlayer = mwmp::Main::get().getLocalPlayer();
+                localPlayer->sendItemChange(MechanicsHelper::getItem(itemToRepair, 1), mwmp::InventoryChanges::ADD);
+                localPlayer->sendItemChange(removedItem, mwmp::InventoryChanges::REMOVE);
+            }
+            /*
+                End of tes3mp change (minor)
+            */
 
             // attempt to re-stack item, in case it was fully repaired
             MWWorld::ContainerStoreIterator stacked = player.getClass().getContainerStore(player).restack(itemToRepair);

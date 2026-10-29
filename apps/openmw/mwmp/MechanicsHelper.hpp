@@ -47,6 +47,13 @@ namespace MechanicsHelper
     // Asks the server to lock (lockLevel > 0) or unlock (0) an object
     void sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel);
 
+    // Hits by the LocalPlayer or LocalActors: the Attack being prepared for sending, with its target and hit position
+    // recorded, or nullptr if the attacker isn't local
+    mwmp::Attack* beginLocalHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition,
+        bool ranged);
+    // Marks a local hit as finished, so it gets sent
+    void finishLocalHit(mwmp::Attack* attack, bool success, float damage);
+
     bool getSpellSuccess(const ESM::RefId& spellId, const MWWorld::Ptr& caster);
 
     void processAttack(mwmp::Attack attack, const MWWorld::Ptr& attacker);

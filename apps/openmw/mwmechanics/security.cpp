@@ -13,6 +13,20 @@
 #include "creaturestats.hpp"
 #include "spellutil.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
 
@@ -62,7 +76,19 @@ namespace MWMechanics
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             if (Misc::Rng::roll0to99(prng) <= x)
             {
-                lock.getCellRef().unlock();
+                /*
+                    Start of tes3mp change (major)
+
+                    Disable unilateral unlocking on this client and send an ID_OBJECT_LOCK packet instead;
+                    the server's reply unlocks it
+                */
+                if (mwmp::Main::isInitialized())
+                    MechanicsHelper::sendObjectLock(lock, 0);
+                else
+                    lock.getCellRef().unlock();
+                /*
+                    End of tes3mp change (major)
+                */
                 resultMessage = "#{sLockSuccess}";
                 resultSound = "Open Lock";
                 mActor.getClass().skillUsageSucceeded(mActor, ESM::Skill::Security, ESM::Skill::Security_PickLock);
@@ -112,7 +138,25 @@ namespace MWMechanics
             auto& prng = MWBase::Environment::get().getWorld()->getPrng();
             if (Misc::Rng::roll0to99(prng) <= x)
             {
-                trap.getCellRef().setTrap(ESM::RefId());
+                /*
+                    Start of tes3mp change (major)
+
+                    Disable unilateral trap disarming on this client and send an ID_OBJECT_TRAP packet instead;
+                    the server's reply disarms it
+                */
+                if (mwmp::Main::isInitialized())
+                {
+                    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                    objectList->reset();
+                    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                    objectList->addObjectTrap(trap, trap.getRefData().getPosition(), true);
+                    objectList->sendObjectTrap();
+                }
+                else
+                    trap.getCellRef().setTrap(ESM::RefId());
+                /*
+                    End of tes3mp change (major)
+                */
 
                 resultSound = "Disarm Trap";
                 resultMessage = "#{sTrapSuccess}";

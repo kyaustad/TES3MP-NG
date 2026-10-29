@@ -96,6 +96,39 @@ bool MechanicsHelper::isNetworkDriven(const MWWorld::Ptr& ptr)
     return mwmp::PlayerList::isDedicatedPlayer(ptr) || mwmp::Main::get().getCellController()->isDedicatedActor(ptr);
 }
 
+mwmp::Attack* MechanicsHelper::beginLocalHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim,
+    const osg::Vec3f& hitPosition, bool ranged)
+{
+    if (!mwmp::Main::isInitialized())
+        return nullptr;
+
+    mwmp::Attack* localAttack = getLocalAttack(attacker);
+    if (!localAttack)
+        return nullptr;
+
+    if (ranged)
+        localAttack->type = mwmp::Attack::RANGED;
+    localAttack->isHit = true;
+    localAttack->success = true;
+    localAttack->hitPosition = getPositionFromVector(hitPosition);
+    if (!victim.isEmpty())
+        assignAttackTarget(localAttack, victim);
+    return localAttack;
+}
+
+void MechanicsHelper::finishLocalHit(mwmp::Attack* attack, bool success, float damage)
+{
+    if (!attack)
+        return;
+
+    attack->pressed = false;
+    attack->success = success;
+    attack->damage = success ? damage : 0.f;
+    // Knockdowns are decided by the victim's client, where OpenMW's Lua combat scripts handle the hit
+    attack->knockdown = false;
+    attack->shouldSend = true;
+}
+
 void MechanicsHelper::sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel)
 {
     mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();

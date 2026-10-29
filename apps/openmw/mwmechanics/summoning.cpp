@@ -20,6 +20,24 @@
 #include "aifollow.hpp"
 #include "creaturestats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <components/openmw-mp/Utils.hpp>
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/CellController.hpp"
+#include "activespells.hpp"
+#include "creaturestats.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
 
@@ -116,6 +134,47 @@ namespace MWMechanics
                 auto world = MWBase::Environment::get().getWorld();
                 MWWorld::ManualRef ref(world->getStore(), creatureID, 1);
                 MWWorld::Ptr placed = world->safePlaceObject(ref.getPtr(), summoner, summoner.getCell(), 0, 120.f);
+
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_SPAWN packet every time a creature is summoned in a cell that we hold
+                    authority over, then delete the creature and wait for the server to send it back with a
+                    unique mpNum of its own; summons of dedicated players and actors arrive the same way
+                */
+                if (mwmp::Main::isInitialized())
+                {
+                    if (!MechanicsHelper::isNetworkDriven(summoner) && placed.isInCell()
+                        && !placed.getCell()->getCell()->isEsm4()
+                        && mwmp::Main::get().getCellController()->hasLocalAuthority(placed.getCell()->getCell()->getEsm3()))
+                    {
+                        std::string sourceId;
+                        float duration = 0.f;
+                        for (const auto& params : summoner.getClass().getCreatureStats(summoner).getActiveSpells())
+                        {
+                            for (const auto& effect : params.getEffects())
+                            {
+                                const ESM::RefNum* summoned = std::get_if<ESM::RefNum>(&effect.mArg);
+                                if (effect.mEffectId == effectId && (summoned == nullptr || !summoned->isSet()))
+                                {
+                                    sourceId = params.getSourceSpellId().serializeText();
+                                    duration = effect.mDuration;
+                                }
+                            }
+                        }
+
+                        mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                        objectList->reset();
+                        objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                        objectList->addObjectSpawn(placed, summoner, sourceId, Utils::getEffectIndex(effectId), duration);
+                        objectList->sendObjectSpawn();
+                    }
+                    world->deleteObject(placed);
+                    return creature;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
                 MWBase::Environment::get().getWorldModel()->registerPtr(placed);
                 creature = placed.getCellRef().getRefNum();
 

@@ -53,6 +53,17 @@
 #include "classmodel.hpp"
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     bool isFlagBitSet(const MWWorld::ConstPtr& ptr, ESM::Creature::Flags bitMask)
@@ -285,8 +296,24 @@ namespace MWClass
         if (!MWMechanics::isInMeleeReach(ptr, victim, MWMechanics::getMeleeWeaponReach(ptr, weapon)))
             return;
 
+        /*
+            Start of tes3mp addition
+
+            Ignore hit calculations on this client from DedicatedPlayers and DedicatedActors, whose hits arrive in
+            Attack packets; prepare the Attack of the LocalPlayer or a LocalActor for sending
+        */
+        if (MechanicsHelper::isNetworkDriven(ptr))
+            return;
+        mwmp::Attack* localAttack = MechanicsHelper::beginLocalHit(ptr, victim, hitPosition, false);
+        /*
+            End of tes3mp addition
+        */
+
         if (!success)
         {
+            // tes3mp addition: if this was a failed attack by the LocalPlayer or a LocalActor, send a packet about it
+            MechanicsHelper::finishLocalHit(localAttack, false, 0.f);
+
             MWBase::Environment::get().getLuaManager()->onHit(ptr, victim, weapon, MWWorld::Ptr(), type, attackStrength,
                 0.0f, false, hitPosition, false, MWMechanics::DamageSourceType::Melee);
             MWMechanics::reduceWeaponCondition(0.f, false, weapon, ptr);
@@ -345,6 +372,22 @@ namespace MWClass
             damage = 0;
 
         MWMechanics::diseaseContact(victim, ptr);
+
+        /*
+            Start of tes3mp addition
+
+            If the attacker was the LocalPlayer or a LocalActor, send an attack packet about this hit; the victim's
+            client applies it
+        */
+        if (localAttack)
+        {
+            localAttack->applyWeaponEnchantment
+                = !weapon.isEmpty() && !weapon.getClass().getEnchantment(weapon).empty();
+            MechanicsHelper::finishLocalHit(localAttack, true, damage);
+        }
+        /*
+            End of tes3mp addition
+        */
 
         MWBase::Environment::get().getLuaManager()->onHit(ptr, victim, weapon, MWWorld::Ptr(), type, attackStrength,
             damage, healthdmg, hitPosition, true, MWMechanics::DamageSourceType::Melee);

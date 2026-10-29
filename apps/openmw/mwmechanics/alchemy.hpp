@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <components/esm3/effectlist.hpp>
+#include <components/esm3/loadalch.hpp>
 
 #include "../mwworld/ptr.hpp"
 
@@ -57,6 +58,9 @@ namespace MWMechanics
         Result getReadyStatus() const;
 
         const ESM::Potion* getRecord(const ESM::Potion& toFind) const;
+
+        // tes3mp addition: the last created potion record, sent to the server once its brewed count is known
+        ESM::Potion mStoredPotion;
         ///< Try to find a potion record similar to \a toFind in the record store, or return 0 if not found
         /// \note Does not account for record ID, model or icon
 

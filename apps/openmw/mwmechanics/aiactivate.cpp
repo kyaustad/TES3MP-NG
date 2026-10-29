@@ -12,6 +12,20 @@
 #include "movement.hpp"
 #include "steering.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
     AiActivate::AiActivate(const ESM::RefId& objectId, bool repeat)
@@ -45,6 +59,24 @@ namespace MWMechanics
         {
             // Note: we intentionally do not cancel package after activation here for backward compatibility with
             // original engine.
+            /*
+                Start of tes3mp change (major)
+
+                Send an ID_OBJECT_ACTIVATE packet instead of activating unilaterally, and cancel the package
+                to avoid an infinite activation loop while waiting for the server's reply
+            */
+            if (mwmp::Main::isInitialized())
+            {
+                mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                objectList->reset();
+                objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                objectList->addObjectActivate(target, actor);
+                objectList->sendObjectActivate();
+                return true;
+            }
+            /*
+                End of tes3mp change (major)
+            */
             MWBase::Environment::get().getLuaManager()->objectActivated(target, actor);
         }
         return false;

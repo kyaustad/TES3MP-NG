@@ -14,6 +14,18 @@
 #include "creaturestats.hpp"
 #include "npcstats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwbase/windowmanager.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
 
@@ -50,6 +62,21 @@ namespace MWMechanics
         if (target.getClass().getNpcStats(target).getBounty() <= 0)
             return true;
 
+        /*
+            Start of tes3mp addition
+
+            Because multiplayer does not pause the game, prevent infinite arrest loops by ignoring
+            players already engaged in dialogue while retaining the AiPursue package. Additionally,
+            do not arrest players who are currently jailed
+        */
+        if (mwmp::Main::isInitialized() && target == MWBase::Environment::get().getWorld()->getPlayerPtr()
+            && (MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Dialogue)
+                || MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Jail)))
+            return false;
+        /*
+            End of tes3mp addition
+        */
+
         actor.getClass().getCreatureStats(actor).setDrawState(DrawState::Nothing);
 
         // Set the target destination
@@ -67,6 +94,22 @@ namespace MWMechanics
         {
             if (!MWBase::Environment::get().getWorld()->getLOS(target, actor))
                 return false;
+
+            /*
+                Start of tes3mp addition
+
+                Record that the player has not died since the last attempt to arrest them, and
+                close the player's inventory or open container and cancel any drag and drops
+            */
+            if (mwmp::Main::isInitialized() && target == MWBase::Environment::get().getWorld()->getPlayerPtr())
+            {
+                mwmp::Main::get().getLocalPlayer()->diedSinceArrestAttempt = false;
+                mwmp::Main::get().getLocalPlayer()->closeInventoryWindows();
+            }
+            /*
+                End of tes3mp addition
+            */
+
             MWBase::Environment::get().getWindowManager()->pushGuiMode(
                 MWGui::GM_Dialogue, actor); // Arrest player when reached
             return true;
