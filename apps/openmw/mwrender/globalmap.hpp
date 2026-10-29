@@ -129,6 +129,9 @@ namespace MWRender
 
         ImageDestMap mPendingImageDest;
 
+        // tes3mp addition: the exterior cells that map image coordinates belong to, for sharing explored tiles
+        std::map<std::pair<int, int>, std::pair<int, int>> mMpOriginToCell;
+
         osg::ref_ptr<osg::Texture2D> mBaseTexture;
         osg::ref_ptr<osg::Texture2D> mAlphaTexture;
 

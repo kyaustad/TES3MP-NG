@@ -37,6 +37,10 @@
 */
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
+#include <sstream>
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
 /*
     End of tes3mp addition
 */
@@ -417,6 +421,9 @@ namespace MWRender
         if (cellX > mMaxX || cellX < mMinX || cellY > mMaxY || cellY < mMinY)
             return;
 
+        // tes3mp addition: track the cell coordinates corresponding to these map image coordinates
+        mMpOriginToCell[{ originX, mHeight - originY }] = { cellX, cellY };
+
         requestOverlayTextureUpdate(
             originX, mHeight - originY, cellSize, cellSize, std::move(localMapTexture), false, true);
     }
@@ -661,6 +668,47 @@ namespace MWRender
             }
 
             mOverlayImage->copySubImage(imageDest.mX, imageDest.mY, 0, imageDest.mImage);
+
+            /*
+                Start of tes3mp addition
+
+                Send an ID_PLAYER_MAP packet with this map tile to the server, but only if:
+                1) We have recorded the exterior cell corresponding to this tile's coordinates
+                2) The tile has not previously been marked as explored in this client's mwmp::Worldstate
+                3) The tile does not belong to a Wilderness cell
+            */
+            auto cellIt = mMpOriginToCell.find({ imageDest.mX, imageDest.mY });
+            if (mwmp::Main::isInitialized() && cellIt != mMpOriginToCell.end())
+            {
+                const auto [cellX, cellY] = cellIt->second;
+                mwmp::Worldstate* worldstate = mwmp::Main::get().getNetworking()->getWorldstate();
+
+                if (!worldstate->containsExploredMapTile(cellX, cellY))
+                {
+                    // Keep this tile marked as explored so we don't send any more packets for it
+                    worldstate->markExploredMapTile(cellX, cellY);
+
+                    const ESM::Cell* cell = MWBase::Environment::get().getESMStore()->get<ESM::Cell>().search(cellX, cellY);
+                    osgDB::ReaderWriter* readerwriter = osgDB::Registry::instance()->getReaderWriterForExtension("png");
+                    if (cell != nullptr && !cell->mContextList.empty() && readerwriter != nullptr)
+                    {
+                        std::ostringstream ostream;
+                        osgDB::ReaderWriter::WriteResult result = readerwriter->writeImage(*imageDest.mImage, ostream);
+                        if (result.success())
+                        {
+                            const std::string stringData = ostream.str();
+                            worldstate->sendMapExplored(cellX, cellY, std::vector<char>(stringData.begin(), stringData.end()));
+                        }
+                        else
+                            Log(Debug::Error) << "Can't write map tile for cell " << cellX << ", " << cellY << ": "
+                                              << result.message();
+                    }
+                }
+            }
+            /*
+                End of tes3mp addition
+            */
+
             mPendingImageDest.erase(it);
             return true;
         }
