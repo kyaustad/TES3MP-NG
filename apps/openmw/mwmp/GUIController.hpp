@@ -75,6 +75,7 @@ namespace mwmp
         TextInputDialog *mInputBox;
         GUIDialogList *mListBox;
         void onInputBoxDone(MWGui::WindowBase* parWindow);
+        void sendInputBoxText(std::string textInput);
         //MyGUI::Widget *oldFocusWidget, *currentFocusWidget;
     };
 }

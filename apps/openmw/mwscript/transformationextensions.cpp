@@ -29,6 +29,24 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwbase/windowmanager.hpp"
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+#include "../mwmp/ActorList.hpp"
+#include <components/openmw-mp/Base/BaseActor.hpp>
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Transformation
@@ -118,6 +136,29 @@ namespace MWScript
 
                 Interpreter::Type_Float scale = runtime[0].mFloat;
                 runtime.pop();
+
+                /*
+                    Start of tes3mp change (major)
+
+                    Prevent players from changing their own and other players' scales, and send an ID_OBJECT_SCALE
+                    every time an object's scale is changed through a script; the server's reply changes it
+                */
+                if (mwmp::Main::isInitialized())
+                {
+                    if (ptr == MWMechanics::getPlayer() || mwmp::PlayerList::isDedicatedPlayer(ptr))
+                        MWBase::Environment::get().getWindowManager()->messageBox(
+                            "You can't change the scales of players in multiplayer. Only the server can.");
+                    else if (ScriptController::isSending() && ptr.isInCell() && ptr.getCellRef().getScale() != scale)
+                    {
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectScale(ptr, scale);
+                        objectList->sendObjectScale();
+                    }
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
 
                 MWBase::Environment::get().getWorld()->scaleObject(ptr, scale);
             }
@@ -425,8 +466,38 @@ namespace MWScript
                 }
 
                 MWWorld::Ptr base = ptr;
+
+                // tes3mp addition: track the original cell of this object in case we need to use it when sending a packet
+                const MWWorld::CellStore* originalStore = ptr.isInCell() ? ptr.getCell() : nullptr;
+
                 ptr = world->moveObject(ptr, store, osg::Vec3f(x, y, z));
                 dynamic_cast<MWScript::InterpreterContext&>(runtime.getContext()).updatePtr(base, ptr);
+
+                /*
+                    Start of tes3mp addition
+
+                    Send ActorCellChange packets when actors are moved here, regardless of whether we're
+                    the cell authority or not; the server can decide if it wants to comply with them
+                */
+                if (mwmp::Main::isInitialized() && ptr.getClass().isActor() && originalStore && originalStore != store
+                    && !originalStore->getCell()->isEsm4() && !store->getCell()->isEsm4() && ptr != MWMechanics::getPlayer())
+                {
+                    mwmp::BaseActor baseActor;
+                    baseActor.refNum = ptr.getCellRef().getMpRefNumIndex();
+                    baseActor.mpNum = ptr.getCellRef().getMpNum();
+                    baseActor.cell = store->getCell()->getEsm3();
+                    baseActor.position = ptr.getRefData().getPosition();
+                    baseActor.isFollowerCellChange = true;
+
+                    mwmp::ActorList* actorList = mwmp::Main::get().getNetworking()->getActorList();
+                    actorList->reset();
+                    actorList->cell = originalStore->getCell()->getEsm3();
+                    actorList->addCellChangeActor(baseActor);
+                    actorList->sendCellChangeActors();
+                }
+                /*
+                    End of tes3mp addition
+                */
 
                 auto rot = ptr.getRefData().getPosition().asRotationVec3();
                 // Note that you must specify ZRot in minutes (1 degree = 60 minutes; north = 0, east = 5400, south
@@ -539,6 +610,10 @@ namespace MWScript
                 ref.getPtr().getCellRef().setPosition(pos);
                 MWWorld::Ptr placed = MWBase::Environment::get().getWorld()->placeObject(ref.getPtr(), store, pos);
                 placed.getClass().adjustPosition(placed, true);
+
+                // tes3mp addition: the server places objects with a unique mpNum of their own
+                if (mwmp::Main::isInitialized())
+                    ScriptController::sendPlacedObject(runtime, placed);
             }
         };
 
@@ -585,6 +660,10 @@ namespace MWScript
                 ref.getPtr().getCellRef().setPosition(pos);
                 MWWorld::Ptr placed = MWBase::Environment::get().getWorld()->placeObject(ref.getPtr(), store, pos);
                 placed.getClass().adjustPosition(placed, true);
+
+                // tes3mp addition: the server places objects with a unique mpNum of their own
+                if (mwmp::Main::isInitialized())
+                    ScriptController::sendPlacedObject(runtime, placed);
             }
         };
 
@@ -624,6 +703,10 @@ namespace MWScript
                     MWWorld::Ptr ptr = MWBase::Environment::get().getWorld()->safePlaceObject(
                         ref.getPtr(), actor, actor.getCell(), direction, distance);
                     MWBase::Environment::get().getWorld()->scaleObject(ptr, actor.getCellRef().getScale());
+
+                    // tes3mp addition: the server places objects with a unique mpNum of their own
+                    if (mwmp::Main::isInitialized())
+                        ScriptController::sendPlacedObject(runtime, ptr);
                 }
             }
         };

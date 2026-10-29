@@ -38,6 +38,7 @@ namespace mwmp
 
         // For automated tests: completes character generation with this name and default choices
         static const std::string& getAutoLoginName();
+        static const std::string& getAutoLoginPassword();
 
         Networking *getNetworking() const;
         LocalSystem *getLocalSystem() const;
@@ -52,6 +53,7 @@ namespace mwmp
         static std::string address;
         static std::string serverPassword;
         static std::string autoLoginName;
+        static std::string autoLoginPassword;
 
         Main (const Main&);
         ///< not implemented

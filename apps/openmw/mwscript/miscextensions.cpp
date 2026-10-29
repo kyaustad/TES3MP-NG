@@ -77,6 +77,21 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -157,7 +172,8 @@ namespace MWScript
         public:
             void execute(Interpreter::Runtime& runtime) override
             {
-                runtime.push(MWBase::Environment::get().getWindowManager()->isGuiMode());
+                // tes3mp change (major): being in a menu doesn't pause scripts in multiplayer
+                runtime.push(!mwmp::Main::isInitialized() && MWBase::Environment::get().getWindowManager()->isGuiMode());
             }
         };
 
@@ -244,6 +260,31 @@ namespace MWScript
             void execute(Interpreter::Runtime& runtime) override
             {
                 MWWorld::Ptr ptr = R()(runtime);
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_STATE packet whenever an object should be enabled, as long as the player is
+                    logged in on the server and - if triggered from a clientside script - our last packet regarding its
+                    state did not already attempt to enable it (to prevent packet spam). Disable unilateral state
+                    changes on this client and expect the server's reply to our packet to do it instead
+                */
+                if (ScriptController::isSending() && ptr.isInCell())
+                {
+                    const unsigned short packetOrigin = ScriptController::getPacketOrigin(runtime);
+                    if (packetOrigin == mwmp::CLIENT_CONSOLE || packetOrigin == mwmp::CLIENT_DIALOGUE
+                        || ptr.getRefData().getLastCommunicatedState() != MWWorld::RefData::StateCommunication::Enabled)
+                    {
+                        ptr.getRefData().setLastCommunicatedState(MWWorld::RefData::StateCommunication::Enabled);
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectState(ptr, true);
+                        objectList->sendObjectState();
+                    }
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+
                 MWBase::Environment::get().getWorld()->enable(ptr);
             }
         };
@@ -274,6 +315,31 @@ namespace MWScript
                 {
                     ptr = R()(runtime);
                 }
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_STATE packet whenever an object should be disabled, as long as the player is
+                    logged in on the server and - if triggered from a clientside script - our last packet regarding its
+                    state did not already attempt to disable it (to prevent packet spam). Disable unilateral state
+                    changes on this client and expect the server's reply to our packet to do it instead
+                */
+                if (ScriptController::isSending() && ptr.isInCell())
+                {
+                    const unsigned short packetOrigin = ScriptController::getPacketOrigin(runtime);
+                    if (packetOrigin == mwmp::CLIENT_CONSOLE || packetOrigin == mwmp::CLIENT_DIALOGUE
+                        || ptr.getRefData().getLastCommunicatedState() != MWWorld::RefData::StateCommunication::Disabled)
+                    {
+                        ptr.getRefData().setLastCommunicatedState(MWWorld::RefData::StateCommunication::Disabled);
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectState(ptr, false);
+                        objectList->sendObjectState();
+                    }
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+
                 MWBase::Environment::get().getWorld()->disable(ptr);
             }
         };
@@ -299,6 +365,13 @@ namespace MWScript
 
                 bool allowSkipping = runtime[0].mInteger != 0;
                 runtime.pop();
+
+                // tes3mp addition: send an ID_VIDEO_PLAY packet every time a video is played through a script
+                if (mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime))
+                {
+                    objectList->addVideoPlay(std::string(name), allowSkipping);
+                    objectList->sendVideoPlay();
+                }
 
                 MWBase::Environment::get().getWindowManager()->playVideo(name, allowSkipping);
             }
@@ -385,6 +458,27 @@ namespace MWScript
                     runtime.pop();
                 }
 
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_LOCK packet every time an object is locked through a script, as long as the
+                    lock level being set is not the one it already has, and expect the server's reply to our packet to
+                    lock it
+                */
+                if (ScriptController::isSending())
+                {
+                    if (ptr.getCellRef().getLockLevel() != lockLevel)
+                    {
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectLock(ptr, lockLevel);
+                        objectList->sendObjectLock();
+                    }
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+
                 ptr.getCellRef().lock(lockLevel);
 
                 // Instantly reset door to closed state
@@ -403,6 +497,27 @@ namespace MWScript
             void execute(Interpreter::Runtime& runtime) override
             {
                 MWWorld::Ptr ptr = R()(runtime);
+
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_LOCK packet every time an object is unlocked through a script, as long as it's
+                    not already unlocked, and expect the server's reply to our packet to unlock it
+                */
+                if (ScriptController::isSending())
+                {
+                    if (ptr.getCellRef().getLockLevel() > 0)
+                    {
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectLock(ptr, 0);
+                        objectList->sendObjectLock();
+                    }
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+
                 if (ptr.getCellRef().isLocked())
                     ptr.getCellRef().unlock();
             }
@@ -908,7 +1023,26 @@ namespace MWScript
                 int parameter = runtime[0].mInteger;
                 runtime.pop();
 
-                if (parameter == 1)
+                /*
+                    Start of tes3mp change (major)
+
+                    Send an ID_OBJECT_DELETE packet every time an object is deleted through a script, as long as we
+                    haven't already communicated a deletion for it, and expect the server's reply to delete it
+                */
+                if (parameter == 1 && ScriptController::isSending() && ptr.isInCell())
+                {
+                    if (ptr.getRefData().getLastCommunicatedState() != MWWorld::RefData::StateCommunication::Deleted)
+                    {
+                        ptr.getRefData().setLastCommunicatedState(MWWorld::RefData::StateCommunication::Deleted);
+                        mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                        objectList->addObjectGeneric(ptr);
+                        objectList->sendObjectDelete();
+                    }
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+                else if (parameter == 1)
                     MWBase::Environment::get().getWorld()->deleteObject(ptr);
                 else if (parameter == 0)
                     MWBase::Environment::get().getWorld()->undeleteObject(ptr);

@@ -34,6 +34,21 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     void addToStore(const MWWorld::Ptr& itemPtr, int count, MWWorld::ContainerStore& store, bool resolve = true)
@@ -110,6 +125,31 @@ namespace MWScript
 
                 if (item == "gold_005" || item == "gold_010" || item == "gold_025" || item == "gold_100")
                     item = MWWorld::ContainerStore::sGoldId;
+
+                /*
+                    Start of tes3mp change (major)
+
+                    Changes from client scripts and dialogue are applied on this client, to prevent infinite loops in
+                    certain mods; console commands on containers other than the player's send an ID_CONTAINER packet
+                    and expect the server's reply to make the change
+                */
+                if (ScriptController::isSending() && ptr != MWMechanics::getPlayer() && ptr.isInCell()
+                    && !mwmp::PlayerList::isDedicatedPlayer(ptr)
+                    && ScriptController::getPacketOrigin(runtime) == mwmp::CLIENT_CONSOLE)
+                {
+                    mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                    objectList->cell = ptr.getCell()->getCell()->getEsm3();
+                    objectList->action = mwmp::BaseObjectList::ADD;
+                    objectList->containerSubAction = mwmp::BaseObjectList::NONE;
+                    mwmp::BaseObject baseObject = objectList->getBaseObjectFromPtr(ptr);
+                    objectList->addContainerItem(baseObject, item.serializeText(), count, 0);
+                    objectList->addBaseObject(baseObject);
+                    objectList->sendContainer();
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
 
                 // Check if "item" can be placed in a container
                 MWWorld::ManualRef manualRef(*MWBase::Environment::get().getESMStore(), item, 1);
@@ -268,6 +308,31 @@ namespace MWScript
                     }
                     return;
                 }
+                /*
+                    Start of tes3mp change (major)
+
+                    Changes from client scripts and dialogue are applied on this client, to prevent infinite loops in
+                    certain mods; console commands on containers other than the player's send an ID_CONTAINER packet
+                    and expect the server's reply to make the change
+                */
+                if (ScriptController::isSending() && ptr != MWMechanics::getPlayer() && ptr.isInCell()
+                    && !mwmp::PlayerList::isDedicatedPlayer(ptr)
+                    && ScriptController::getPacketOrigin(runtime) == mwmp::CLIENT_CONSOLE)
+                {
+                    mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime);
+                    objectList->cell = ptr.getCell()->getCell()->getEsm3();
+                    objectList->action = mwmp::BaseObjectList::REMOVE;
+                    objectList->containerSubAction = mwmp::BaseObjectList::NONE;
+                    mwmp::BaseObject baseObject = objectList->getBaseObjectFromPtr(ptr);
+                    objectList->addContainerItem(baseObject, item.serializeText(), 0, count);
+                    objectList->addBaseObject(baseObject);
+                    objectList->sendContainer();
+                    return;
+                }
+                /*
+                    End of tes3mp change (major)
+                */
+
                 MWWorld::ContainerStore& store = ptr.getClass().getContainerStore(ptr);
 
                 std::string_view itemName;

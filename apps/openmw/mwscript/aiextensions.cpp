@@ -31,6 +31,22 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+#include "../mwmp/ActorList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Ai
@@ -297,6 +313,18 @@ namespace MWScript
                 ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, modified);
             }
         };
+        // tes3mp addition: ActorAI packets about AI started by scripts
+        void sendAiPacket(const MWWorld::Ptr& actor, const MWWorld::Ptr& target, unsigned int aiAction)
+        {
+            if (!actor.isInCell() || actor.getCell()->getCell()->isEsm4())
+                return;
+            mwmp::ActorList* actorList = mwmp::Main::get().getNetworking()->getActorList();
+            actorList->reset();
+            actorList->cell = actor.getCell()->getCell()->getEsm3();
+            actorList->addAiActor(actor, target, aiAction);
+            actorList->sendAiActors();
+        }
+
         template <class R>
         class OpSetAiSetting : public Interpreter::Opcode0
         {
@@ -315,8 +343,25 @@ namespace MWScript
                 runtime.pop();
                 if (ptr.getClass().isActor())
                 {
+                    // tes3mp addition: track the original value, to ensure we don't send repetitive packets
+                    const int initialValue = ptr.getClass().getCreatureStats(ptr).getAiSetting(mIndex).getBase();
+
                     ptr.getClass().getCreatureStats(ptr).setAiSetting(mIndex, value);
                     ptr.getClass().setBaseAISetting(ptr.getCellRef().getRefId(), mIndex, value);
+
+                    /*
+                        Start of tes3mp addition
+
+                        Setting an actor's AI_Fight to 100 is equivalent to starting combat with the local player,
+                        so send a combat packet regardless of whether we're the cell authority or not; the server
+                        can decide if it wants to comply with them by forwarding them to the cell authority
+                    */
+                    if (ScriptController::isSending() && initialValue != value && mIndex == MWMechanics::AiSetting::Fight
+                        && value == 100)
+                        sendAiPacket(ptr, MWBase::Environment::get().getWorld()->getPlayerPtr(), mwmp::BaseActorList::COMBAT);
+                    /*
+                        End of tes3mp addition
+                    */
                 }
             }
         };
@@ -354,6 +399,23 @@ namespace MWScript
 
                 MWMechanics::AiFollow followPackage(actorID, {}, duration, x, y, z, repeat);
                 ptr.getClass().getCreatureStats(ptr).getAiSequence().stack(followPackage, ptr);
+
+                /*
+                    Start of tes3mp addition
+
+                    Send ActorAI packets when an actor becomes a follower, regardless of whether we're
+                    the cell authority or not; the server can decide if it wants to comply with them by
+                    forwarding them to the cell authority
+                */
+                if (ScriptController::isSending())
+                {
+                    MWWorld::Ptr targetPtr = MWBase::Environment::get().getWorld()->searchPtr(actorID, true);
+                    if (!targetPtr.isEmpty())
+                        sendAiPacket(ptr, targetPtr, mwmp::BaseActorList::FOLLOW);
+                }
+                /*
+                    End of tes3mp addition
+                */
 
                 Log(Debug::Info) << "AiFollow: " << actorID << ", " << x << ", " << y << ", " << z << ", " << duration;
             }
@@ -508,7 +570,22 @@ namespace MWScript
                 MWWorld::Ptr target = MWBase::Environment::get().getWorld()->searchPtr(targetID, true, false);
                 if (!target.isEmpty() && !target.getBase()->isDeleted()
                     && !target.getClass().getCreatureStats(target).isDead())
+                {
+                    /*
+                        Start of tes3mp addition
+
+                        Send ActorAI packets when an actor starts combat, regardless of whether we're the
+                        cell authority or not; the server can decide if it wants to comply with them by
+                        forwarding them to the cell authority
+                    */
+                    if (ScriptController::isSending()
+                        && !actor.getClass().getCreatureStats(actor).getAiSequence().isInCombat(target))
+                        sendAiPacket(actor, target, mwmp::BaseActorList::COMBAT);
+                    /*
+                        End of tes3mp addition
+                    */
                     MWBase::Environment::get().getMechanicsManager()->startCombat(actor, target, nullptr);
+                }
             }
         };
 

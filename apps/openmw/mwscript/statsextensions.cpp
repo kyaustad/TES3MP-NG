@@ -31,6 +31,21 @@
 
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     ESM::RefId getDialogueActorFaction(const MWWorld::ConstPtr& actor)
@@ -510,6 +525,13 @@ namespace MWScript
                 const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(id);
 
                 MWMechanics::CreatureStats& creatureStats = ptr.getClass().getCreatureStats(ptr);
+
+                // tes3mp addition: send an ID_PLAYER_SPELLBOOK packet every time a player gains a spell here
+                if (ScriptController::isSending() && ptr == MWMechanics::getPlayer()
+                    && !creatureStats.getSpells().hasSpell(spell))
+                    mwmp::Main::get().getLocalPlayer()->sendSpellChange(
+                        spell->mId.serializeText(), mwmp::SpellbookChanges::ADD);
+
                 creatureStats.getSpells().add(spell);
                 ESM::Spell::SpellType type = static_cast<ESM::Spell::SpellType>(spell->mData.mType);
                 if (type != ESM::Spell::ST_Spell && type != ESM::Spell::ST_Power)
@@ -538,6 +560,13 @@ namespace MWScript
 
                 MWMechanics::CreatureStats& creatureStats = ptr.getClass().getCreatureStats(ptr);
                 const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(id);
+
+                // tes3mp addition: send an ID_PLAYER_SPELLBOOK packet every time a player loses a spell here
+                if (ScriptController::isSending() && ptr == MWMechanics::getPlayer()
+                    && creatureStats.getSpells().hasSpell(spell))
+                    mwmp::Main::get().getLocalPlayer()->sendSpellChange(
+                        spell->mId.serializeText(), mwmp::SpellbookChanges::REMOVE);
+
                 creatureStats.getSpells().remove(spell);
                 if (spell->mData.mType == ESM::Spell::ST_Ability || spell->mData.mType == ESM::Spell::ST_Blight
                     || spell->mData.mType == ESM::Spell::ST_Curse || spell->mData.mType == ESM::Spell::ST_Disease)
@@ -606,6 +635,32 @@ namespace MWScript
             }
         };
 
+        /*
+            Start of tes3mp addition
+
+            Send an ID_PLAYER_FACTION packet every time a player joins, rises or falls in a faction, or their
+            faction reputation changes
+        */
+        void sendFactionRank(const MWWorld::Ptr& player, const ESM::RefId& factionID)
+        {
+            if (!ScriptController::isSending())
+                return;
+            const auto& ranks = player.getClass().getNpcStats(player).getFactionRanks();
+            auto it = ranks.find(factionID);
+            if (it != ranks.end())
+                mwmp::Main::get().getLocalPlayer()->sendFactionRank(factionID.serializeText(), it->second);
+        }
+
+        void sendFactionReputation(const MWWorld::Ptr& player, const ESM::RefId& factionID)
+        {
+            if (ScriptController::isSending())
+                mwmp::Main::get().getLocalPlayer()->sendFactionReputation(factionID.serializeText(),
+                    player.getClass().getNpcStats(player).getFactionReputation(factionID));
+        }
+        /*
+            End of tes3mp addition
+        */
+
         template <class R>
         class OpPCJoinFaction : public Interpreter::Opcode1
         {
@@ -632,6 +687,7 @@ namespace MWScript
                 {
                     MWWorld::Ptr player = MWMechanics::getPlayer();
                     player.getClass().getNpcStats(player).joinFaction(factionID);
+                    sendFactionRank(player, factionID); // tes3mp addition
                 }
             }
         };
@@ -670,6 +726,7 @@ namespace MWScript
                         int currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
                         player.getClass().getNpcStats(player).setFactionRank(factionID, currentRank + 1);
                     }
+                    sendFactionRank(player, factionID); // tes3mp addition
                 }
             }
         };
@@ -701,6 +758,7 @@ namespace MWScript
                     MWWorld::Ptr player = MWMechanics::getPlayer();
                     int currentRank = player.getClass().getNpcStats(player).getFactionRank(factionID);
                     player.getClass().getNpcStats(player).setFactionRank(factionID, currentRank - 1);
+                    sendFactionRank(player, factionID); // tes3mp addition
                 }
             }
         };
@@ -854,6 +912,7 @@ namespace MWScript
 
                 MWWorld::Ptr player = MWMechanics::getPlayer();
                 player.getClass().getNpcStats(player).setFactionReputation(factionId, value);
+                sendFactionReputation(player, factionId); // tes3mp addition
             }
         };
 
@@ -886,6 +945,7 @@ namespace MWScript
                 MWWorld::Ptr player = MWMechanics::getPlayer();
                 player.getClass().getNpcStats(player).setFactionReputation(
                     factionId, player.getClass().getNpcStats(player).getFactionReputation(factionId) + value);
+                sendFactionReputation(player, factionId); // tes3mp addition
             }
         };
 
@@ -1006,6 +1066,10 @@ namespace MWScript
                 if (!factionID.empty())
                 {
                     player.getClass().getNpcStats(player).expell(factionID, true);
+
+                    // tes3mp addition: send an ID_PLAYER_FACTION packet every time a player is expelled from a faction
+                    if (ScriptController::isSending())
+                        mwmp::Main::get().getLocalPlayer()->sendFactionExpulsionState(factionID.serializeText(), true);
                 }
             }
         };
@@ -1030,7 +1094,13 @@ namespace MWScript
                 }
                 MWWorld::Ptr player = MWMechanics::getPlayer();
                 if (!factionID.empty())
+                {
                     player.getClass().getNpcStats(player).clearExpelled(factionID);
+
+                    // tes3mp addition: send an ID_PLAYER_FACTION packet every time a player is no longer expelled
+                    if (ScriptController::isSending())
+                        mwmp::Main::get().getLocalPlayer()->sendFactionExpulsionState(factionID.serializeText(), false);
+                }
             }
         };
 
@@ -1183,6 +1253,10 @@ namespace MWScript
                 MWWorld::Ptr ptr = R()(runtime);
                 if (ptr.getClass().isNpc())
                     MWBase::Environment::get().getMechanicsManager()->setWerewolf(ptr, set);
+
+                    // tes3mp addition: when the player's werewolf state changes, send an ID_PLAYER_SHAPESHIFT packet
+                    if (ScriptController::isSending() && ptr == MWMechanics::getPlayer())
+                        mwmp::Main::get().getLocalPlayer()->sendWerewolfState(set);
             }
         };
 

@@ -159,6 +159,13 @@ void mwmp::GUIController::showInputBox(const BasePlayer::GUIMessageBox &guiMessa
 {
     MWBase::WindowManager *windowManager = MWBase::Environment::get().getWindowManager();
 
+    // For automated tests, answer password prompts without showing them
+    if (guiMessageBox.type == BasePlayer::GUIMessageBox::PasswordDialog && !Main::getAutoLoginPassword().empty())
+    {
+        sendInputBoxText(Main::getAutoLoginPassword());
+        return;
+    }
+
     if (mInputBox != nullptr)
         windowManager->removeDialog(std::unique_ptr<MWGui::Layout>(mInputBox));
     windowManager->pushGuiMode((MWGui::GuiMode)GM_TES3MP_InputBox);
@@ -177,8 +184,18 @@ void mwmp::GUIController::showInputBox(const BasePlayer::GUIMessageBox &guiMessa
 
 void mwmp::GUIController::onInputBoxDone(MWGui::WindowBase *parWindow)
 {
+    sendInputBoxText(mInputBox->getTextInput());
+
+    MWBase::WindowManager *windowManager = MWBase::Environment::get().getWindowManager();
+    if (mInputBox != nullptr)
+        windowManager->removeDialog(std::unique_ptr<MWGui::Layout>(mInputBox));
+    mInputBox = 0;
+    windowManager->popGuiMode();
+}
+
+void mwmp::GUIController::sendInputBoxText(std::string textInput)
+{
     LocalPlayer *localPlayer = Main::get().getLocalPlayer();
-    std::string textInput = mInputBox->getTextInput();
 
     // Send input for password dialogs after it's been hashed and rehashed, for some slight
     // extra security that doesn't require the client to keep storing a salt
@@ -193,12 +210,6 @@ void mwmp::GUIController::onInputBoxDone(MWGui::WindowBase *parWindow)
     PlayerPacket *playerPacket = Main::get().getNetworking()->getPlayerPacket(ID_GUI_MESSAGEBOX);
     playerPacket->setPlayer(Main::get().getLocalPlayer());
     playerPacket->Send();
-
-    MWBase::WindowManager *windowManager = MWBase::Environment::get().getWindowManager();
-    if (mInputBox != nullptr)
-        windowManager->removeDialog(std::unique_ptr<MWGui::Layout>(mInputBox));
-    mInputBox = 0;
-    windowManager->popGuiMode();
 }
 
 bool mwmp::GUIController::pressedKey(int key)

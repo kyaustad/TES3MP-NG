@@ -63,10 +63,16 @@ std::string Main::getResDir()
 }
 
 std::string Main::autoLoginName;
+std::string Main::autoLoginPassword;
 
 const std::string& Main::getAutoLoginName()
 {
     return autoLoginName;
+}
+
+const std::string& Main::getAutoLoginPassword()
+{
+    return autoLoginPassword;
 }
 
 Main::Main()
@@ -102,7 +108,9 @@ void Main::optionsDesc(boost::program_options::options_description *desc)
             ("password", bpo::value<std::string>()->default_value(TES3MP_DEFAULT_PASSW),
                         "сonnect to a secured server. (e.g. --password=AnyPassword")
             ("tes3mp-autologin", bpo::value<std::string>()->default_value(""),
-                        "for automated tests: complete character generation with this name and default choices");
+                        "for automated tests: complete character generation with this name and default choices")
+            ("tes3mp-autologin-password", bpo::value<std::string>()->default_value(""),
+                        "for automated tests: answer the server's password prompts with this test password");
 }
 
 void Main::configure(const boost::program_options::variables_map &variables)
@@ -110,6 +118,7 @@ void Main::configure(const boost::program_options::variables_map &variables)
     Main::address = variables["connect"].as<std::string>();
     Main::serverPassword = variables["password"].as<std::string>();
     Main::autoLoginName = variables["tes3mp-autologin"].as<std::string>();
+    Main::autoLoginPassword = variables["tes3mp-autologin-password"].as<std::string>();
 
     resourceDir = Files::pathToUnicodeString(variables["resources"].as<Files::MaybeQuotedPath>());
 }

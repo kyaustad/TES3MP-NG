@@ -20,6 +20,21 @@
 
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Dialogue
@@ -43,6 +58,16 @@ namespace MWScript
                 // Invoking Journal with a non-existing index is allowed, and triggers no errors. Seriously? :(
                 try
                 {
+                    /*
+                        Start of tes3mp addition
+
+                        Send an ID_PLAYER_JOURNAL packet every time a new journal entry is added through a script
+                    */
+                    if (ScriptController::isSending() && !MWBase::Environment::get().getJournal()->hasEntry(quest, index))
+                        mwmp::Main::get().getLocalPlayer()->sendJournalEntry(quest.serializeText(), index, ptr);
+                    /*
+                        End of tes3mp addition
+                    */
                     MWBase::Environment::get().getJournal()->addEntry(quest, index, ptr);
                 }
                 catch (...)
@@ -63,6 +88,10 @@ namespace MWScript
 
                 Interpreter::Type_Integer index = runtime[0].mInteger;
                 runtime.pop();
+
+                // tes3mp addition: send an ID_PLAYER_JOURNAL packet every time a journal index is set through a script
+                if (ScriptController::isSending())
+                    mwmp::Main::get().getLocalPlayer()->sendJournalIndex(quest.serializeText(), index);
 
                 MWBase::Environment::get().getJournal()->setJournalIndex(quest, index);
             }
@@ -130,6 +159,10 @@ namespace MWScript
                     return;
                 }
 
+                // tes3mp addition: send an ID_PLAYER_TOPIC packet every time a new topic is added through a script
+                if (ScriptController::isSending() && MWBase::Environment::get().getDialogueManager()->isNewTopic(topic))
+                    mwmp::Main::get().getLocalPlayer()->sendTopic(topic.serializeText());
+
                 MWBase::Environment::get().getDialogueManager()->addTopic(topic);
             }
         };
@@ -183,6 +216,10 @@ namespace MWScript
 
                 const MWWorld::Ptr& player = MWBase::Environment::get().getWorld()->getPlayerPtr();
                 if (player.getClass().getNpcStats(player).isWerewolf() && !greetWerewolves)
+                    return;
+
+                // tes3mp addition: don't start a dialogue if one is already open, preventing infinite greeting loops
+                if (mwmp::Main::isInitialized() && MWBase::Environment::get().getWindowManager()->containsMode(MWGui::GM_Dialogue))
                     return;
 
                 MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Dialogue, ptr);
