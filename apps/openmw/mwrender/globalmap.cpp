@@ -421,8 +421,9 @@ namespace MWRender
         if (cellX > mMaxX || cellX < mMinX || cellY > mMaxY || cellY < mMinY)
             return;
 
-        // tes3mp addition: track the cell coordinates corresponding to these map image coordinates
-        mMpOriginToCell[{ originX, mHeight - originY }] = { cellX, cellY };
+        // tes3mp addition: track the cell coordinates corresponding to these map image coordinates, using the
+        // bottom-left origin that requestOverlayTextureUpdate() gives the copied image
+        mMpOriginToCell[{ originX, originY - cellSize }] = { cellX, cellY };
 
         requestOverlayTextureUpdate(
             originX, mHeight - originY, cellSize, cellSize, std::move(localMapTexture), false, true);

@@ -41,7 +41,7 @@ mwmp::GUIController::GUIController(): mInputBox(0), mListBox(0)
 {
     mChat = nullptr;
     keySay = SDL_SCANCODE_Y;
-    keyChatMode = SDL_SCANCODE_F2;
+    keyChatMode = SDL_SCANCODE_F8; // tes3mp-ng change: OpenMW uses F2 for the post-processing HUD
 }
 
 mwmp::GUIController::~GUIController()
