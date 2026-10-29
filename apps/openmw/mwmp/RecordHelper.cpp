@@ -1,3 +1,6 @@
+#include <components/esm3/loadalch.hpp>
+#include <components/esm3/loadmisc.hpp>
+#include <components/esm/util.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/Utils.hpp>
 
@@ -353,7 +356,7 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
     if (record.baseId.empty())
     {
         recordData.mData.mFlags |= ESM::Cell::Flags::Interior;
-        recordData.mCellId.mWorldspace = Misc::StringUtils::lowerCase(recordData.mName);
+        recordData.mId = ESM::Cell::generateIdForCell(false, recordData.mName, 0, 0);
 
         world->unloadCell(recordData);
         world->clearCellStore(recordData);
@@ -364,7 +367,7 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
         const ESM::Cell *baseData = world->getStore().get<ESM::Cell>().search(Utils::toRefId(record.baseId));
         ESM::Cell finalData = *baseData;
         finalData.mName = recordData.mName;
-        finalData.mCellId.mWorldspace = Misc::StringUtils::lowerCase(recordData.mName);
+        finalData.mId = ESM::Cell::generateIdForCell(false, recordData.mName, 0, 0);
 
         world->unloadCell(finalData);
         world->clearCellStore(finalData);
@@ -392,7 +395,10 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
     if (isActiveCell)
     {
         if (playerCell.isExterior())
-            world->changeToExteriorCell(playerPos, true, true);
+        {
+            const ESM::ExteriorCellLocation location = ESM::positionToExteriorCellLocation(playerPos.pos[0], playerPos.pos[1]);
+            world->changeToCell(ESM::RefId::esm3ExteriorCell(location.mX, location.mY), playerPos, true, true);
+        }
         else
             world->changeToInteriorCell(playerCell.mName, playerPos, true, true);
     }
@@ -617,7 +623,7 @@ void RecordHelper::overrideRecord(const mwmp::CreatureRecord& record)
             finalData.mScript = recordData.mScript;
 
         if (!record.inventoryBaseId.empty() && doesRecordIdExist<ESM::Creature>(record.inventoryBaseId))
-            finalData.mInventory.mList = world->getStore().get<ESM::Creature>().search(record.inventoryBaseId)->mInventory.mList;
+            finalData.mInventory.mList = world->getStore().get<ESM::Creature>().search(Utils::toRefId(record.inventoryBaseId))->mInventory.mList;
         else if (record.baseOverrides.hasInventory)
             finalData.mInventory.mList = recordData.mInventory.mList;
 
@@ -997,7 +1003,8 @@ void RecordHelper::overrideRecord(const mwmp::MiscellaneousRecord& record)
             finalData.mData.mValue = recordData.mData.mValue;
 
         if (record.baseOverrides.hasKeyState)
-            finalData.mData.mIsKey = recordData.mData.mIsKey;
+            finalData.mData.mFlags = (finalData.mData.mFlags & ~ESM::Miscellaneous::Key)
+                | (recordData.mData.mFlags & ESM::Miscellaneous::Key);
 
         if (record.baseOverrides.hasScript)
             finalData.mScript = recordData.mScript;
@@ -1120,7 +1127,7 @@ void RecordHelper::overrideRecord(const mwmp::NpcRecord& record)
         }
 
         if (!record.inventoryBaseId.empty() && doesRecordIdExist<ESM::NPC>(record.inventoryBaseId))
-            finalData.mInventory.mList = world->getStore().get<ESM::NPC>().search(record.inventoryBaseId)->mInventory.mList;
+            finalData.mInventory.mList = world->getStore().get<ESM::NPC>().search(Utils::toRefId(record.inventoryBaseId))->mInventory.mList;
         else if (record.baseOverrides.hasInventory)
             finalData.mInventory.mList = recordData.mInventory.mList;
 
@@ -1175,7 +1182,8 @@ void RecordHelper::overrideRecord(const mwmp::PotionRecord& record)
             finalData.mData.mValue = recordData.mData.mValue;
 
         if (record.baseOverrides.hasAutoCalc)
-            finalData.mData.mAutoCalc = recordData.mData.mAutoCalc;
+            finalData.mData.mFlags = (finalData.mData.mFlags & ~ESM::Potion::Autocalc)
+                | (recordData.mData.mFlags & ESM::Potion::Autocalc);
 
         if (record.baseOverrides.hasScript)
             finalData.mScript = recordData.mScript;
@@ -1586,11 +1594,17 @@ void RecordHelper::createPlaceholderInteriorCell()
 {
     MWBase::World* world = MWBase::Environment::get().getWorld();
 
+    if (world->getStore().get<ESM::Cell>().search(placeholderInteriorCellName) != nullptr)
+        return;
+
     ESM::Cell placeholderInterior;
+    placeholderInterior.blank();
     placeholderInterior.mData.mFlags |= ESM::Cell::Flags::Interior;
     placeholderInterior.mName = placeholderInteriorCellName;
+    placeholderInterior.mId = ESM::Cell::generateIdForCell(false, placeholderInteriorCellName, 0, 0);
 
     world->getModifiableStore().insert(placeholderInterior);
+
 }
 
 const std::string RecordHelper::getPlaceholderInteriorCellName()

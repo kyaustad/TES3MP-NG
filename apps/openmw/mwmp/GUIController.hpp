@@ -59,13 +59,12 @@ namespace mwmp
 
         void WM_UpdateVisible(MWGui::GuiMode mode);
 
-        void updatePlayersMarkers(MWGui::LocalMapBase *localMapBase);
-        void updateGlobalMapMarkerTooltips(MWGui::MapWindow *pWindow);
+
 
         ESM::CustomMarker createMarker(const RakNet::RakNetGUID &guid);
-        PlayerMarkerCollection mPlayerMarkers;
+        PlayerMarkerCollection& mPlayerMarkers = MWGui::getPlayerMarkerCollection();
     private:
-        void setGlobalMapMarkerTooltip(MWGui::MapWindow *mapWindow ,MyGUI::Widget* markerWidget, int x, int y);
+
 
     private:
         GUIChat *mChat;

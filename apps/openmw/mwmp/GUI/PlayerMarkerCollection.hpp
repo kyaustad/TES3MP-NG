@@ -3,42 +3,16 @@
 #ifndef OPENMW_PLAYERMARKERCOLLECTION_HPP
 #define OPENMW_PLAYERMARKERCOLLECTION_HPP
 
-#include <components/esm3/cellid.hpp>
-#include <components/esm3/custommarkerstate.hpp>
-#include <map>
-#include <MyGUI_Common.h>
-#include <MyGUI_Colour.h>
+#include "../../mwgui/mapwindow.hpp"
 
 namespace mwmp
 {
-    class PlayerMarkerCollection
-    {
-    public:
-
-        void addMarker(const ESM::CustomMarker &marker, bool triggerEvent = true);
-        void deleteMarker(const ESM::CustomMarker &marker);
-        void updateMarker(const ESM::CustomMarker &marker, const std::string &newNote);
-
-        void clear();
-
-        size_t size() const;
-
-        typedef std::multimap <ESM::CellId, ESM::CustomMarker> ContainerType;
-
-        typedef std::pair <ContainerType::const_iterator, ContainerType::const_iterator> RangeType;
-
-        ContainerType::const_iterator begin() const;
-        ContainerType::const_iterator end() const;
-
-        RangeType getMarkers(const ESM::CellId &cellId) const;
-
-        typedef MyGUI::delegates::MultiDelegate<> EventHandle_Void;
-        EventHandle_Void eventMarkersChanged;
-
-        bool contains(const ESM::CustomMarker &marker);
-    private:
-        ContainerType mMarkers;
-    };
+    /*
+        OpenMW 0.49+ keys markers by cell RefId; other players' markers live in a collection owned by the map
+        windows, which draw them next to custom markers
+    */
+    using PlayerMarkerCollection = MWGui::CustomMarkerCollection;
 }
+
 
 #endif //OPENMW_PLAYERMARKERCOLLECTION_HPP

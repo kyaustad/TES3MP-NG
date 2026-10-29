@@ -263,7 +263,7 @@ void ObjectList::editContainers(MWWorld::CellStore* cellStore)
                             {
                                 // Store the sound of the first item in a TAKE_ALL
                                 if (isLocalTakeAll && takeAllSound.empty())
-                                    takeAllSound = itemPtr.getClass().getUpSoundId(itemPtr);
+                                    takeAllSound = itemPtr.getClass().getUpSoundId(itemPtr).serializeText();
 
                                 // Is this an actor's container? If so, unequip this item if it was equipped
                                 if (hasActorEquipment)
@@ -617,11 +617,12 @@ void ObjectList::deleteObjects(MWWorld::CellStore* cellStore)
                     creatureStats.setDeathAnimationFinished(true);
                     MWBase::Environment::get().getMechanicsManager()->notifyDied(ptrFound);
 
-                    const std::string script = ptrFound.getClass().getScript(ptrFound);
+                    const ESM::RefId script = ptrFound.getClass().getScript(ptrFound);
                     if (!script.empty() && MWBase::Environment::get().getWorld()->getScriptsEnabled())
                     {
                         MWScript::InterpreterContext interpreterContext(&ptrFound.getRefData().getLocals(), ptrFound);
-                        MWBase::Environment::get().getScriptManager()->run(Utils::toRefId(script), interpreterContext);
+                        MWBase::Environment::get().getScriptManager()->run(script, interpreterContext);
+
                     }
                 }
             }

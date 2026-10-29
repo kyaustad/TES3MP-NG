@@ -1597,7 +1597,7 @@ void LocalPlayer::sendSpellsActive()
     MWWorld::Ptr ptrPlayer = getPlayerPtr();
     MWMechanics::ActiveSpells& activeSpells = ptrPlayer.getClass().getCreatureStats(ptrPlayer).getActiveSpells();
 
-    spellsActiveChanges.activeSpells.clear(getPtr());
+    spellsActiveChanges.activeSpells.clear();
 
     // Send spells in spellbook, while ignoring abilities, powers, etc.
     for (const auto& ptrSpell : activeSpells)
@@ -1623,7 +1623,7 @@ void LocalPlayer::sendSpellsActiveAddition(const std::string id, bool isStacking
     if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear(getPtr());
+    spellsActiveChanges.activeSpells.clear();
 
 
     const MWWorld::Ptr caster = MWBase::Environment::get().getWorldModel()->getPtr(params.getCaster());
@@ -1654,7 +1654,7 @@ void LocalPlayer::sendSpellsActiveRemoval(const std::string id, bool isStackingS
     if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear(getPtr());
+    spellsActiveChanges.activeSpells.clear();
 
     mwmp::ActiveSpell spell;
     spell.id = id;

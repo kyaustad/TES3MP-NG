@@ -788,6 +788,52 @@ namespace MWWorld
         }
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to override a Cell record similarly to how other types of records
+        can be overridden
+    */
+    ESM::Cell* Store<ESM::Cell>::override(const ESM::Cell& cell)
+    {
+        if (cell.isExterior())
+        {
+            const std::pair<int, int> key(cell.getGridX(), cell.getGridY());
+            auto dynamic = mDynamicExt.find(key);
+            if (dynamic != mDynamicExt.end())
+            {
+                *dynamic->second = cell;
+                return dynamic->second;
+            }
+            auto existing = mExt.find(key);
+            if (existing != mExt.end())
+            {
+                *existing->second = cell;
+                return existing->second;
+            }
+        }
+        else
+        {
+            auto dynamic = mDynamicInt.find(cell.mName);
+            if (dynamic != mDynamicInt.end())
+            {
+                *dynamic->second = cell;
+                return dynamic->second;
+            }
+            auto existing = mInt.find(cell.mName);
+            if (existing != mInt.end())
+            {
+                *existing->second = cell;
+                return existing->second;
+            }
+        }
+
+        return insert(cell);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     // Pathgrid
     //=========================================================================
 
@@ -795,6 +841,26 @@ namespace MWWorld
         : mCells(nullptr)
     {
     }
+
+    /*
+        Start of tes3mp addition
+
+        Make it possible to override a Pathgrid record similarly to how other types of records
+        can be overridden
+    */
+    ESM::Pathgrid* Store<ESM::Pathgrid>::override(const ESM::Pathgrid& pathgrid)
+    {
+        const bool interior = mCells != nullptr && mCells->search(pathgrid.mCell.getRefIdString()) != nullptr
+            && (pathgrid.mData.mX == 0 && pathgrid.mData.mY == 0);
+        const ESM::RefId cell
+            = interior ? pathgrid.mCell : ESM::RefId::esm3ExteriorCell(pathgrid.mData.mX, pathgrid.mData.mY);
+        ESM::Pathgrid& stored = mStatic[cell];
+        stored = pathgrid;
+        return &stored;
+    }
+    /*
+        End of tes3mp addition
+    */
 
     void Store<ESM::Pathgrid>::setCells(Store<ESM::Cell>& cells)
     {

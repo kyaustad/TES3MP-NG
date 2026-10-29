@@ -295,7 +295,7 @@ void LocalActor::sendSpellsActiveAddition(const std::string id, bool isStackingS
     if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear(getPtr());
+    spellsActiveChanges.activeSpells.clear();
 
     const MWWorld::Ptr caster = MWBase::Environment::get().getWorldModel()->getPtr(params.getCaster());
     const MWWorld::TimeStamp timeStamp = MWBase::Environment::get().getWorld()->getTimeStamp();
@@ -326,7 +326,7 @@ void LocalActor::sendSpellsActiveRemoval(const std::string id, bool isStackingSp
     if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear(getPtr());
+    spellsActiveChanges.activeSpells.clear();
 
     mwmp::ActiveSpell spell;
     spell.id = id;

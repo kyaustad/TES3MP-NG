@@ -60,12 +60,12 @@ DedicatedPlayer::DedicatedPlayer(RakNet::RakNetGUID guid) : BasePlayer(guid)
 
     MWBase::World* world = MWBase::Environment::get().getWorld();
     
-    cell = *(&MWBase::Environment::get().getWorldModel()->getInterior(RecordHelper::getPlaceholderInteriorCellName()))->getCell();
+    cell = MWBase::Environment::get().getWorldModel()->getInterior(RecordHelper::getPlaceholderInteriorCellName()).getCell()->getEsm3();
     position.pos[0] = position.pos[1] = position.pos[2] = 0;
 
     npc = *world->getPlayerPtr().get<ESM::NPC>()->mBase;
     npc.mId = Utils::toRefId("");
-    previousRace = npc.mRace;
+    previousRace = npc.mRace.serializeText();
 
     hasReceivedInitialEquipment = false;
     hasFinishedInitialTeleportation = false;
@@ -180,7 +180,7 @@ void DedicatedPlayer::setBaseInfo()
     if (ptr.getType() == ESM::NPC::sRecordId)
         setEquipment();
 
-    previousRace = npc.mRace;
+    previousRace = npc.mRace.serializeText();
 }
 
 void DedicatedPlayer::setStatsDynamic()
@@ -205,7 +205,7 @@ void DedicatedPlayer::setAnimFlags()
     // simply cast Levitate over and over on a player that's supposed to be flying
     if (!isFlying && !hasTcl && !isLevitationPurged)
     {
-        ptr.getClass().getCreatureStats(ptr).getActiveSpells().purgeEffect(ESM::MagicEffect::Levitate);
+        ptr.getClass().getCreatureStats(ptr).getActiveSpells().purgeEffect(ptr, ESM::MagicEffect::Levitate);
         isLevitationPurged = true;
     }
     else if ((isFlying || hasTcl) && !world->isFlying(ptr))
@@ -213,7 +213,7 @@ void DedicatedPlayer::setAnimFlags()
         MWMechanics::CastSpell levitationCast(ptr, ptr);
         levitationCast.mHitPosition = ptr.getRefData().getPosition().asVec3();
         levitationCast.mAlwaysSucceed = true;
-        levitationCast.cast("Levitate");
+        levitationCast.cast(MWBase::Environment::get().getESMStore()->get<ESM::Spell>().find(ESM::RefId::stringRefId("Levitate")));
         isLevitationPurged = false;
     }
 
@@ -283,7 +283,7 @@ void DedicatedPlayer::setEquipment()
 
         if (it != invStore.end())
         {
-            ptrItemId = it->getCellRef().getRefId();
+            ptrItemId = it->getCellRef().getRefId().serializeText();
 
             if (!Misc::StringUtils::ciEqual(ptrItemId, packetRefId)) // if other item is now equipped
             {
@@ -303,7 +303,7 @@ void DedicatedPlayer::setEquipment()
                 
                 if (shouldRemove)
                 {
-                    store.remove(ptrItemId, store.count(Utils::toRefId(ptrItemId)), ptr);
+                    store.remove(Utils::toRefId(ptrItemId), store.count(Utils::toRefId(ptrItemId)));
                 }
             }
             else
@@ -314,7 +314,7 @@ void DedicatedPlayer::setEquipment()
             continue;
 
         const int count = equipmentItems[slot].count;
-        ptr.getClass().getContainerStore(ptr).add(packetRefId, count, false);
+        ptr.getClass().getContainerStore(ptr).add(Utils::toRefId(packetRefId), count, false);
         // Equip items silently if this is the first time equipment is being set for this character
         equipItem(packetRefId, !hasReceivedInitialEquipment);
         equippedSomething = true;
@@ -340,7 +340,7 @@ void DedicatedPlayer::setShapeshift()
         {
             deleteReference();
 
-            const ESM::Creature* tmpCreature = world->getStore().get<ESM::Creature>().search(creatureRefId);
+            const ESM::Creature* tmpCreature = world->getStore().get<ESM::Creature>().search(Utils::toRefId(creatureRefId));
             creature = *tmpCreature;
             creature.mScript = Utils::toRefId("");
             if (!displayCreatureName)
@@ -351,7 +351,8 @@ void DedicatedPlayer::setShapeshift()
             // and reuse it
             if (creatureRecordId.empty())
             {
-                creature.mId = creatureRecordId = RecordHelper::createRecord(creature)->mId;
+                creature.mId = RecordHelper::createRecord(creature)->mId;
+                creatureRecordId = creature.mId.serializeText();
                 LOG_APPEND(TimedLog::LOG_INFO, "- Creating new creature record %s", creatureRecordId.c_str());
             }
             else
@@ -440,8 +441,8 @@ void DedicatedPlayer::setCell()
     // or is a new player, we should send our latest weather data to the server
     if (world->getWeatherCreationState())
     {
-        if (!hasFinishedInitialTeleportation || Misc::StringUtils::ciEqual(getPtr().getCell()->getCell()->getRegion(),
-            world->getPlayerPtr().getCell()->getCell()->getRegion()))
+        if (!hasFinishedInitialTeleportation || getPtr().getCell()->getCell()->getRegion() ==
+            world->getPlayerPtr().getCell()->getCell()->getRegion())
         {
             world->sendWeather();
         }
@@ -590,7 +591,8 @@ void DedicatedPlayer::createReference(const std::string& recId)
 {
     MWBase::World *world = MWBase::Environment::get().getWorld();
 
-    reference = new MWWorld::ManualRef(world->getStore(), recId, 1);
+    reference = new MWWorld::ManualRef(world->getStore(), Utils::toRefId(recId), 1);
+
 
     LOG_APPEND(TimedLog::LOG_INFO, "- Creating new reference pointer for %s", npc.mName.c_str());
 

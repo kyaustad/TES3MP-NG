@@ -152,6 +152,32 @@ namespace MWGui
         throw std::runtime_error("can't find marker to update");
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to check whether a marker is already part of a collection, and keep a collection of
+        markers for other players
+    */
+    bool CustomMarkerCollection::contains(const ESM::CustomMarker& marker) const
+    {
+        auto range = mMarkers.equal_range(marker.mCell);
+        for (auto it = range.first; it != range.second; ++it)
+        {
+            if (it->second == marker)
+                return true;
+        }
+        return false;
+    }
+
+    CustomMarkerCollection& getPlayerMarkerCollection()
+    {
+        static CustomMarkerCollection playerMarkers;
+        return playerMarkers;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void CustomMarkerCollection::clear()
     {
         mMarkers.clear();
@@ -187,11 +213,29 @@ namespace MWGui
         , mCustomMarkers(markers)
     {
         mCustomMarkers.eventMarkersChanged += MyGUI::newDelegate(this, &LocalMapBase::updateCustomMarkers);
+
+        /*
+            Start of tes3mp addition
+
+            Redraw markers when other players move
+        */
+        getPlayerMarkerCollection().eventMarkersChanged += MyGUI::newDelegate(this, &LocalMapBase::updateCustomMarkers);
+        /*
+            End of tes3mp addition
+        */
     }
 
     LocalMapBase::~LocalMapBase()
     {
         mCustomMarkers.eventMarkersChanged -= MyGUI::newDelegate(this, &LocalMapBase::updateCustomMarkers);
+
+        /*
+            Start of tes3mp addition
+        */
+        getPlayerMarkerCollection().eventMarkersChanged -= MyGUI::newDelegate(this, &LocalMapBase::updateCustomMarkers);
+        /*
+            End of tes3mp addition
+        */
     }
 
     MWGui::LocalMapBase::MapEntry& LocalMapBase::addMapEntry()
@@ -366,11 +410,34 @@ namespace MWGui
                 {
                     ESM::RefId cellRefId = getCellIdInWorldSpace(*mActiveCell, x, y);
                     updateMarkers(mCustomMarkers.getMarkers(cellRefId));
+
+                    /*
+                        Start of tes3mp addition
+
+                        Draw other players next to custom markers
+                    */
+                    updateMarkers(getPlayerMarkerCollection().getMarkers(cellRefId));
+                    /*
+                        End of tes3mp addition
+                    */
                 }
             }
         }
         else
+        {
             updateMarkers(mCustomMarkers.getMarkers(mActiveCell->getId()));
+
+            /*
+                Start of tes3mp addition
+
+                Draw other players next to custom markers
+            */
+            updateMarkers(getPlayerMarkerCollection().getMarkers(mActiveCell->getId()));
+            /*
+                End of tes3mp addition
+            */
+        }
+
 
         redraw();
     }

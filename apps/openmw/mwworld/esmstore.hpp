@@ -303,6 +303,27 @@ namespace MWWorld
         /// @return The shared spell list to use for this actor and whether or not it has already been initialized.
         std::pair<std::shared_ptr<MWMechanics::SpellList>, bool> getSpellList(const ESM::RefId& id) const;
     };
+    /*
+        Start of tes3mp addition
+
+        Make it possible to override Cell and Pathgrid records similarly to how other types of records
+        can be overridden
+    */
+    template <>
+    inline const ESM::Cell* ESMStore::overrideRecord<ESM::Cell>(const ESM::Cell& cell)
+    {
+        return getWritable<ESM::Cell>().override(cell);
+    }
+
+    template <>
+    inline const ESM::Pathgrid* ESMStore::overrideRecord<ESM::Pathgrid>(const ESM::Pathgrid& pathgrid)
+    {
+        return getWritable<ESM::Pathgrid>().override(pathgrid);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     template <>
     const ESM::Cell* ESMStore::insert<ESM::Cell>(const ESM::Cell& cell);
 

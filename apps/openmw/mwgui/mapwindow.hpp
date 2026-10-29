@@ -68,9 +68,30 @@ namespace MWGui
         typedef MyGUI::delegates::MultiDelegate<> EventHandle_Void;
         EventHandle_Void eventMarkersChanged;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a marker is already part of a collection
+        */
+        bool contains(const ESM::CustomMarker& marker) const;
+        /*
+            End of tes3mp addition
+        */
+
     private:
         ContainerType mMarkers;
     };
+
+    /*
+        Start of tes3mp addition
+
+        Markers showing the positions of other players, drawn on every local map next to custom markers
+    */
+    CustomMarkerCollection& getPlayerMarkerCollection();
+    /*
+        End of tes3mp addition
+    */
+
 
     class LocalMapBase
     {
