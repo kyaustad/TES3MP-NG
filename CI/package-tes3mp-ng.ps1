@@ -50,12 +50,13 @@ function Copy-Required([string]$from, [string]$to) {
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $vswhere)) { throw "vswhere.exe not found: is Visual Studio installed?" }
 $vs = (& $vswhere -latest -products * -property installationPath).Trim()
-$crt = Get-ChildItem -Path "$vs\VC\Redist\MSVC\*\x64" -Directory -Filter "Microsoft.VC*.CRT" -ErrorAction SilentlyContinue |
-    Sort-Object FullName -Descending | Select-Object -First 1
+$crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | ForEach-Object { Join-Path $_.FullName "x64" } |
+    Where-Object { Test-Path $_ } | ForEach-Object { Get-ChildItem $_ -Directory } |
+    Where-Object { $_.Name -like "Microsoft.VC*.CRT" } | Sort-Object FullName -Descending | Select-Object -First 1
 if (-not $crt) { throw "Visual C++ runtime redistributable (VC\Redist\MSVC\<version>\x64\Microsoft.VC*.CRT) not found" }
 
-$dumpbin = Get-ChildItem -Path "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" -ErrorAction SilentlyContinue |
-    Sort-Object FullName -Descending | Select-Object -First 1
+$dumpbin = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory | ForEach-Object { Join-Path $_.FullName "bin\Hostx64\x64\dumpbin.exe" } |
+    Where-Object { Test-Path $_ } | ForEach-Object { Get-Item $_ } | Sort-Object FullName -Descending | Select-Object -First 1
 if (-not $dumpbin) { throw "dumpbin.exe not found" }
 
 function Get-Dependencies([string[]]$executables) {
