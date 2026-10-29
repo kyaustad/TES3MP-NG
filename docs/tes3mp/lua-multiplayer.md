@@ -148,6 +148,9 @@ TES3MP doesn't use OpenMW saves.
   keeps it per cell (`data/lua/localState.bin`) and sends it to every player who loads the cell, so the next client
   to simulate the object continues where the last one stopped.
 * A client that crashes or is killed loses whatever changed since its last save.
+* Only mods' scripts are persisted. OpenMW's own scripts (`scripts/omw/`: camera, controls, UI, AI, combat)
+  mirror engine state that multiplayer servers don't persist, so they keep the state of the current session.
+  Restoring a state restarts only the scripts it contains, and the others keep running.
 
 ## Wire format
 

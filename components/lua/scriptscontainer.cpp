@@ -689,6 +689,82 @@ namespace LuaUtil
         getScript(scriptId).mRegisteredCallbacks.emplace(std::string(callbackName), std::move(callback));
     }
 
+    /*
+        Start of tes3mp addition
+
+        Restore the saved state of some scripts without restarting the others, for multiplayer sessions where the
+        engine's own scripts keep their current state
+    */
+    void ScriptsContainer::restoreScripts(const ESM::LuaScripts& savedScripts)
+    {
+        LoadedData& data = ensureLoaded();
+        const ScriptsConfiguration& cfg = mLua.getConfiguration();
+        mLua.protectedCall([&](LuaView& view) {
+            for (const ESM::LuaScript& saved : savedScripts.mScripts)
+            {
+                const int scriptId = saved.mScriptId;
+                if (data.mScripts.find(scriptId) == data.mScripts.end())
+                    continue;
+
+                std::string initData(cfg[scriptId].mInitializationData);
+                if (auto it = mAutoStartScripts.find(scriptId); it != mAutoStartScripts.end())
+                    initData = it->second;
+
+                removeScript(scriptId);
+                for (std::vector<Timer>* queue : { &data.mSimulationTimersQueue, &data.mGameTimersQueue })
+                {
+                    std::erase_if(*queue, [&](const Timer& timer) { return timer.mScriptId == scriptId; });
+                    std::make_heap(queue->begin(), queue->end());
+                }
+
+                std::optional<sol::function> onInit, onLoad;
+                if (!addScript(view, scriptId, onInit, onLoad))
+                    continue;
+
+                if (onLoad)
+                {
+                    try
+                    {
+                        sol::object state = deserialize(view.sol(), saved.mData, mSerializer);
+                        sol::object initializationData = deserialize(view.sol(), initData, mSerializer);
+                        LuaUtil::call({ this, scriptId }, *onLoad, state, initializationData);
+                    }
+                    catch (std::exception& e)
+                    {
+                        printError(scriptId, "onLoad failed", e);
+                    }
+                }
+                else if (onInit)
+                    callOnInit(view, scriptId, *onInit, initData);
+
+                for (const ESM::LuaTimer& savedTimer : saved.mTimers)
+                {
+                    Timer timer;
+                    timer.mCallback = savedTimer.mCallbackName;
+                    timer.mSerializable = true;
+                    timer.mScriptId = scriptId;
+                    timer.mTime = savedTimer.mTime;
+                    try
+                    {
+                        timer.mArg
+                            = sol::main_object(deserialize(view.sol(), savedTimer.mCallbackArgument, mSerializer));
+                        timer.mSerializedArg = serialize(timer.mArg, mSerializer);
+                        insertTimer(savedTimer.mType == TimerType::GAME_TIME ? data.mGameTimersQueue
+                                                                             : data.mSimulationTimersQueue,
+                            std::move(timer));
+                    }
+                    catch (std::exception& e)
+                    {
+                        printError(scriptId, "can not load timer", e);
+                    }
+                }
+            }
+        });
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void ScriptsContainer::insertTimer(std::vector<Timer>& timerQueue, Timer&& t)
     {
         timerQueue.push_back(std::move(t));

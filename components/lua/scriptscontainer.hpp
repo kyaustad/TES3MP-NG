@@ -175,6 +175,10 @@ namespace LuaUtil
         // loads the savedScripts. Runs "onLoad" for each script.
         void load(const ESM::LuaScripts& savedScripts);
 
+        // tes3mp addition: restarts only the given scripts that this container runs, with their saved state ("onLoad"
+        // and timers), leaving its other scripts running
+        void restoreScripts(const ESM::LuaScripts& savedScripts);
+
         // Callbacks for serializable timers should be registered in advance.
         // The script with the given path should already present in the container.
         void registerTimerCallback(int scriptId, std::string_view callbackName, sol::main_protected_function callback);

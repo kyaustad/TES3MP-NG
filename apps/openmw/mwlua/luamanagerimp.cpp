@@ -49,6 +49,7 @@
 #include "../mwmp/LuaSync.hpp"
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
+#include <components/misc/strings/algorithm.hpp>
 /*
     End of tes3mp addition
 */
@@ -1397,12 +1398,22 @@ namespace MWLua
         return result;
     }
 
+    void LuaManager::mpRemoveEngineScripts(ESM::LuaScripts& saved) const
+    {
+        // OpenMW's own scripts (camera, controls, UI, AI, combat) keep the state of the current session: the engine
+        // state they mirror isn't persisted by multiplayer servers. Only mods' script state is
+        std::erase_if(saved.mScripts, [&](const ESM::LuaScript& script) {
+            return Misc::StringUtils::ciStartsWith(mConfiguration[script.mScriptId].mScriptPath.value(), "scripts/omw/");
+        });
+    }
+
     std::string LuaManager::mpSavePlayerScripts()
     {
         if (mPlayer.isEmpty() || mPlayer.getRefData().getLuaScripts() == nullptr)
             return {};
         ESM::LuaScripts saved;
         mPlayer.getRefData().getLuaScripts()->save(saved);
+        mpRemoveEngineScripts(saved);
         return mpEncodeScripts(saved);
     }
 
@@ -1412,10 +1423,10 @@ namespace MWLua
         if (scripts == nullptr)
             return;
         ESM::LuaScripts saved = mpDecodeScripts(data, "player");
+        mpRemoveEngineScripts(saved);
         if (saved.mScripts.empty())
             return;
-        scripts->setSavedDataDeserializer(mLocalSerializer.get());
-        scripts->load(saved);
+        scripts->restoreScripts(saved);
         Log(Debug::Info) << "Loaded the saved state of " << saved.mScripts.size() << " player Lua scripts";
     }
 
@@ -1426,19 +1437,20 @@ namespace MWLua
             return {};
         ESM::LuaScripts saved;
         scripts->save(saved);
+        mpRemoveEngineScripts(saved);
         return mpEncodeScripts(saved);
     }
 
     void LuaManager::mpLoadLocalScripts(const MWWorld::Ptr& ptr, std::string_view data)
     {
         ESM::LuaScripts saved = mpDecodeScripts(data, "local");
+        mpRemoveEngineScripts(saved);
         if (saved.mScripts.empty() || ptr == mPlayer)
             return;
 
         if (LocalScripts* scripts = ptr.getRefData().getLuaScripts())
         {
-            scripts->setSavedDataDeserializer(mLocalSerializer.get());
-            scripts->load(saved);
+            scripts->restoreScripts(saved);
             return;
         }
 

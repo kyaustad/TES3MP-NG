@@ -223,6 +223,7 @@ namespace MWLua
         void mpUpdateLocalScriptSimulation();
         std::string mpEncodeScripts(const ESM::LuaScripts& saved) const;
         ESM::LuaScripts mpDecodeScripts(std::string_view data, std::string_view what) const;
+        void mpRemoveEngineScripts(ESM::LuaScripts& saved) const;
 
         class MpStorageListener;
         std::unique_ptr<MpStorageListener> mMpStorageListener;
