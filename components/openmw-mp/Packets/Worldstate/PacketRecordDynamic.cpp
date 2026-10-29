@@ -1029,7 +1029,7 @@ void PacketRecordDynamic::ProcessInventoryList(std::vector<mwmp::Item> &inventor
         if (!send)
         {
             ESM::ContItem contItem;
-            contItem.mItem = ESM::RefId::deserializeText(item.refId);
+            contItem.mItem = Utils::toRefId(item.refId);
             contItem.mCount = item.count;
             inventoryList.mList.push_back(contItem);
         }

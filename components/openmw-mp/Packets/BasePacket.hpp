@@ -11,6 +11,7 @@
 #include <variant>
 
 #include <components/esm/refid.hpp>
+#include <components/openmw-mp/Utils.hpp>
 #include <components/esm3/activespells.hpp>
 #include <components/esm3/effectlist.hpp>
 #include <components/esm3/loadmgef.hpp>
@@ -178,7 +179,7 @@ namespace mwmp
                 text = refId.empty() ? std::string() : refId.serializeText();
             bool res = RW(text, write, compress);
             if (!write)
-                refId = text.empty() ? ESM::RefId() : ESM::RefId::deserializeText(text);
+                refId = Utils::toRefId(text);
             return res;
         }
 

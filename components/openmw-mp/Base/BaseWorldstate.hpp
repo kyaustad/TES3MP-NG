@@ -1,6 +1,7 @@
 #ifndef OPENMW_BASEWORLDSTATE_HPP
 #define OPENMW_BASEWORLDSTATE_HPP
 
+#include <components/openmw-mp/Lua/LuaData.hpp>
 #include <map>
 #include <vector>
 
@@ -358,6 +359,40 @@ namespace mwmp
         int number;
     };
 
+    /*
+        A message of the OpenMW Lua synchronization, see docs/tes3mp/lua-multiplayer.md
+    */
+    struct LuaMessage
+    {
+        enum Kind : uint8_t
+        {
+            CONFIG = 0,        // server -> client: name is the script policy JSON
+            AUTHORITY = 1,     // server -> client: target is the Lua world authority's player
+            GLOBAL_EVENT = 2,  // name is the event, data its payload
+            LOCAL_EVENT = 3,   // name is the event, target the receiving object, cell the object's cell
+            STORAGE_SET = 4,   // name is the global storage section, key the key, data the value (empty to remove)
+            STORAGE_RESET = 5, // name is the global storage section, data its whole content as a table
+            GLOBAL_STATE = 6,  // data is the saved state of authority mode global scripts
+            REQUEST_STATE = 7  // server -> authority: send GLOBAL_STATE now
+        };
+
+        enum Flags : uint8_t
+        {
+            FLAG_NONE = 0,
+            FLAG_AUTHORITY_ONLY = 1, // GLOBAL_EVENT: only authority mode scripts should receive it
+            FLAG_FROM_SERVER = 2,    // sent by server scripts
+            FLAG_PERSISTENT = 4      // STORAGE_SET: the section survives server restarts
+        };
+
+        uint8_t kind = GLOBAL_EVENT;
+        uint8_t flags = FLAG_NONE;
+        std::string name;
+        std::string key;
+        NetObjectId target;
+        std::string cell;
+        std::string data;
+    };
+
     class BaseWorldstate
     {
     public:
@@ -389,6 +424,7 @@ namespace mwmp
         std::string authorityRegion;
 
         std::vector<Kill> killChanges;
+        std::vector<LuaMessage> luaMessages;
         std::vector<std::string> enforcedCollisionRefIds;
         std::map<std::string, std::string> destinationOverrides;
 

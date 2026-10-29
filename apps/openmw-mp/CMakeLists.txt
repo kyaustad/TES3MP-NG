@@ -43,11 +43,12 @@ set(SERVER
     Cell.cpp
     CellController.cpp
     Utils.cpp
+    LuaSync.cpp
     Script/Script.cpp Script/ScriptFunction.cpp
     Script/ScriptFunctions.cpp
 
     Script/Functions/Actors.cpp Script/Functions/Objects.cpp Script/Functions/Miscellaneous.cpp
-    Script/Functions/Worldstate.cpp
+    Script/Functions/Worldstate.cpp Script/Functions/Lua.cpp
 
     Script/Functions/Books.cpp Script/Functions/Cells.cpp Script/Functions/CharClass.cpp
     Script/Functions/Chat.cpp Script/Functions/Dialogue.cpp Script/Functions/Factions.cpp
@@ -126,7 +127,8 @@ source_group(tes3mp-server\\processors\\object FILES ${PROCESSORS_OBJECT})
 set(PROCESSORS_WORLDSTATE
         processors/worldstate/ProcessorClientScriptGlobal.hpp processors/worldstate/ProcessorRecordDynamic.hpp
         processors/worldstate/ProcessorWorldKillCount.hpp processors/worldstate/ProcessorWorldMap.hpp
-        processors/worldstate/ProcessorWorldWeather.hpp
+        processors/worldstate/ProcessorWorldWeather.hpp processors/worldstate/ProcessorLuaMessage.hpp
+
         )
 
 source_group(tes3mp-server\\processors\\worldstate FILES ${PROCESSORS_WORLDSTATE})

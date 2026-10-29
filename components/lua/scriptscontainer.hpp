@@ -1,6 +1,7 @@
 #ifndef COMPONENTS_LUA_SCRIPTSCONTAINER_H
 #define COMPONENTS_LUA_SCRIPTSCONTAINER_H
 
+#include <functional>
 #include <map>
 #include <set>
 #include <string>
@@ -147,6 +148,11 @@ namespace LuaUtil
         // If some handler returns `false`, all remaining handlers are ignored. Any other return value
         // (including `nil`) has no effect.
         void receiveEvent(std::string_view eventName, std::string_view eventData);
+
+        // tes3mp addition: only calls the handlers of scripts accepted by `scriptFilter`
+        void receiveEvent(std::string_view eventName, std::string_view eventData,
+            const std::function<bool(int scriptId)>& scriptFilter);
+        const VFS::Path::Normalized& getScriptPath(int scriptId) const { return scriptPath(scriptId); }
 
         // Serializer defines how to serialize/deserialize userdata. If serializer is not provided,
         // only built-in types and types from util package can be serialized.

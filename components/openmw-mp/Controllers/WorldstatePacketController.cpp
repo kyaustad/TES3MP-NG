@@ -5,6 +5,7 @@
 #include "../Packets/Worldstate/PacketWorldCollisionOverride.hpp"
 #include "../Packets/Worldstate/PacketWorldDestinationOverride.hpp"
 #include "../Packets/Worldstate/PacketWorldKillCount.hpp"
+#include "../Packets/Worldstate/PacketLuaMessage.hpp"
 #include "../Packets/Worldstate/PacketWorldMap.hpp"
 #include "../Packets/Worldstate/PacketWorldRegionAuthority.hpp"
 #include "../Packets/Worldstate/PacketWorldTime.hpp"
@@ -29,6 +30,7 @@ mwmp::WorldstatePacketController::WorldstatePacketController(RakNet::RakPeerInte
     AddPacket<PacketWorldCollisionOverride>(&packets, peer);
     AddPacket<PacketWorldDestinationOverride>(&packets, peer);
     AddPacket<PacketWorldKillCount>(&packets, peer);
+    AddPacket<PacketLuaMessage>(&packets, peer);
     AddPacket<PacketWorldMap>(&packets, peer);
     AddPacket<PacketWorldRegionAuthority>(&packets, peer);
     AddPacket<PacketWorldTime>(&packets, peer);

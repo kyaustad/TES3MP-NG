@@ -39,6 +39,7 @@
 #include "../mwworld/worldimp.hpp"
 
 #include "Main.hpp"
+#include "LuaSync.hpp"
 #include "Networking.hpp"
 #include "LocalSystem.hpp"
 #include "LocalPlayer.hpp"
@@ -178,6 +179,8 @@ void Main::frame(float dt)
     get().updateWorld(dt);
 
     get().getGUIController()->update(dt);
+
+    LuaSync::get().update(dt);
 }
 
 void Main::updateWorld(float dt) const

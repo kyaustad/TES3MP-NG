@@ -30,7 +30,12 @@ ESM::RefId Utils::toRefId(std::string_view text)
 {
     if (text.empty())
         return ESM::RefId();
-    return ESM::RefId::deserializeText(text);
+    // deserializeText() only returns string ids that already exist in this process, which drops the ids of
+    // records the server (which loads no data files) or a client hasn't seen yet
+    ESM::RefId refId = ESM::RefId::deserializeText(text);
+    if (refId.empty())
+        refId = ESM::RefId::stringRefId(text);
+    return refId;
 }
 
 std::string Utils::refIdToString(const ESM::RefId &refId)

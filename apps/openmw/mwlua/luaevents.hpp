@@ -38,15 +38,27 @@ namespace MWLua
         {
             std::string mEventName;
             std::string mEventData;
+            /*
+                Start of tes3mp addition
+
+                Events from other clients: they are not sent back to the network, and events that were sent to
+                the Lua world authority only reach its authority mode scripts
+            */
+            bool mFromNetwork = false;
+            bool mAuthorityOnly = false;
+            /*
+                End of tes3mp addition
+            */
         };
         struct Local
         {
             ESM::RefNum mDest;
             std::string mEventName;
             std::string mEventData;
+            bool mFromNetwork = false; // tes3mp addition
         };
 
-        void addGlobalEvent(Global event) { mNewGlobalEventBatch.push_back(std::move(event)); }
+        void addGlobalEvent(Global event); // tes3mp change (minor): forwards events to the network
         void addMenuEvent(Global event) { mMenuEvents.push_back(std::move(event)); }
         void addLocalEvent(Local event) { mNewLocalEventBatch.push_back(std::move(event)); }
 

@@ -15,6 +15,16 @@
 #include "localscripts.hpp"
 #include "menuscripts.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/LuaSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
 
@@ -25,6 +35,21 @@ namespace MWLua
         mNewGlobalEventBatch.clear();
         mNewLocalEventBatch.clear();
         mMenuEvents.clear();
+    }
+
+    void LuaEvents::addGlobalEvent(Global event)
+    {
+        /*
+            Start of tes3mp addition
+
+            Global events also reach authority mode scripts on the Lua world authority and server scripts
+        */
+        if (!event.mFromNetwork && mwmp::LuaSync::isEnabled())
+            mwmp::LuaSync::get().onGlobalEvent(event.mEventName, event.mEventData);
+        /*
+            End of tes3mp addition
+        */
+        mNewGlobalEventBatch.push_back(std::move(event));
     }
 
     void LuaEvents::finalizeEventBatch()
@@ -38,11 +63,48 @@ namespace MWLua
     void LuaEvents::callEventHandlers()
     {
         for (const Global& e : mGlobalEventBatch)
-            mGlobalScripts.receiveEvent(e.mEventName, e.mEventData);
+        {
+            /*
+                Start of tes3mp change (minor)
+
+                Events sent to the Lua world authority by other clients only reach authority mode scripts, because
+                client mode scripts already received them on the client that sent them
+            */
+            if (e.mAuthorityOnly)
+            {
+                mGlobalScripts.receiveEvent(e.mEventName, e.mEventData, [this](int scriptId) {
+                    return mwmp::LuaSync::get().getGlobalScriptMode(mGlobalScripts.getScriptPath(scriptId).value())
+                        == mwmp::LuaSync::Mode::Authority;
+                });
+            }
+            else
+                mGlobalScripts.receiveEvent(e.mEventName, e.mEventData);
+            /*
+                End of tes3mp change (minor)
+            */
+        }
         mGlobalEventBatch.clear();
         for (const Local& e : mLocalEventBatch)
         {
             MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(e.mDest);
+            /*
+                Start of tes3mp addition
+
+                Objects simulated by another client (other players, actors and objects in cells another client is
+                the authority of) run their local scripts there, so send the event to that client
+            */
+            if (!ptr.isEmpty() && !mwmp::LuaSync::isLocallySimulated(ptr))
+            {
+                if (!e.mFromNetwork)
+                    mwmp::LuaSync::get().onLocalEvent(ptr, e.mEventName, e.mEventData);
+                else
+                    Log(Debug::Verbose) << "Ignored network event " << e.mEventName << " to L" << e.mDest.toString()
+                                        << ", which is not simulated by this client";
+                continue;
+            }
+            /*
+                End of tes3mp addition
+            */
             LocalScripts* scripts = ptr.isEmpty() ? nullptr : ptr.getRefData().getLuaScripts();
             if (scripts)
                 scripts->receiveEvent(e.mEventName, e.mEventData);

@@ -10,6 +10,7 @@
 #include <Script/Functions/Factions.hpp>
 #include <Script/Functions/GUI.hpp>
 #include <Script/Functions/Items.hpp>
+#include <Script/Functions/Lua.hpp>
 #include <Script/Functions/Mechanics.hpp>
 #include <Script/Functions/Miscellaneous.hpp>
 #include <Script/Functions/Objects.hpp>
@@ -149,7 +150,8 @@ public:
             SPELLAPI,
             STATAPI,
             OBJECTAPI,
-            WORLDSTATEAPI
+            WORLDSTATEAPI,
+            LUAAPI
     };
 
     static constexpr ScriptCallbackData callbacks[]{
@@ -220,7 +222,10 @@ public:
             {"OnClientScriptLocal",      Callback<unsigned short, const char*>()},
             {"OnClientScriptGlobal",     Callback<unsigned short>()},
             {"OnMpNumIncrement",         Callback<int>()},
-            {"OnRequestDataFileList",    Callback<>()}
+            {"OnRequestDataFileList",    Callback<>()},
+            {"OnLuaGlobalEvent",         Callback<unsigned short, const char*, const char*>()},
+            {"OnLuaAuthorityChange",     Callback<unsigned short>()}
+
     };
 };
 

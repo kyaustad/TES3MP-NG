@@ -1,3 +1,4 @@
+#include "LuaSync.hpp"
 #include "Player.hpp"
 #include "processors/ProcessorInitializer.hpp"
 #include <RakPeer.h>
@@ -175,6 +176,8 @@ void Networking::processPlayerPacket(RakNet::Packet *packet)
 
         myPacket->setPlayer(player);
         myPacket->Read();
+        LOG_APPEND(TimedLog::LOG_INFO, "- race %s, head %s, hair %s", Utils::refIdToCString(player->npc.mRace),
+            Utils::refIdToCString(player->npc.mHead), Utils::refIdToCString(player->npc.mHair));
         myPacket->Send(true);
     }
 
@@ -184,6 +187,7 @@ void Networking::processPlayerPacket(RakNet::Packet *packet)
     {
         player->setLoadState(Player::POSTLOADED);
         newPlayer(packet->guid);
+        LuaSync::onPlayerLoaded(*player); // tes3mp addition: OpenMW Lua synchronization
         return;
     }
 
@@ -385,6 +389,7 @@ void Networking::disconnectPlayer(RakNet::RakNetGUID guid)
     if (!player)
         return;
     Script::Call<Script::CallbackIdentity("OnPlayerDisconnect")>(player->getId());
+    LuaSync::onPlayerDisconnect(*player); // tes3mp addition: OpenMW Lua synchronization
 
     playerPacketController->GetPacket(ID_USER_DISCONNECTED)->setPlayer(player);
     playerPacketController->GetPacket(ID_USER_DISCONNECTED)->Send(true);

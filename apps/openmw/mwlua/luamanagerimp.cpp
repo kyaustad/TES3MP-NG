@@ -1,5 +1,6 @@
 #include "luamanagerimp.hpp"
 
+#include <cstring>
 #include <filesystem>
 
 #include <MyGUI_InputManager.h>
@@ -40,6 +41,16 @@
 #include "types/types.hpp"
 #include "userdataserializer.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/LuaSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
     namespace
@@ -65,6 +76,107 @@ namespace MWLua
         }
     }
 
+    /*
+        Start of tes3mp addition
+
+        Replicates changes that the Lua world authority's global scripts make to global storage
+    */
+    class LuaManager::MpStorageListener : public LuaUtil::LuaStorage::Listener
+    {
+    public:
+        explicit MpStorageListener(LuaManager& manager)
+            : mManager(manager)
+        {
+        }
+
+        void valueChanged(std::string_view section, std::string_view key, const sol::object& value) const override
+        {
+            if (!active(section))
+                return;
+            std::string data;
+            if (value != sol::nil)
+                data = LuaUtil::serialize(value, mManager.mGlobalSerializer.get());
+            mwmp::LuaSync::get().onStorageValueChanged(
+                section, key, std::move(data), mManager.mGlobalStorage.isPersistentSection(section));
+        }
+
+        void sectionReplaced(std::string_view section, const sol::optional<sol::table>& values) const override
+        {
+            if (!active(section))
+                return;
+            mwmp::LuaSync& sync = mwmp::LuaSync::get();
+            sync.onStorageSectionReplaced(section, {});
+            if (!values)
+                return;
+            const bool persistent = mManager.mGlobalStorage.isPersistentSection(section);
+            for (const auto& [key, value] : *values)
+            {
+                if (key.get_type() != sol::type::string)
+                    continue;
+                sync.onStorageValueChanged(section, key.as<std::string_view>(),
+                    LuaUtil::serialize(value, mManager.mGlobalSerializer.get()), persistent);
+            }
+        }
+
+    private:
+        bool active(std::string_view section) const
+        {
+            // Temporary sections hold per-client runtime data, such as the settings groups that built-in client mode
+            // scripts register on every client
+            return mwmp::LuaSync::isEnabled() && !mManager.mMpApplyingStorage && mwmp::LuaSync::get().isAuthority()
+                && !mManager.mGlobalStorage.isTemporarySection(section);
+        }
+
+        LuaManager& mManager;
+    };
+
+    namespace
+    {
+        // Saved state of global scripts on the network: scripts are identified by path, because script ids depend on
+        // the order of omwscripts files
+        void mpWriteString(std::string& out, std::string_view value)
+        {
+            const uint32_t size = static_cast<uint32_t>(value.size());
+            out.append(reinterpret_cast<const char*>(&size), sizeof(size));
+            out.append(value);
+        }
+
+        template <class T>
+        void mpWriteValue(std::string& out, T value)
+        {
+            out.append(reinterpret_cast<const char*>(&value), sizeof(value));
+        }
+
+        struct MpReader
+        {
+            std::string_view mData;
+
+            template <class T>
+            T value()
+            {
+                if (mData.size() < sizeof(T))
+                    throw std::runtime_error("Truncated Lua script state");
+                T result;
+                std::memcpy(&result, mData.data(), sizeof(T));
+                mData.remove_prefix(sizeof(T));
+                return result;
+            }
+
+            std::string string()
+            {
+                const uint32_t size = value<uint32_t>();
+                if (mData.size() < size)
+                    throw std::runtime_error("Truncated Lua script state");
+                std::string result(mData.substr(0, size));
+                mData.remove_prefix(size);
+                return result;
+            }
+        };
+    }
+    /*
+        End of tes3mp addition
+    */
+
     static LuaUtil::LuaStateSettings createLuaStateSettings()
     {
         if (!Settings::lua().mLuaProfiler)
@@ -87,6 +199,9 @@ namespace MWLua
         mLocalLoader = createUserdataSerializer(true, &mContentFileMapping);
 
         mGlobalScripts.setSerializer(mGlobalSerializer.get());
+
+        mMpStorageListener = std::make_unique<MpStorageListener>(*this); // tes3mp addition
+        mGlobalStorage.setListener(mMpStorageListener.get()); // tes3mp addition
     }
 
     LuaManager::~LuaManager()
@@ -101,7 +216,18 @@ namespace MWLua
         for (size_t i = 0; i < mConfiguration.size(); ++i)
             Log(Debug::Verbose) << "#" << i << " " << LuaUtil::scriptCfgToString(mConfiguration[i]);
         mMenuScripts.setAutoStartConf(mConfiguration.getMenuConf());
-        mGlobalScripts.setAutoStartConf(mConfiguration.getGlobalConf());
+        /*
+            Start of tes3mp change (minor)
+
+            Only run the global scripts that the server's script policy allows on this client
+        */
+        if (mwmp::LuaSync::isEnabled() && mwmp::LuaSync::get().hasConfig())
+            mGlobalScripts.setAutoStartConf(mpGlobalConf(mwmp::LuaSync::get().isAuthority()));
+        else
+            mGlobalScripts.setAutoStartConf(mConfiguration.getGlobalConf());
+        /*
+            End of tes3mp change (minor)
+        */
     }
 
     void LuaManager::initPreLoad()
@@ -194,7 +320,8 @@ namespace MWLua
     void LuaManager::savePermanentStorage(const std::filesystem::path& userConfigPath)
     {
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
-            if (mGlobalScriptsStarted)
+            // tes3mp change (minor): global storage belongs to the server in multiplayer
+            if (mGlobalScriptsStarted && !mwmp::LuaSync::isEnabled())
                 mGlobalStorage.save(view.sol(), userConfigPath / "global_storage.bin");
             mPlayerStorage.save(view.sol(), userConfigPath / "player_storage.bin");
         });
@@ -246,6 +373,24 @@ namespace MWLua
         for (const LuaUtil::ScriptsContainerWeakPtr& ptr : mActiveLocalScripts)
             asLocal(ptr)->statsNextFrame();
 
+        /*
+            Start of tes3mp addition
+
+            Apply Lua messages from other clients, and only simulate the local scripts of objects this client
+            is responsible for
+        */
+        if (mwmp::LuaSync::isEnabled())
+        {
+            mwmp::LuaSync::get().updateLua(MWBase::Environment::get().getFrameDuration());
+            mpUpdateLocalScriptSimulation();
+        }
+        auto isSimulated = [this](const LuaUtil::ScriptsContainerWeakPtr& ptr) {
+            return mMpSuspendedLocalScripts.empty() || !mMpSuspendedLocalScripts.contains(asLocal(ptr));
+        };
+        /*
+            End of tes3mp addition
+        */
+
         mLuaEvents.finalizeEventBatch();
 
         MWWorld::DateTimeManager& timeManager = *MWBase::Environment::get().getWorld()->getTimeManager();
@@ -254,7 +399,10 @@ namespace MWLua
             mMenuScripts.processTimers(timeManager.getSimulationTime(), timeManager.getGameTime());
             mGlobalScripts.processTimers(timeManager.getSimulationTime(), timeManager.getGameTime());
             for (const LuaUtil::ScriptsContainerWeakPtr& ptr : mActiveLocalScripts)
-                asLocal(ptr)->processTimers(timeManager.getSimulationTime(), timeManager.getGameTime());
+            {
+                if (isSimulated(ptr)) // tes3mp change (minor)
+                    asLocal(ptr)->processTimers(timeManager.getSimulationTime(), timeManager.getGameTime());
+            }
         }
 
         // Run event handlers for events that were sent before `finalizeEventBatch`.
@@ -272,7 +420,10 @@ namespace MWLua
 
             float frameDuration = MWBase::Environment::get().getFrameDuration();
             for (const LuaUtil::ScriptsContainerWeakPtr& ptr : mActiveLocalScripts)
-                asLocal(ptr)->update(isPaused ? 0 : frameDuration);
+            {
+                if (isSimulated(ptr)) // tes3mp change (minor)
+                    asLocal(ptr)->update(isPaused ? 0 : frameDuration);
+            }
             mGlobalScripts.update(isPaused ? 0 : frameDuration);
 
             mScriptTracker.unloadInactiveScripts(lua);
@@ -396,6 +547,7 @@ namespace MWLua
         mGlobalScripts.removeAllScripts();
         mGlobalScriptsStarted = false;
         mNewGameStarted = false;
+        mMpSuspendedLocalScripts.clear(); // tes3mp addition
         mDelayedUiModeChangedArg = std::nullopt;
         if (!mPlayer.isEmpty())
         {
@@ -437,6 +589,21 @@ namespace MWLua
     {
         mGlobalStorage.setActive(true);
         mInputEvents.clear();
+        /*
+            Start of tes3mp addition
+
+            In multiplayer, global scripts start once the server has sent its Lua script policy,
+            see mpStartGlobalScripts()
+        */
+        if (mwmp::LuaSync::isEnabled())
+        {
+            mGlobalScripts.setAutoStartConf({});
+            mGlobalScripts.removeAllScripts();
+            return;
+        }
+        /*
+            End of tes3mp addition
+        */
         mGlobalScripts.addAutoStartedScripts();
         mGlobalScriptsStarted = true;
         mNewGameStarted = true;
@@ -1043,4 +1210,209 @@ namespace MWLua
 
         return out.str();
     }
+
+    /*
+        Start of tes3mp addition
+
+        OpenMW Lua synchronization, see docs/tes3mp/lua-multiplayer.md
+    */
+    LuaUtil::ScriptIdsWithInitializationData LuaManager::mpGlobalConf(bool authority) const
+    {
+        LuaUtil::ScriptIdsWithInitializationData conf = mConfiguration.getGlobalConf();
+        if (!authority)
+        {
+            const mwmp::LuaSync& sync = mwmp::LuaSync::get();
+            std::erase_if(conf, [&](const auto& entry) {
+                return sync.getGlobalScriptMode(mConfiguration[entry.first].mScriptPath.value())
+                    == mwmp::LuaSync::Mode::Authority;
+            });
+        }
+        return conf;
+    }
+
+    void LuaManager::mpStartGlobalScripts(bool authority, const std::string* authorityState)
+    {
+        const mwmp::LuaSync& sync = mwmp::LuaSync::get();
+        auto isAuthorityMode = [&](int scriptId) {
+            return sync.getGlobalScriptMode(mConfiguration[scriptId].mScriptPath.value())
+                == mwmp::LuaSync::Mode::Authority;
+        };
+
+        // Client mode scripts keep their state when they are restarted because the authority changed
+        ESM::LuaScripts saved;
+        if (mGlobalScriptsStarted)
+        {
+            mGlobalScripts.save(saved);
+            std::erase_if(
+                saved.mScripts, [&](const ESM::LuaScript& script) { return isAuthorityMode(script.mScriptId); });
+        }
+
+        if (authority && authorityState != nullptr && !authorityState->empty())
+        {
+            try
+            {
+                MpReader reader{ *authorityState };
+                const uint32_t count = reader.value<uint32_t>();
+                for (uint32_t i = 0; i < count; ++i)
+                {
+                    const std::string path = reader.string();
+                    ESM::LuaScript script;
+                    script.mData = sync.dataToLocal(reader.string());
+                    const uint32_t timerCount = reader.value<uint32_t>();
+                    for (uint32_t t = 0; t < timerCount; ++t)
+                    {
+                        ESM::LuaTimer timer;
+                        timer.mType = static_cast<ESM::LuaTimer::Type>(reader.value<uint8_t>() != 0);
+                        timer.mTime = reader.value<double>();
+                        timer.mCallbackName = reader.string();
+                        timer.mCallbackArgument = sync.dataToLocal(reader.string());
+                        script.mTimers.push_back(std::move(timer));
+                    }
+
+                    const std::optional<int> scriptId = mConfiguration.findId(VFS::Path::Normalized(path));
+                    if (!scriptId || !isAuthorityMode(*scriptId))
+                    {
+                        Log(Debug::Warning) << "Ignoring saved state of global script " << path
+                                            << ", which is not an authority mode script on this client";
+                        continue;
+                    }
+                    script.mScriptId = *scriptId;
+                    saved.mScripts.push_back(std::move(script));
+                }
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Can not load the state of authority mode Lua scripts: " << e.what();
+            }
+        }
+
+        mGlobalStorage.setActive(true);
+        if (mGlobalScriptsStarted)
+            mGlobalStorage.clearTemporaryValues();
+        mGlobalScripts.setAutoStartConf(mpGlobalConf(authority));
+        mGlobalScripts.setSavedDataDeserializer(mGlobalSerializer.get());
+        if (saved.mScripts.empty())
+        {
+            mGlobalScripts.removeAllScripts();
+            mGlobalScripts.addAutoStartedScripts();
+        }
+        else
+            mGlobalScripts.load(saved);
+
+        Log(Debug::Info) << "Started global Lua scripts as " << (authority ? "the Lua world authority" : "a client");
+
+        if (!mGlobalScriptsStarted)
+        {
+            mGlobalScriptsStarted = true;
+            mNewGameStarted = true; // onNewGame runs in the next synchronizedUpdate
+        }
+    }
+
+    std::string LuaManager::mpSaveAuthorityScripts()
+    {
+        const mwmp::LuaSync& sync = mwmp::LuaSync::get();
+        ESM::LuaScripts saved;
+        mGlobalScripts.save(saved);
+
+        uint32_t count = 0;
+        std::string body;
+        for (const ESM::LuaScript& script : saved.mScripts)
+        {
+            const std::string_view path = mConfiguration[script.mScriptId].mScriptPath.value();
+            if (sync.getGlobalScriptMode(path) != mwmp::LuaSync::Mode::Authority)
+                continue;
+            try
+            {
+                std::string entry;
+                mpWriteString(entry, path);
+                mpWriteString(entry, sync.dataToNetwork(script.mData));
+                mpWriteValue<uint32_t>(entry, static_cast<uint32_t>(script.mTimers.size()));
+                for (const ESM::LuaTimer& timer : script.mTimers)
+                {
+                    mpWriteValue<uint8_t>(entry, static_cast<uint8_t>(timer.mType));
+                    mpWriteValue<double>(entry, timer.mTime);
+                    mpWriteString(entry, timer.mCallbackName);
+                    mpWriteString(entry, sync.dataToNetwork(timer.mCallbackArgument));
+                }
+                body += entry;
+                ++count;
+            }
+            catch (const std::exception& e)
+            {
+                Log(Debug::Error) << "Can not save the state of global script " << path << ": " << e.what();
+            }
+        }
+
+        std::string out;
+        mpWriteValue<uint32_t>(out, count);
+        out += body;
+        return out;
+    }
+
+    void LuaManager::mpDeliverGlobalEvent(std::string name, std::string data, bool authorityOnly)
+    {
+        LuaEvents::Global event{ std::move(name), std::move(data) };
+        event.mFromNetwork = true;
+        event.mAuthorityOnly = authorityOnly;
+        mLuaEvents.addGlobalEvent(std::move(event));
+    }
+
+    void LuaManager::mpDeliverLocalEvent(ESM::RefNum target, std::string name, std::string data)
+    {
+        LuaEvents::Local event{ target, std::move(name), std::move(data) };
+        event.mFromNetwork = true;
+        mLuaEvents.addLocalEvent(std::move(event));
+    }
+
+    void LuaManager::mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data)
+    {
+        BoolScopeGuard guard(mMpApplyingStorage);
+        mGlobalStorage.setActive(true);
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::object value = sol::nil;
+            if (!data.empty())
+                value = LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get());
+            mGlobalStorage.setSingleValue(section, key, value);
+        });
+    }
+
+    void LuaManager::mpResetStorageSection(std::string_view section, std::string_view data)
+    {
+        BoolScopeGuard guard(mMpApplyingStorage);
+        mGlobalStorage.setActive(true);
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::optional<sol::table> values;
+            if (!data.empty())
+                values = LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get()).as<sol::table>();
+            mGlobalStorage.setSectionValues(section, values);
+        });
+    }
+
+    void LuaManager::mpClearGlobalStorage()
+    {
+        // Global storage loaded from this computer's global_storage.bin is replaced by the server's
+        mGlobalStorage.clearAllValues();
+    }
+
+    void LuaManager::mpUpdateLocalScriptSimulation()
+    {
+        std::set<const LocalScripts*> suspended;
+        for (const LuaUtil::ScriptsContainerWeakPtr& ptr : mActiveLocalScripts)
+        {
+            LocalScripts* scripts = asLocal(ptr);
+            const bool simulated = mwmp::LuaSync::isLocallySimulated(scripts->getPtrOrEmpty());
+            if (!simulated)
+            {
+                if (scripts->isActive())
+                    scripts->setActive(false);
+                suspended.insert(scripts);
+            }
+            else if (!scripts->isActive() && mMpSuspendedLocalScripts.contains(scripts))
+                scripts->setActive(true);
+        }
+        mMpSuspendedLocalScripts = std::move(suspended);
+    }
+    /*
+        End of tes3mp addition
+    */
 }

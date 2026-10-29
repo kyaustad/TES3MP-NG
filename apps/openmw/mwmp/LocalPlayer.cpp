@@ -5,6 +5,8 @@
 #include <components/misc/resourcehelpers.hpp>
 #include <components/settings/values.hpp>
 
+#include <components/esm3/loadbody.hpp>
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/journal.hpp"
 #include "../mwbase/soundmanager.hpp"
@@ -146,12 +148,34 @@ bool LocalPlayer::processCharGen()
         {
             if (charGenState.currentStage == 0)
                 MWBase::Environment::get().getMechanicsManager()->setPlayerName(Main::getAutoLoginName());
+            else if (charGenState.currentStage == 1)
+            {
+                // The default player record has no race, head or hair; use the first playable male Dark Elf parts
+                const ESM::RefId race = ESM::RefId::stringRefId("Dark Elf");
+                ESM::RefId head, hair;
+                for (const ESM::BodyPart& part : MWBase::Environment::get().getESMStore()->get<ESM::BodyPart>())
+                {
+                    if (part.mRace != race || part.mData.mType != ESM::BodyPart::MT_Skin || part.mData.mVampire
+                        || (part.mData.mFlags & (ESM::BodyPart::BPF_Female | ESM::BodyPart::BPF_NotPlayable)))
+                        continue;
+                    if (part.mData.mPart == ESM::BodyPart::MP_Head && head.empty())
+                        head = part.mId;
+                    else if (part.mData.mPart == ESM::BodyPart::MP_Hair && hair.empty())
+                        hair = part.mId;
+                }
+                MWBase::Environment::get().getMechanicsManager()->setPlayerRace(race, true, head, hair);
+            }
 
             LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Auto-login: completing character generation stage %i",
                 charGenState.currentStage);
             charGenState.currentStage++;
-            getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->setPlayer(this);
-            getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->Send();
+            // The last stage is reported below, after ID_PLAYER_BASEINFO, so that the server saves the character
+            // with its race, head and hair
+            if (charGenState.currentStage < charGenState.endStage)
+            {
+                getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->setPlayer(this);
+                getNetworking()->getPlayerPacket(ID_PLAYER_CHARGEN)->Send();
+            }
             return false;
         }
 
@@ -186,10 +210,12 @@ bool LocalPlayer::processCharGen()
     {
         MWBase::World *world = MWBase::Environment::get().getWorld();
         MWWorld::Ptr ptrPlayer = world->getPlayerPtr();
-        npc = *ptrPlayer.get<ESM::NPC>()->mBase;
+        // Read the record from the store: race, head and hair chosen this frame may not have reached mBase yet
+        npc = *world->getStore().get<ESM::NPC>().find(ptrPlayer.getCellRef().getRefId());
         birthsign = world->getPlayer().getBirthSign().serializeText();
 
-        LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Sending ID_PLAYER_BASEINFO to server with my CharGen info");
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Sending ID_PLAYER_BASEINFO to server with my CharGen info (race %s, head %s, hair %s)",
+            Utils::refIdToCString(npc.mRace), Utils::refIdToCString(npc.mHead), Utils::refIdToCString(npc.mHair));
         getNetworking()->getPlayerPacket(ID_PLAYER_BASEINFO)->setPlayer(this);
         getNetworking()->getPlayerPacket(ID_PLAYER_BASEINFO)->Send();
 

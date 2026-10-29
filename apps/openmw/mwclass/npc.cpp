@@ -66,6 +66,16 @@
 
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/PlayerList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     struct NpcParts
@@ -843,6 +853,23 @@ namespace MWClass
 
     std::unique_ptr<MWWorld::Action> Npc::activate(const MWWorld::Ptr& ptr, const MWWorld::Ptr& actor) const
     {
+        /*
+            Start of tes3mp addition
+
+            Don't display a dialogue screen for two players interacting with each other
+
+            Avoid returning an ActionTalk when a non-player NPC activates another
+            non-player NPC, because it will always pop up a dialogue screen for
+            the local player
+        */
+        if (actor == MWMechanics::getPlayer() && mwmp::PlayerList::isDedicatedPlayer(ptr))
+            return std::make_unique<MWWorld::FailedAction>("");
+        if (ptr != MWMechanics::getPlayer() && actor != MWMechanics::getPlayer())
+            return std::make_unique<MWWorld::FailedAction>("");
+        /*
+            End of tes3mp addition
+        */
+
         // player got activated by another NPC
         if (ptr == MWMechanics::getPlayer())
             return std::make_unique<MWWorld::ActionTalk>(actor);

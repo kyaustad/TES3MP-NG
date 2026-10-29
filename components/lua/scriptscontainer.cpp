@@ -349,6 +349,12 @@ namespace LuaUtil
 
     void ScriptsContainer::receiveEvent(std::string_view eventName, std::string_view eventData)
     {
+        receiveEvent(eventName, eventData, {});
+    }
+
+    void ScriptsContainer::receiveEvent(std::string_view eventName, std::string_view eventData,
+        const std::function<bool(int scriptId)>& scriptFilter)
+    {
         LoadedData& data = ensureLoaded();
         auto it = data.mEventHandlers.find(eventName);
         if (it == data.mEventHandlers.end())
@@ -368,6 +374,8 @@ namespace LuaUtil
             for (size_t i = list.size(); i > 0; --i)
             {
                 const Handler& h = list[i - 1];
+                if (scriptFilter && !scriptFilter(h.mScriptId))
+                    continue;
                 try
                 {
                     sol::object res = LuaUtil::call({ this, h.mScriptId }, h.mFn, object);

@@ -104,6 +104,7 @@
 #include "worldstate/ProcessorWorldRegionAuthority.hpp"
 #include "worldstate/ProcessorWorldTime.hpp"
 #include "worldstate/ProcessorWorldWeather.hpp"
+#include "worldstate/ProcessorLuaMessage.hpp"
 
 using namespace mwmp;
 
@@ -208,4 +209,5 @@ void ProcessorInitializer()
     WorldstateProcessor::AddProcessor(new ProcessorWorldRegionAuthority());
     WorldstateProcessor::AddProcessor(new ProcessorWorldTime());
     WorldstateProcessor::AddProcessor(new ProcessorWorldWeather());
+    WorldstateProcessor::AddProcessor(new ProcessorLuaMessage());
 }

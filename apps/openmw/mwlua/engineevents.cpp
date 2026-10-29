@@ -11,6 +11,8 @@
 #include "localscripts.hpp"
 #include "object.hpp"
 
+#include "../mwmp/LuaSync.hpp" // tes3mp addition
+
 namespace MWLua
 {
 
@@ -44,7 +46,9 @@ namespace MWLua
 
         void operator()(const OnInactive& event) const
         {
-            if (auto* scripts = getLocalScripts(event.mObject))
+            // tes3mp change (minor): also deactivate scripts of objects that another client simulates
+            MWWorld::Ptr ptr = getPtr(event.mObject);
+            if (auto* scripts = ptr.isEmpty() ? nullptr : ptr.getRefData().getLuaScripts())
                 scripts->setActive(false);
         }
 
@@ -143,8 +147,16 @@ namespace MWLua
 
         LocalScripts* getLocalScripts(const MWWorld::Ptr& ptr) const
         {
-            if (ptr.isEmpty())
+            /*
+                Start of tes3mp change (minor)
+
+                Local scripts of objects that another client simulates don't run here
+            */
+            if (ptr.isEmpty() || !mwmp::LuaSync::isLocallySimulated(ptr))
                 return nullptr;
+            /*
+                End of tes3mp change (minor)
+            */
             else
                 return ptr.getRefData().getLuaScripts();
         }

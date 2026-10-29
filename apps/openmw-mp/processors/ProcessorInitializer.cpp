@@ -84,6 +84,7 @@
 #include "worldstate/ProcessorClientScriptGlobal.hpp"
 #include "worldstate/ProcessorRecordDynamic.hpp"
 #include "worldstate/ProcessorWorldKillCount.hpp"
+#include "worldstate/ProcessorLuaMessage.hpp"
 #include "worldstate/ProcessorWorldMap.hpp"
 #include "worldstate/ProcessorWorldWeather.hpp"
 
@@ -171,6 +172,8 @@ void ProcessorInitializer()
     WorldstateProcessor::AddProcessor(new ProcessorClientScriptGlobal());
     WorldstateProcessor::AddProcessor(new ProcessorRecordDynamic());
     WorldstateProcessor::AddProcessor(new ProcessorWorldKillCount());
+    WorldstateProcessor::AddProcessor(new ProcessorLuaMessage());
+
     WorldstateProcessor::AddProcessor(new ProcessorWorldMap());
     WorldstateProcessor::AddProcessor(new ProcessorWorldWeather());
 }

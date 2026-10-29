@@ -114,6 +114,7 @@ enum GameMessages
     ID_WORLD_DESTINATION_OVERRIDE,
     ID_ACTOR_SPELLS_ACTIVE,
     ID_PLAYER_COOLDOWNS,
+    ID_LUA_MESSAGE, // OpenMW Lua synchronization, see docs/tes3mp/lua-multiplayer.md
     ID_PLACEHOLDER
 };
 

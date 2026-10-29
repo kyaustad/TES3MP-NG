@@ -26,6 +26,8 @@
 #include "Networking.hpp"
 #include "MasterClient.hpp"
 #include "Utils.hpp"
+#include "LuaSync.hpp"
+
 
 #include <apps/openmw-mp/Script/Script.hpp>
 
@@ -186,6 +188,7 @@ int runServer(int argc, char *argv[])
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "%s", versionInfo.c_str());
     
     Script::SetModDir(dataDirectory);
+    LuaSync::init(dataDirectory); // tes3mp addition: OpenMW Lua synchronization
 
 #ifdef ENABLE_LUA
     LangLua::AddPackagePath(Utils::convertPath(pluginHome + "/scripts/?.lua" + ";"

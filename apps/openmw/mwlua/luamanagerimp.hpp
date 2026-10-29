@@ -183,12 +183,46 @@ namespace MWLua
 
         bool isSynchronizedUpdateRunning() const { return mRunningSynchronizedUpdates; }
 
+        /*
+            Start of tes3mp addition
+
+            Used by mwmp::LuaSync, from the thread that runs Lua. Event and storage data is in local form.
+        */
+        // Starts (or restarts, when this client gains or loses the Lua world authority) the global scripts that run
+        // on this client. `authorityState` is the saved state of authority mode scripts, from the server.
+        void mpStartGlobalScripts(bool authority, const std::string* authorityState);
+        // Saved state of authority mode scripts, in network form
+        std::string mpSaveAuthorityScripts();
+        void mpDeliverGlobalEvent(std::string name, std::string data, bool authorityOnly);
+        void mpDeliverLocalEvent(ESM::RefNum target, std::string name, std::string data);
+        void mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data);
+        void mpResetStorageSection(std::string_view section, std::string_view data);
+        void mpClearGlobalStorage();
+        /*
+            End of tes3mp addition
+        */
+
     private:
         void initConfiguration(bool reload);
         LocalScripts* createLocalScripts(const MWWorld::Ptr& ptr,
             std::optional<LuaUtil::ScriptIdsWithInitializationData> autoStartConf = std::nullopt);
         void reloadAllScriptsImpl();
         void synchronizedUpdateUnsafe();
+
+        /*
+            Start of tes3mp addition
+        */
+        LuaUtil::ScriptIdsWithInitializationData mpGlobalConf(bool authority) const;
+        void mpUpdateLocalScriptSimulation();
+
+        class MpStorageListener;
+        std::unique_ptr<MpStorageListener> mMpStorageListener;
+        bool mMpApplyingStorage = false;
+        // Local scripts of objects in the scene that another client simulates; they are inactive here
+        std::set<const LocalScripts*> mMpSuspendedLocalScripts;
+        /*
+            End of tes3mp addition
+        */
 
         bool mInitialized = false;
         bool mGlobalScriptsStarted = false;

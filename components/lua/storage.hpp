@@ -60,6 +60,31 @@ namespace LuaUtil
             virtual void sectionReplaced(std::string_view section, const sol::optional<sol::table>& values) const = 0;
         };
         void setListener(const Listener* listener) { mListener = listener; }
+        // tes3mp additions
+        // Empties every section, keeping the section objects that scripts already hold
+        void clearAllValues()
+        {
+            for (auto& [name, section] : mData)
+                section->mValues.clear();
+        }
+        bool isTemporarySection(std::string_view sectionName) const
+        {
+            auto it = mData.find(sectionName);
+            return it != mData.end() && it->second->mLifeTime == Section::Temporary;
+        }
+        // Empties temporary sections (such as registered settings groups) before scripts are restarted, keeping
+        // the callbacks of scripts that keep running
+        void clearTemporaryValues()
+        {
+            for (auto& [name, section] : mData)
+                if (section->mLifeTime == Section::Temporary)
+                    section->mValues.clear();
+        }
+        bool isPersistentSection(std::string_view sectionName) const
+        {
+            auto it = mData.find(sectionName);
+            return it != mData.end() && it->second->mLifeTime == Section::Persistent;
+        }
         void setActive(bool active) { mActive = active; }
 
     private:
