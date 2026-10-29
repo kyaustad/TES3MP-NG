@@ -4,10 +4,8 @@
 #include <boost/program_options.hpp>
 
 #include <components/files/configurationmanager.hpp>
-#include <components/misc/strings/algorithm.hpp>
 #include <components/openmw-mp/IniSettings.hpp>
 
-#include <apps/browser/netutils/QueryClient.hpp>
 #include "MainWindow.hpp"
 
 int main(int argc, char *argv[])
@@ -17,8 +15,7 @@ int main(int argc, char *argv[])
     // tes3mp-ng change (major): TES3MP's config files are read with mwmp::IniSettings, because OpenMW 0.49
     // replaced the instance-based Settings::Manager
     Files::ConfigurationManager cfgMgr;
-    std::string addr;
-    int port = 0;
+    MasterServerAddress master, defaultMaster;
     try
     {
         // tes3mp-ng change (minor): follow openmw.cfg's config folder, like the client, so that portable installs
@@ -30,8 +27,12 @@ int main(int argc, char *argv[])
 
         mwmp::IniSettings settings;
         settings.loadDefaultAndUser(cfgMgr, "tes3mp-client");
-        addr = settings.getString("address", "Master");
-        port = settings.getInt("port", "Master");
+        master = { settings.getString("address", "Master"), settings.getInt("port", "Master") };
+
+        // tes3mp-ng addition: the master server players can return to from the Master Server dialog
+        mwmp::IniSettings defaults;
+        defaults.loadDefault(cfgMgr, "tes3mp-client");
+        defaultMaster = { defaults.getString("address", "Master"), defaults.getInt("port", "Master") };
     }
     catch (const std::exception& e)
     {
@@ -39,13 +40,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Is this an attempt to connect to the official master server at the old port? If so,
-    // redirect it to the correct port for the currently used fork of RakNet
-    if (Misc::StringUtils::ciEqual(addr, "master.tes3mp.com") && port == 25560)
-        port = 25561;
-
-    QueryClient::Get().SetServer(addr, static_cast<unsigned short>(port));
-    MainWindow d(cfgMgr.getUserConfigPath());
+    MainWindow d(cfgMgr.getUserConfigPath(), master, defaultMaster);
 
     d.show();
     return app.exec();

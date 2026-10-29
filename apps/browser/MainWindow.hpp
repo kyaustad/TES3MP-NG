@@ -8,6 +8,14 @@
 #include <components/process/processinvoker.hpp>
 
 #include <filesystem>
+#include <string>
+
+// tes3mp-ng addition: the master server that lists servers, set in tes3mp-client.cfg's [Master] section
+struct MasterServerAddress
+{
+    std::string address;
+    int port = 0;
+};
 
 class QueryHelper;
 
@@ -15,7 +23,8 @@ class MainWindow : public QMainWindow,  private Ui::MainWindow
 {
     Q_OBJECT
 public:
-    explicit MainWindow(const std::filesystem::path &userConfigPath, QWidget *parent = nullptr);
+    MainWindow(const std::filesystem::path &userConfigPath, const MasterServerAddress &master,
+        const MasterServerAddress &defaultMaster, QWidget *parent = nullptr);
     ~MainWindow() override;
 protected:
     void closeEvent(QCloseEvent * event) Q_DECL_OVERRIDE;
@@ -32,8 +41,11 @@ protected slots:
     void noPasswordSwitch(bool state);
     void maxLatencyChanged(int index);
     void gamemodeChanged(const QString &text);
+    void changeMasterServer();
 private:
-    std::filesystem::path mUserConfigPath; // tes3mp-ng addition: where favorites.dat is kept
+    std::filesystem::path mUserConfigPath; // tes3mp-ng addition: where favorites.dat and tes3mp-client.cfg are kept
+    MasterServerAddress mMaster, mDefaultMaster;
+    void setMasterServer(const MasterServerAddress &master);
     QueryHelper *queryHelper;
     Process::ProcessInvoker *mGameInvoker;
     ServerModel *browser, *favorites;

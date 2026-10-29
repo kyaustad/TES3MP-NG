@@ -70,6 +70,9 @@ TES3MP-NG keeps everything inside its own folder and never uses `Documents/My Ga
   `tes3mp-server.cfg`, the launcher's settings, the browser's favorites, and logs and crash dumps.
 * `userdata/`: saves, screenshots and other user data.
 
+The server browser lists servers from `master.tes3mp.com` by default. Its Master Server button switches an install
+to another master server, such as one a community hosts with the TES3MP-NG master server download.
+
 To play on servers with different modlists, unzip TES3MP-NG once per modlist: each folder keeps its own data
 folders, content order and settings. The first time a folder is used, its launcher or wizard asks where Morrowind is
 installed. To move an install, move the whole folder.

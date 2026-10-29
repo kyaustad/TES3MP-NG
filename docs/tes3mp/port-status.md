@@ -21,7 +21,7 @@ behavior into Lua have been adapted rather than copied.
 | Physics | `mwphysics/actor.cpp`, `mwworld/class.cpp` | Collision settings from the server apply to players, actors and placed items |
 | Jail and menus | `jailscreen.cpp`, `playerskillhandlers.lua`, `settingswindow.cpp`, `race.cpp` | The server's jail overrides apply, including `ignoreJailSkillIncreases` (passed to the Lua jail handler). The difficulty slider is hidden; the race menu has no back button after login |
 | Character creation | `mwgui/charactercreation.cpp`, `mwmp/LocalPlayer.cpp` | The server drives the stages. Automated tests can log in with `--tes3mp-autologin <name> --tes3mp-autologin-password <test password>` |
-| Server browser | `apps/browser` | Built with Qt 6 like OpenMW's launcher, and settings read with `mwmp::IniSettings`. Play starts `openmw` with `--connect` |
+| Server browser | `apps/browser` | Built with Qt 6 like OpenMW's launcher, and settings read with `mwmp::IniSettings`. Play starts `openmw` with `--connect`. The Master Server button chooses the master server and saves it in the install's `tes3mp-client.cfg` |
 | Master server | `apps/master` | The HTTP API runs on CrabNet's `TCPInterface` instead of Simple-Web-Server (which needs Boost.Asio APIs that current Boost removed), with the read-only routes only. Ports: `masterserver [master port] [HTTP port]` (25560 and 8080 by default) |
 
 The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `cellref.cpp`, `dialogue.cpp`,

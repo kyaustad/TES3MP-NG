@@ -215,6 +215,8 @@
    <addaction name="actionPlay"/>
    <addaction name="separator"/>
    <addaction name="actionRefresh"/>
+   <addaction name="separator"/>
+   <addaction name="actionMasterServer"/>
   </widget>
   <action name="actionAdd">
    <property name="enabled">
@@ -243,6 +245,14 @@
    </property>
    <property name="text">
     <string>Play</string>
+   </property>
+  </action>
+  <action name="actionMasterServer">
+   <property name="text">
+    <string>Master Server...</string>
+   </property>
+   <property name="toolTip">
+    <string>Choose the master server whose list of servers is shown</string>
    </property>
   </action>
   <action name="actionAdd_by_IP">

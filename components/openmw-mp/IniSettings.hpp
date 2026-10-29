@@ -25,9 +25,8 @@ namespace mwmp
             parser.loadSettingsFile(file, mValues, false, overrideExisting);
         }
 
-        // Loads <name>-default.cfg from the local or global config path, then <name>.cfg from the user config
-        // path if it exists. Returns the path of the user config file.
-        std::filesystem::path loadDefaultAndUser(const Files::ConfigurationManager& cfgMgr, const std::string& name)
+        // Loads <name>-default.cfg from the local or global config path
+        void loadDefault(const Files::ConfigurationManager& cfgMgr, const std::string& name)
         {
             const std::filesystem::path localDefault = cfgMgr.getLocalPath() / (name + "-default.cfg");
             const std::filesystem::path globalDefault = cfgMgr.getGlobalPath() / (name + "-default.cfg");
@@ -39,6 +38,13 @@ namespace mwmp
             else
                 throw std::runtime_error("No default settings file found! Make sure the file \"" + name
                     + "-default.cfg\" was properly installed.");
+        }
+
+        // Loads <name>-default.cfg from the local or global config path, then <name>.cfg from the user config
+        // path if it exists. Returns the path of the user config file.
+        std::filesystem::path loadDefaultAndUser(const Files::ConfigurationManager& cfgMgr, const std::string& name)
+        {
+            loadDefault(cfgMgr, name);
 
             const std::filesystem::path userPath = cfgMgr.getUserConfigPath() / (name + ".cfg");
             if (std::filesystem::exists(userPath))
@@ -75,6 +81,19 @@ namespace mwmp
         {
             const std::string value = getString(setting, category);
             return value == "true" || value == "1";
+        }
+
+        void set(std::string_view setting, std::string_view category, std::string value)
+        {
+            mValues[std::make_pair(std::string(category), std::string(setting))] = std::move(value);
+        }
+
+        // Writes these values to a file, keeping its comments. Settings of the file that aren't loaded here are
+        // commented out, so load the file before changing it
+        void save(const std::filesystem::path& file) const
+        {
+            Settings::SettingsFileParser parser;
+            parser.saveSettingsFile(file, mValues);
         }
 
     private:
