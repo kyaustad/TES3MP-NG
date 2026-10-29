@@ -4,6 +4,7 @@
 #include "../mwworld/ptr.hpp"
 #include <boost/program_options.hpp>
 #include <components/files/collections.hpp>
+#include <components/files/configurationmanager.hpp>
 #include <components/esm/refid.hpp>
 #include <string_view>
 
@@ -23,7 +24,11 @@ namespace mwmp
 
         static void optionsDesc(boost::program_options::options_description *desc);
         static void configure(const boost::program_options::variables_map &variables);
-        static bool init(std::vector<std::string> &content, Files::Collections &collections);
+        // tes3mp-ng change (minor): TES3MP's client config is read from the engine's active config folder, so that
+        // portable installs (openmw.cfg with config="?local?...") keep their own tes3mp-client.cfg
+        static bool init(std::vector<std::string> &content, Files::Collections &collections,
+            const Files::ConfigurationManager &cfgMgr);
+        static const Files::ConfigurationManager &getConfigurationManager();
         static void postInit();
         static bool isInitialized();
         static void destroy();
@@ -54,6 +59,7 @@ namespace mwmp
         static std::string serverPassword;
         static std::string autoLoginName;
         static std::string autoLoginPassword;
+        static const Files::ConfigurationManager *configurationManager;
 
         Main (const Main&);
         ///< not implemented

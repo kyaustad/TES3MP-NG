@@ -74,6 +74,7 @@ std::string Main::getResDir()
 
 std::string Main::autoLoginName;
 std::string Main::autoLoginPassword;
+const Files::ConfigurationManager *Main::configurationManager = nullptr;
 
 const std::string& Main::getAutoLoginName()
 {
@@ -133,12 +134,13 @@ void Main::configure(const boost::program_options::variables_map &variables)
     resourceDir = Files::pathToUnicodeString(variables["resources"].as<Files::MaybeQuotedPath>());
 }
 
-bool Main::init(std::vector<std::string> &content, Files::Collections &collections)
+bool Main::init(std::vector<std::string> &content, Files::Collections &collections,
+    const Files::ConfigurationManager &cfgMgr)
 {
     assert(!pMain);
     pMain = new Main();
+    configurationManager = &cfgMgr;
 
-    Files::ConfigurationManager cfgMgr;
     IniSettings manager;
     manager.loadDefaultAndUser(cfgMgr, "tes3mp-client");
 
@@ -227,6 +229,12 @@ void Main::updateWorld(float dt) const
         mLocalPlayer->update();
         mCellController->updateLocal(false);
     }
+}
+
+const Files::ConfigurationManager &Main::getConfigurationManager()
+{
+    assert(configurationManager);
+    return *configurationManager;
 }
 
 const Main &Main::get()

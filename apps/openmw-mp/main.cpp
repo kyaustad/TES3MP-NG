@@ -133,11 +133,13 @@ int runServer(int argc, char *argv[])
     mwmp::IniSettings mgr;
     Files::ConfigurationManager cfgMgr;
 
+    // tes3mp-ng change (minor): read openmw.cfg first, so that tes3mp-server.cfg, logs and crash dumps go to its
+    // config folder, which portable installs keep next to the executables
+    auto variables = launchOptions(argc, argv, cfgMgr);
+
     breakpad(cfgMgr.getLogPath().string());
 
     loadSettings(mgr, cfgMgr);
-
-    auto variables = launchOptions(argc, argv, cfgMgr);
 
     std::string commitHash(Version::getCommitHash());
 

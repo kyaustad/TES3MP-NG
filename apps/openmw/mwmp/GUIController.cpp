@@ -71,9 +71,8 @@ void mwmp::GUIController::setupChat()
     assert(mChat == nullptr);
 
     // OpenMW 0.49+ settings only know the engine's own categories, so read TES3MP's client config directly
-    Files::ConfigurationManager cfgMgr;
     IniSettings clientSettings;
-    clientSettings.loadDefaultAndUser(cfgMgr, "tes3mp-client");
+    clientSettings.loadDefaultAndUser(Main::getConfigurationManager(), "tes3mp-client");
 
     float chatDelay = clientSettings.getFloat("delay", "Chat");
     int chatY = clientSettings.getInt("y", "Chat");

@@ -28,6 +28,9 @@ OpenMW 0.51 with synchronization for OpenMW's Lua scripting. It is used with
 * **Multiplayer documentation:** [docs/tes3mp](docs/tes3mp), including [building a modlist](docs/tes3mp/modlists.md), the
   [OpenMW Lua multiplayer design](docs/tes3mp/lua-multiplayer.md) and the [port status](docs/tes3mp/port-status.md)
   relative to TES3MP 0.8.1.
+* **Portable:** each unzipped TES3MP-NG folder keeps its own `config/` (openmw.cfg, settings.cfg,
+  tes3mp-client.cfg, tes3mp-server.cfg, logs) and `userdata/` (saves) next to the executables, instead of using
+  `Documents/My Games/OpenMW`, so several installs with different modlists don't conflict.
 * **Chat key:** the chat window is toggled with F8 instead of F2, which OpenMW uses for its post-processing HUD.
   Players who keep a `tes3mp-client.cfg` from TES3MP 0.8.x should change its `keyChatMode` to `F8`.
 * **Building:** like OpenMW, with CrabNet (TES3MP's RakNet fork) available through `-DRAKNET_ROOT=<install dir>`.

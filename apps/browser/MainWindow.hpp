@@ -7,13 +7,15 @@
 #include "MySortFilterProxyModel.hpp"
 #include <components/process/processinvoker.hpp>
 
+#include <filesystem>
+
 class QueryHelper;
 
 class MainWindow : public QMainWindow,  private Ui::MainWindow
 {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(const std::filesystem::path &userConfigPath, QWidget *parent = nullptr);
     ~MainWindow() override;
 protected:
     void closeEvent(QCloseEvent * event) Q_DECL_OVERRIDE;
@@ -31,6 +33,7 @@ protected slots:
     void maxLatencyChanged(int index);
     void gamemodeChanged(const QString &text);
 private:
+    std::filesystem::path mUserConfigPath; // tes3mp-ng addition: where favorites.dat is kept
     QueryHelper *queryHelper;
     Process::ProcessInvoker *mGameInvoker;
     ServerModel *browser, *favorites;

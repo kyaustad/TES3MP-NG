@@ -1033,7 +1033,7 @@ void OMW::Engine::go()
 
         Attempt multiplayer initialization and proceed no further if it fails
     */
-    if (!mwmp::Main::init(mContentFiles, mFileCollections))
+    if (!mwmp::Main::init(mContentFiles, mFileCollections, mCfgMgr))
         return;
 
     // Always skip the main menu in multiplayer

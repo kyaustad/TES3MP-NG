@@ -2,7 +2,6 @@
 #include "QueryHelper.hpp"
 #include "PingHelper.hpp"
 #include "ServerInfoDialog.hpp"
-#include "components/files/configurationmanager.hpp"
 #include <qdebug.h>
 #include <QInputDialog>
 #include <QJsonObject>
@@ -14,7 +13,8 @@
 using namespace Process;
 using namespace std;
 
-MainWindow::MainWindow(QWidget *parent)
+MainWindow::MainWindow(const std::filesystem::path &userConfigPath, QWidget *parent)
+    : mUserConfigPath(userConfigPath)
 {
     setupUi(this);
 
@@ -174,8 +174,7 @@ void MainWindow::serverSelected()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    Files::ConfigurationManager cfgMgr;
-    QString cfgPath = QString::fromStdString((cfgMgr.getUserConfigPath() / "favorites.dat").string());
+    QString cfgPath = QString::fromStdString((mUserConfigPath / "favorites.dat").string());
 
     QJsonArray saveData;
     for (auto server : favorites->myData)
@@ -196,8 +195,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::loadFavorites()
 {
-    Files::ConfigurationManager cfgMgr;
-    QString cfgPath = QString::fromStdString((cfgMgr.getUserConfigPath() / "favorites.dat").string());
+    QString cfgPath = QString::fromStdString((mUserConfigPath / "favorites.dat").string());
 
     QFile file(cfgPath);
     if (!file.open(QIODevice::ReadOnly))

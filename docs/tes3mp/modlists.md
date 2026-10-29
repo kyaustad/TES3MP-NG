@@ -9,8 +9,9 @@ and order them the same way, and the server lists them in the same file.
 Every player installs the same mods:
 
 1. Unpack each mod into its own folder.
-2. Add the folders in the OpenMW launcher (Data Directories), or add `data="..."` lines to `openmw.cfg` in
-   `Documents/My Games/OpenMW`.
+2. Add the folders in the launcher that comes with TES3MP-NG (Data Directories), or add `data="..."` lines to
+   `config/openmw.cfg` in the TES3MP-NG folder. Each TES3MP-NG folder is a separate install with its own mods and
+   settings (see [Portable installs](#portable-installs)).
 3. Enable the content files in the launcher's Content Files list, in the server's order, or add `content=` lines to
    `openmw.cfg`. A Lua mod's `.omwscripts` file is enabled like a plugin. Some mods register their scripts through
    an `.omwaddon` or `.esp` plugin instead, which is enabled as usual.
@@ -60,6 +61,18 @@ Every player installs the same mods:
 
 3. **Server scripts:** CoreScripts scripts work as in 0.8.1: copy them into `scripts/custom` and add a
    `require("custom/<name>")` line to `scripts/customScripts.lua`.
+
+## Portable installs
+
+TES3MP-NG keeps everything inside its own folder and never uses `Documents/My Games/OpenMW`:
+
+* `config/`: the player's `openmw.cfg` (data folders and content files), `settings.cfg`, `tes3mp-client.cfg`,
+  `tes3mp-server.cfg`, the launcher's settings, the browser's favorites, and logs and crash dumps.
+* `userdata/`: saves, screenshots and other user data.
+
+To play on servers with different modlists, unzip TES3MP-NG once per modlist: each folder keeps its own data
+folders, content order and settings. The first time a folder is used, its launcher or wizard asks where Morrowind is
+installed. To move an install, move the whole folder.
 
 ## What Lua mods do in multiplayer
 

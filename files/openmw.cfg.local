@@ -2,9 +2,12 @@
 # Modifications should be done on the user openmw.cfg file instead
 # (see: https://openmw.readthedocs.io/en/master/reference/modding/paths.html)
 
-data-local="?userdata?data"
-user-data="?userdata?"
-config="?userconfig?"
+# tes3mp-ng change (major): TES3MP-NG is portable. Each install keeps its user openmw.cfg, settings.cfg,
+# tes3mp-client.cfg, tes3mp-server.cfg and logs in config/, and saves and other user data in userdata/, next to the
+# executables, instead of in Documents/My Games/OpenMW
+data-local="?local?userdata/data"
+user-data="?local?userdata"
+config="?local?config"
 resources=./resources
 data=./resources/vfs-mw
 
