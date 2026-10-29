@@ -144,6 +144,12 @@ namespace
     class TestInterpreterContext : public Interpreter::Context
     {
     public:
+        // tes3mp addition: context tracking is not used by the tests
+        unsigned short getContextType() const override { return CONSOLE; }
+        ESM::RefId getCurrentScriptName() const override { return {}; }
+        void trackContextType(unsigned short) override {}
+        void trackCurrentScriptName(const ESM::RefId&) override {}
+
         using Message = std::pair<std::string, std::vector<std::string>>;
         using Messages = std::vector<Message>;
 

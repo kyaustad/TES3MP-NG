@@ -10,6 +10,19 @@
 #include "mwgui/debugwindow.hpp"
 
 #include "engine.hpp"
+
+/*
+    Start of tes3mp addition
+
+    Include the header of the multiplayer's Main class, and additional headers for multiplayer purposes
+*/
+#include "mwmp/Main.hpp"
+#include <components/openmw-mp/TimedLog.hpp>
+#include <components/openmw-mp/Utils.hpp>
+#include <components/openmw-mp/Version.hpp>
+/*
+    End of tes3mp addition
+*/
 #include "options.hpp"
 
 #include <boost/program_options/variables_map.hpp>
@@ -44,6 +57,17 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     typedef std::vector<std::string> StringsVector;
 
     bpo::options_description desc = OpenMW::makeOptionsDescription();
+
+    /*
+        Start of tes3mp addition
+
+        Parse options added by multiplayer
+    */
+    mwmp::Main::optionsDesc(&desc);
+    /*
+        End of tes3mp addition
+    */
+
     bpo::variables_map variables;
 
     Files::parseArgs(argc, argv, variables, desc);
@@ -65,8 +89,19 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
 
     cfgMgr.readConfiguration(variables, desc);
 
-    Debug::setupLogging(cfgMgr.getLogPath(), "OpenMW");
+    /*
+        Start of tes3mp change (minor)
+
+        Instead of logging information in openmw.log, use a more descriptive filename
+        that includes a timestamp, and print the multiplayer version first
+    */
+    Debug::setupLogging(cfgMgr.getLogPath(), "tes3mp-client-" + TimedLog::getFilenameTimestamp());
+    Log(Debug::Info) << Utils::getVersionInfo(
+        "TES3MP client", TES3MP_VERSION, std::string(Version::getCommitHash()), TES3MP_PROTO_VERSION);
     Log(Debug::Info) << Version::getOpenmwVersionDescription();
+    /*
+        End of tes3mp change (minor)
+    */
 
     Settings::Manager::load(cfgMgr);
 
@@ -147,9 +182,17 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     engine.setCompileAll(variables["script-all"].as<bool>());
     engine.setCompileAllDialogue(variables["script-all-dialogue"].as<bool>());
     engine.setScriptConsoleMode(variables["script-console"].as<bool>());
-    engine.setStartupScript(variables["script-run"].as<std::string>());
+    /*
+        Start of tes3mp change (major)
+
+        Clients should not be allowed to run startup scripts or load savegames unilaterally in multiplayer
+    */
+    // engine.setStartupScript(variables["script-run"].as<std::string>());
     engine.setWarningsMode(variables["script-warn"].as<int>());
-    engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
+    // engine.setSaveGameFile(variables["load-savegame"].as<Files::MaybeQuotedPath>().u8string());
+    /*
+        End of tes3mp change (major)
+    */
 
     // other settings
     Fallback::Map::init(variables["fallback"].as<Fallback::FallbackMap>().mMap);
@@ -157,6 +200,16 @@ bool parseOptions(int argc, char** argv, OMW::Engine& engine, Files::Configurati
     engine.setActivationDistanceOverride(variables["activate-dist"].as<int>());
     engine.enableFontExport(variables["export-fonts"].as<bool>());
     engine.setRandomSeed(variables["random-seed"].as<unsigned int>());
+
+    /*
+        Start of tes3mp addition
+
+        Configure multiplayer using parsed variables
+    */
+    mwmp::Main::configure(variables);
+    /*
+        End of tes3mp addition
+    */
 
     return true;
 }
@@ -234,13 +287,46 @@ int runApplication(int argc, char* argv[])
     return 0;
 }
 
+/*
+    Start of tes3mp addition
+
+    Log exceptions before they reach the error dialog, so that test runs and players' logs contain them
+*/
+static int runApplicationLogged(int argc, char* argv[])
+{
+    try
+    {
+        return runApplication(argc, argv);
+    }
+    catch (const std::exception& e)
+    {
+        Log(Debug::Error) << "Fatal error: " << e.what();
+        throw;
+    }
+}
+/*
+    End of tes3mp addition
+*/
+
 #ifdef ANDROID
 extern "C" int SDL_main(int argc, char** argv)
 #else
 int main(int argc, char** argv)
 #endif
 {
-    return Debug::wrapApplication(&runApplication, argc, argv, "OpenMW");
+    /*
+        Start of tes3mp change (minor)
+
+        Initialize the logger added for multiplayer
+    */
+    LOG_INIT(TimedLog::LOG_INFO);
+    const int result = Debug::wrapApplication(&runApplicationLogged, argc, argv, "TES3MP");
+    LOG_QUIT();
+    return result;
+    /*
+        End of tes3mp change (minor)
+    */
+
 }
 
 // Platform specific for Windows when there is no console built into the executable.

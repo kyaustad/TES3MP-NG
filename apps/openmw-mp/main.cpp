@@ -8,7 +8,7 @@
 #include <boost/iostreams/stream_buffer.hpp>
 
 #include <components/files/configurationmanager.hpp>
-#include <components/settings/parser.hpp>
+#include <components/openmw-mp/IniSettings.hpp>
 #include <components/version/version.hpp>
 
 #include <components/openmw-mp/ErrorMessages.hpp>
@@ -78,61 +78,9 @@ void breakpad(std::string pathToDump){}
 void breakpad_close(){}
 #endif
 
-/*
-    tes3mp change: OpenMW 0.49 replaced the instance-based Settings::Manager with static typed settings for the
-    game itself, so the server reads its own config files with the shared settings file parser
-*/
-class ServerSettings
+std::filesystem::path loadSettings(mwmp::IniSettings &settings, const Files::ConfigurationManager &cfgMgr)
 {
-public:
-    void load(const std::filesystem::path &file, bool overrideExisting)
-    {
-        Settings::SettingsFileParser parser;
-        parser.loadSettingsFile(file, mValues, false, overrideExisting);
-    }
-
-    std::string getString(std::string_view setting, std::string_view category) const
-    {
-        auto it = mValues.find(std::make_pair(std::string(category), std::string(setting)));
-        if (it == mValues.end())
-            throw std::runtime_error("Missing server setting [" + std::string(category) + "] " + std::string(setting));
-        return it->second;
-    }
-
-    int getInt(std::string_view setting, std::string_view category) const
-    {
-        return std::stoi(getString(setting, category));
-    }
-
-    bool getBool(std::string_view setting, std::string_view category) const
-    {
-        const std::string value = getString(setting, category);
-        return value == "true" || value == "1";
-    }
-
-private:
-    Settings::CategorySettingValueMap mValues;
-};
-
-std::filesystem::path loadSettings(ServerSettings &settings, const Files::ConfigurationManager &cfgMgr)
-{
-    // Load the default settings file, preferring a local one
-    const std::filesystem::path localdefault = cfgMgr.getLocalPath() / "tes3mp-server-default.cfg";
-    const std::filesystem::path globaldefault = cfgMgr.getGlobalPath() / "tes3mp-server-default.cfg";
-
-    if (std::filesystem::exists(localdefault))
-        settings.load(localdefault, false);
-    else if (std::filesystem::exists(globaldefault))
-        settings.load(globaldefault, false);
-    else
-        throw std::runtime_error("No default settings file found! Make sure the file \"tes3mp-server-default.cfg\" was properly installed.");
-
-    // Load user settings if they exist
-    const std::filesystem::path settingspath = cfgMgr.getUserConfigPath() / "tes3mp-server.cfg";
-    if (std::filesystem::exists(settingspath))
-        settings.load(settingspath, true);
-
-    return settingspath;
+    return settings.loadDefaultAndUser(cfgMgr, "tes3mp-server");
 }
 
 class Tee : public boost::iostreams::sink
@@ -180,7 +128,7 @@ boost::program_options::variables_map launchOptions(int argc, char *argv[], File
 
 int runServer(int argc, char *argv[])
 {
-    ServerSettings mgr;
+    mwmp::IniSettings mgr;
     Files::ConfigurationManager cfgMgr;
 
     breakpad(cfgMgr.getLogPath().string());

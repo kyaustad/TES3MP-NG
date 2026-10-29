@@ -1,3 +1,4 @@
+#include <components/openmw-mp/IniSettings.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/Base/BasePlayer.hpp>
 
@@ -69,14 +70,19 @@ void mwmp::GUIController::setupChat()
 {
     assert(mChat == nullptr);
 
-    float chatDelay = Settings::Manager::getFloat("delay", "Chat");
-    int chatY = Settings::Manager::getInt("y", "Chat");
-    int chatX = Settings::Manager::getInt("x", "Chat");
-    int chatW = Settings::Manager::getInt("w", "Chat");
-    int chatH = Settings::Manager::getInt("h", "Chat");
+    // OpenMW 0.49+ settings only know the engine's own categories, so read TES3MP's client config directly
+    Files::ConfigurationManager cfgMgr;
+    IniSettings clientSettings;
+    clientSettings.loadDefaultAndUser(cfgMgr, "tes3mp-client");
 
-    keySay = SDL_GetScancodeFromName(Settings::Manager::getString("keySay", "Chat").c_str());
-    keyChatMode = SDL_GetScancodeFromName(Settings::Manager::getString("keyChatMode", "Chat").c_str());
+    float chatDelay = clientSettings.getFloat("delay", "Chat");
+    int chatY = clientSettings.getInt("y", "Chat");
+    int chatX = clientSettings.getInt("x", "Chat");
+    int chatW = clientSettings.getInt("w", "Chat");
+    int chatH = clientSettings.getInt("h", "Chat");
+
+    keySay = SDL_GetScancodeFromName(clientSettings.getString("keySay", "Chat").c_str());
+    keyChatMode = SDL_GetScancodeFromName(clientSettings.getString("keyChatMode", "Chat").c_str());
 
     mChat = new GUIChat(chatX, chatY, chatW, chatH);
     mChat->setDelay(chatDelay);

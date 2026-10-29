@@ -11,6 +11,8 @@
         <List file="openmw_box.skin.xml"/>
         <List file="openmw_progress.skin.xml"/>
         <List file="openmw_hud_energybar.skin.xml"/>
+        <List file="tes3mp_chat.skin.xml"/>
+
         <List file="openmw_hud_box.skin.xml"/>
         <List file="openmw_mainmenu.skin.xml"/>
         <List file="openmw_console.skin.xml"/>

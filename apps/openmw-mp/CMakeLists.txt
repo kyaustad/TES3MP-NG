@@ -158,6 +158,11 @@ if (MSVC)
     target_compile_options(tes3mp-server PRIVATE /MP /bigobj /wd4244 /wd4267 /wd4996)
 endif()
 
+if (WIN32)
+    # Script functions such as GetClassName and SendMessage would otherwise be renamed by <windows.h> macros
+    target_compile_definitions(tes3mp-server PRIVATE NOUSER NOGDI)
+endif()
+
 
 if (UNIX)
 	target_compile_options(tes3mp-server PRIVATE -Wno-ignored-qualifiers)

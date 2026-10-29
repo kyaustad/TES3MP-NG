@@ -1,3 +1,6 @@
+#include <components/misc/strings/algorithm.hpp>
+#include <components/files/conversion.hpp>
+#include <components/misc/pathhelpers.hpp>
 #include <stdexcept>
 #include <iostream>
 #include <string>
@@ -358,19 +361,35 @@ void Networking::preInit(std::vector<std::string> &content, Files::Collections &
     std::vector<std::string>::const_iterator it(content.begin());
     for (int idx = 0; it != content.end(); ++it, ++idx)
     {
-        std::filesystem::path filename(*it);
-        const Files::MultiDirCollection& col = collections.getCollection(filename.extension().string());
+        /*
+            Start of tes3mp addition
+
+            OpenMW 0.49+ lists its own Lua scripts manifest as a content file. It ships with the engine, whose
+            exact version is already enforced through the connection password, so it isn't part of the data file
+            checks; Lua mods' .omwscripts and .omwaddon files are checked like any other plugin
+        */
+        if (Misc::StringUtils::ciEqual(*it, "builtin.omwscripts"))
+        {
+            --idx;
+            continue;
+        }
+        /*
+            End of tes3mp addition
+        */
+
+        // OpenMW 0.49+ keys collections by extension without the dot
+        const Files::MultiDirCollection& col = collections.getCollection(Misc::getFileExtension(*it));
         if (col.doesExist(*it))
         {
             PacketPreInit::HashList hashList;
-            unsigned crc32 = Utils::crc32Checksum(col.getPath(*it).string());
+            unsigned crc32 = Utils::crc32Checksum(Files::pathToUnicodeString(col.getPath(*it)));
             hashList.push_back(crc32);
             checksums.push_back(make_pair(*it, hashList));
 
             LOG_APPEND(TimedLog::LOG_WARN, "idx: %d\tchecksum: %X\tfile: %s\n", idx, crc32, col.getPath(*it).string().c_str());
         }
         else
-            throw std::runtime_error("Plugin doesn't exist.");
+            throw std::runtime_error("Plugin doesn't exist: " + *it);
     }
 
     PacketPreInit packetPreInit(peer);

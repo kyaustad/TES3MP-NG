@@ -177,6 +177,13 @@ set(BUILTIN_DATA_FILES
     mygui/openmw_box.skin.xml
     mygui/openmw_button.skin.xml
     mygui/openmw_chargen_birth.layout
+    mygui/tes3mp_chat.layout
+    mygui/tes3mp_chat.skin.xml
+    mygui/tes3mp_dialog_list.layout
+    mygui/tes3mp_login.layout
+    mygui/tes3mp_login.skin.xml
+    mygui/tes3mp_text_input.layout
+
     mygui/openmw_chargen_class_description.layout
     mygui/openmw_chargen_class.layout
     mygui/openmw_chargen_create_class.layout

@@ -1,5 +1,8 @@
 #include "datetimemanager.hpp"
 
+#include "../mwmp/Main.hpp" // tes3mp addition
+
+
 #include <components/l10n/manager.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -258,5 +261,16 @@ namespace MWWorld
         auto wm = MWBase::Environment::get().getWindowManager();
         mPaused = !mPausedTags.empty() || wm->isConsoleMode() || wm->isPostProcessorHudVisible()
             || wm->isInteractiveMessageBoxActive() || stateManager->getState() == MWBase::StateManager::State_NoGame;
+
+        /*
+            Start of tes3mp change (major)
+
+            Time should not be frozen in multiplayer, so the game is only paused before it has started
+        */
+        if (mwmp::Main::isInitialized() && stateManager->getState() != MWBase::StateManager::State_NoGame)
+            mPaused = false;
+        /*
+            End of tes3mp change (major)
+        */
     }
 }
