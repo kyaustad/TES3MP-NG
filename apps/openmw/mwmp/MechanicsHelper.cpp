@@ -96,6 +96,15 @@ bool MechanicsHelper::isNetworkDriven(const MWWorld::Ptr& ptr)
     return mwmp::PlayerList::isDedicatedPlayer(ptr) || mwmp::Main::get().getCellController()->isDedicatedActor(ptr);
 }
 
+void MechanicsHelper::sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel)
+{
+    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+    objectList->reset();
+    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+    objectList->addObjectLock(ptr, lockLevel);
+    objectList->sendObjectLock();
+}
+
 bool MechanicsHelper::isUsingRangedWeapon(const MWWorld::Ptr& ptr)
 {
     if (ptr.getClass().hasInventoryStore(ptr))

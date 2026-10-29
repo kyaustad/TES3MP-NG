@@ -1,6 +1,7 @@
 #ifndef GAME_MWMECHANICS_ACTIVESPELLS_H
 #define GAME_MWMECHANICS_ACTIVESPELLS_H
 
+#include <set>
 #include <functional>
 #include <list>
 #include <queue>
@@ -156,6 +157,14 @@ namespace MWMechanics
             const std::vector<ESM::ActiveEffect>& effects, const std::string& displayName, ESM::RefNum caster);
 
         bool removeMultiplayerSpell(const MWWorld::Ptr& ptr, const ESM::RefId& sourceSpellId);
+
+    private:
+        void mpOnSpellAdded(const MWWorld::Ptr& ptr, const ActiveSpellParams& spell);
+        void mpOnSpellRemoved(const MWWorld::Ptr& ptr, const ActiveSpellParams& spell);
+        // Active spell ids of spells received from the network, which are not sent back
+        std::set<ESM::RefId> mMpNetworkSpells;
+
+    public:
         /*
             End of tes3mp addition
         */

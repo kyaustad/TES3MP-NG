@@ -26,6 +26,22 @@
 #include "spellutil.hpp"
 #include "weapontype.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/LocalActor.hpp"
+#include "../mwmp/CellController.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
     CastSpell::CastSpell(
@@ -244,8 +260,17 @@ namespace MWMechanics
             {
                 if (targetIsActor)
                 {
-                    if (!targetIsDeadActor)
+                    /*
+                        Start of tes3mp change (major)
+
+                        Don't unilaterally process effects for dedicated players and actors on this client and instead
+                        expect their effects to be applied correctly through the SpellsActive packets received
+                    */
+                    if (!targetIsDeadActor && !MechanicsHelper::isNetworkDriven(target))
                         target.getClass().getCreatureStats(target).getActiveSpells().addSpell(params);
+                    /*
+                        End of tes3mp change (major)
+                    */
                 }
                 else
                 {
@@ -404,7 +429,34 @@ namespace MWMechanics
                 // Check success
                 float successChance = getSpellSuccessChance(spell, mCaster, nullptr, true, false);
                 auto& prng = MWBase::Environment::get().getWorld()->getPrng();
-                if (Misc::Rng::roll0to99(prng) >= successChance)
+                /*
+                    Start of tes3mp change (major)
+
+                    Make spell casting by dedicated players and actors succeed or fail based on the result on their
+                    authority client, and send the result of local casts
+                */
+                mwmp::Cast* dedicatedCast = mwmp::Main::isInitialized() ? MechanicsHelper::getDedicatedCast(mCaster) : nullptr;
+                mwmp::Cast* localCast = mwmp::Main::isInitialized() && !dedicatedCast ? MechanicsHelper::getLocalCast(mCaster) : nullptr;
+                bool success;
+                if (dedicatedCast)
+                {
+                    dedicatedCast->pressed = false;
+                    success = dedicatedCast->success;
+                }
+                else
+                    success = Misc::Rng::roll0to99(prng) < successChance;
+
+                if (localCast)
+                {
+                    localCast->success = success;
+                    localCast->pressed = false;
+                    localCast->shouldSend = true;
+                }
+
+                if (!success)
+                /*
+                    End of tes3mp change (major)
+                */
                 {
                     if (mCaster == getPlayer())
                         MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicSkillFail}");

@@ -35,6 +35,22 @@
 #include "../mwworld/player.hpp"
 #include "../mwworld/worldmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/LocalActor.hpp"
+#include "../mwmp/CellController.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     enum Stats
@@ -499,7 +515,14 @@ namespace MWMechanics
                 if (target != getPlayer())
                     return ESM::ActiveEffect::Flag_Invalid;
                 else if (world->isTeleportingEnabled())
+                {
                     world->getPlayer().markPosition(target.getCell(), target.getRefData().getPosition());
+
+                    // tes3mp addition: send a PlayerMiscellaneous packet with the player's new mark location
+                    if (mwmp::Main::isInitialized() && target.isInCell() && !target.getCell()->getCell()->isEsm4())
+                        mwmp::Main::get().getLocalPlayer()->sendMarkLocation(
+                            target.getCell()->getCell()->getEsm3(), target.getRefData().getPosition());
+                }
                 else if (caster == getPlayer())
                     MWBase::Environment::get().getWindowManager()->messageBox("#{sTeleportDisabled}");
             }
@@ -1272,7 +1295,19 @@ namespace MWMechanics
 
                     if (caster == getPlayer())
                         MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicLockSuccess}");
-                    target.getCellRef().lock(magnitude);
+                    /*
+                        Start of tes3mp change (major)
+
+                        Disable unilateral locking on this client and expect the server's reply to our
+                        packet to do it instead
+                    */
+                    if (mwmp::Main::isInitialized())
+                        MechanicsHelper::sendObjectLock(target, magnitude);
+                    else
+                        target.getCellRef().lock(magnitude);
+                    /*
+                        End of tes3mp change (major)
+                    */
                 }
             }
             else
@@ -1298,7 +1333,19 @@ namespace MWMechanics
 
                         if (caster == getPlayer())
                             MWBase::Environment::get().getWindowManager()->messageBox("#{sMagicOpenSuccess}");
-                        target.getCellRef().unlock();
+                        /*
+                            Start of tes3mp change (major)
+
+                            Disable unilateral unlocking on this client and expect the server's reply to our
+                            packet to do it instead
+                        */
+                        if (mwmp::Main::isInitialized())
+                            MechanicsHelper::sendObjectLock(target, 0);
+                        else
+                            target.getCellRef().unlock();
+                        /*
+                            End of tes3mp change (major)
+                        */
                     }
                 }
                 else

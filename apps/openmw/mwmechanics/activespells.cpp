@@ -33,6 +33,23 @@
 #include "../mwworld/manualref.hpp"
 #include "../mwworld/worldmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwbase/world.hpp"
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/LocalActor.hpp"
+#include "../mwmp/CellController.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     bool merge(std::vector<ESM::ActiveEffect>& present, const std::vector<ESM::ActiveEffect>& queued)
@@ -285,14 +302,22 @@ namespace MWMechanics
             if (removedSpell)
                 continue;
             if (spellIt->mEffects.empty())
+            {
+                // tes3mp addition: whenever a local player or actor loses an active spell, send a packet about it
+                mpOnSpellRemoved(ptr, *spellIt);
                 spellIt = mSpells.erase(spellIt);
+            }
             else
                 ++spellIt;
         }
 
         UpdateContext context(duration > 0.f);
         for (const auto& spell : mQueue)
+        {
             addToSpells(ptr, spell, context);
+            // tes3mp addition: whenever a local player or actor gains an active spell, send a packet about it
+            mpOnSpellAdded(ptr, spell);
+        }
         mQueue.clear();
 
         if (!creatureStats.isDead())
@@ -580,6 +605,8 @@ namespace MWMechanics
         for (ESM::ActiveEffect& effect : esmParams.mEffects)
             effect.mFlags &= ~ESM::ActiveEffect::Flag_Applied;
 
+        mMpNetworkSpells.insert(esmParams.mActiveSpellId);
+
         mQueue.emplace_back(ActiveSpellParams(esmParams));
     }
 
@@ -594,6 +621,47 @@ namespace MWMechanics
             }
         }
         return false;
+    }
+    /*
+        End of tes3mp addition
+    */
+
+    /*
+        Start of tes3mp addition
+    */
+    static bool mpIsSyncedSpell(const ActiveSpells::ActiveSpellParams& spell)
+    {
+        // Abilities, diseases and curses come from the spellbook, which has its own packets
+        return spell.hasFlag(ESM::ActiveSpells::Flag_Temporary) && !spell.getSourceSpellId().empty();
+    }
+
+    void ActiveSpells::mpOnSpellAdded(const MWWorld::Ptr& ptr, const ActiveSpellParams& spell)
+    {
+        if (!mwmp::Main::isInitialized() || !mpIsSyncedSpell(spell)
+            || mMpNetworkSpells.count(spell.getActiveSpellId()) != 0)
+            return;
+
+        const std::string id = spell.getSourceSpellId().serializeText();
+        const bool stacking = spell.hasFlag(ESM::ActiveSpells::Flag_Stackable);
+        if (ptr == MWMechanics::getPlayer())
+            mwmp::Main::get().getLocalPlayer()->sendSpellsActiveAddition(id, stacking, spell);
+        else if (mwmp::Main::get().getCellController()->isLocalActor(ptr))
+            mwmp::Main::get().getCellController()->getLocalActor(ptr)->sendSpellsActiveAddition(id, stacking, spell);
+    }
+
+    void ActiveSpells::mpOnSpellRemoved(const MWWorld::Ptr& ptr, const ActiveSpellParams& spell)
+    {
+        if (mMpNetworkSpells.erase(spell.getActiveSpellId()) != 0 || !mwmp::Main::isInitialized()
+            || !mpIsSyncedSpell(spell))
+            return;
+
+        const std::string id = spell.getSourceSpellId().serializeText();
+        const bool stacking = spell.hasFlag(ESM::ActiveSpells::Flag_Stackable);
+        const MWWorld::TimeStamp timestamp = MWBase::Environment::get().getWorld()->getTimeStamp();
+        if (ptr == MWMechanics::getPlayer())
+            mwmp::Main::get().getLocalPlayer()->sendSpellsActiveRemoval(id, stacking, timestamp);
+        else if (mwmp::Main::get().getCellController()->isLocalActor(ptr))
+            mwmp::Main::get().getCellController()->getLocalActor(ptr)->sendSpellsActiveRemoval(id, stacking, timestamp);
     }
     /*
         End of tes3mp addition

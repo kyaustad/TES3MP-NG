@@ -16,6 +16,20 @@
 #include "creaturestats.hpp"
 #include "stat.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "actorutil.hpp"
+#include "creaturestats.hpp"
+#include "../mwworld/class.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWMechanics
 {
     Spells::Spells() {}
@@ -155,6 +169,24 @@ namespace MWMechanics
         }
         if (!purged.empty())
             mSpellList->removeAll(purged);
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_PLAYER_SPELLBOOK packet every time the local player's spells are purged here
+        */
+        if (mwmp::Main::isInitialized() && !purged.empty())
+        {
+            const MWWorld::Ptr player = MWMechanics::getPlayer();
+            if (this == &player.getClass().getCreatureStats(player).getSpells())
+            {
+                for (const ESM::RefId& id : purged)
+                    mwmp::Main::get().getLocalPlayer()->sendSpellChange(id.serializeText(), mwmp::SpellbookChanges::REMOVE);
+            }
+        }
+        /*
+            End of tes3mp addition
+        */
     }
 
     void Spells::purgeCommonDisease()
@@ -225,6 +257,22 @@ namespace MWMechanics
             mUsedPowers.emplace_back(spell, timestamp);
         else
             it->second = timestamp;
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_PLAYER_COOLDOWN packet every time the local player's cooldown is recorded here
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            const MWWorld::Ptr player = MWMechanics::getPlayer();
+            if (this == &player.getClass().getCreatureStats(player).getSpells())
+                mwmp::Main::get().getLocalPlayer()->sendCooldownChange(
+                    spell->mId.serializeText(), timestamp.getDay(), timestamp.getHour());
+        }
+        /*
+            End of tes3mp addition
+        */
     }
 
     void Spells::readState(const ESM::SpellState& state, CreatureStats* creatureStats)

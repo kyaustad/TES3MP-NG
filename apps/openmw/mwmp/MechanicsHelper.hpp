@@ -44,6 +44,9 @@ namespace MechanicsHelper
     // Whether this actor is simulated by another client: a DedicatedPlayer or a DedicatedActor
     bool isNetworkDriven(const MWWorld::Ptr& ptr);
 
+    // Asks the server to lock (lockLevel > 0) or unlock (0) an object
+    void sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel);
+
     bool getSpellSuccess(const ESM::RefId& spellId, const MWWorld::Ptr& caster);
 
     void processAttack(mwmp::Attack attack, const MWWorld::Ptr& attacker);

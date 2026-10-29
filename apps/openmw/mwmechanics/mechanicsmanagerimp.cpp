@@ -41,6 +41,19 @@
 #include "npcstats.hpp"
 #include "spellutil.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -869,7 +882,8 @@ namespace MWMechanics
         mUpdatePlayer = true;
         mClassSelected = true;
         mRaceSelected = true;
-        mAI = true;
+        // tes3mp change (major): avoid enabling AI in multiplayer, where it only runs for local actors
+        mAI = !mwmp::Main::isInitialized();
     }
 
     namespace
@@ -1215,6 +1229,10 @@ namespace MWMechanics
             if (!canReportCrime(neighbor, victim, playerFollowers))
                 continue;
 
+            // tes3mp addition: player-controlled NPCs don't report crimes committed by other players
+            if (mwmp::Main::isInitialized() && mwmp::PlayerList::isDedicatedPlayer(neighbor))
+                continue;
+
             if ((neighbor == victim && victimAware)
                 // Murder crime can be reported even if no one saw it (hearing is enough, I guess).
                 // TODO: Add mod support for stealth executions!
@@ -1522,6 +1540,10 @@ namespace MWMechanics
                 if (playerRanks.find(factionID) != playerRanks.end())
                 {
                     player.getClass().getNpcStats(player).expell(factionID, true);
+
+                    // tes3mp addition: send an ID_PLAYER_FACTION packet every time a player is expelled from a faction
+                    if (mwmp::Main::isInitialized())
+                        mwmp::Main::get().getLocalPlayer()->sendFactionExpulsionState(factionID.serializeText(), true);
                 }
             }
             else if (!factionId.empty())
@@ -1530,6 +1552,10 @@ namespace MWMechanics
                 if (playerRanks.find(factionId) != playerRanks.end())
                 {
                     player.getClass().getNpcStats(player).expell(factionId, true);
+
+                    // tes3mp addition: send an ID_PLAYER_FACTION packet every time a player is expelled from a faction
+                    if (mwmp::Main::isInitialized())
+                        mwmp::Main::get().getLocalPlayer()->sendFactionExpulsionState(factionId.serializeText(), true);
                 }
             }
 
@@ -1557,15 +1583,37 @@ namespace MWMechanics
         if (target == player || !attacker.getClass().isActor())
             return false;
 
+        /*
+            Start of tes3mp addition
+
+            Don't set DedicatedPlayers as being in combat with the attacker, to prevent
+            AI actors from deciding to reciprocate by also starting combat
+        */
+        if (mwmp::Main::isInitialized() && mwmp::PlayerList::isDedicatedPlayer(target))
+            return false;
+        /*
+            End of tes3mp addition
+        */
+
         if (canCommitCrimeAgainst(target, attacker))
             commitCrime(attacker, target, MWBase::MechanicsManager::OT_Assault);
 
         MWMechanics::CreatureStats& statsTarget = target.getClass().getCreatureStats(target);
         AiSequence& seq = statsTarget.getAiSequence();
 
+        /*
+            Start of tes3mp change (major)
+
+            Make it possible to start combat with DedicatedPlayers and DedicatedActors by
+            adding additional conditions for them
+        */
         if (!attacker.isEmpty()
-            && (attacker.getClass().getCreatureStats(attacker).getAiSequence().isInCombat(target) || attacker == player)
+            && (attacker.getClass().getCreatureStats(attacker).getAiSequence().isInCombat(target) || attacker == player
+                || MechanicsHelper::isNetworkDriven(attacker))
             && !seq.isInCombat(attacker))
+        /*
+            End of tes3mp change (major)
+        */
         {
             // Attacker is in combat with us, but we are not in combat with the attacker yet. Time to fight back.
             // Note: accidental or collateral damage attacks are ignored.
