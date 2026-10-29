@@ -28,6 +28,9 @@ namespace
 {
     // The authority sends the state of authority mode scripts to the server this often, so a new authority loses little after a crash
     constexpr float sStateSaveInterval = 30.f;
+    // Player and local script states are sent this often, when they changed
+    constexpr float sPlayerStateInterval = 30.f;
+    constexpr float sLocalStateInterval = 60.f;
 
     MWLua::LuaManager* luaManager()
     {
@@ -100,6 +103,9 @@ void LuaSync::clear()
     }
     mPendingAuthorityState.clear();
     mHasPendingAuthorityState = false;
+    mPlayerStateReceived = false;
+    mLastPlayerState.clear();
+    mLastLocalStates.clear();
 }
 
 LuaSync::Mode LuaSync::getGlobalScriptMode(std::string_view scriptPath) const
@@ -389,6 +395,23 @@ void LuaSync::updateLua(float dt)
                 case LuaMessage::REQUEST_STATE:
                     sendGlobalState();
                     break;
+                case LuaMessage::PLAYER_STATE:
+                    lua->mpLoadPlayerScripts(message.data);
+                    mLastPlayerState = message.data;
+                    mPlayerStateReceived = true;
+                    break;
+                case LuaMessage::LOCAL_STATE:
+                {
+                    const ESM::RefNum target = toLocalObject(message.target);
+                    const MWWorld::Ptr ptr
+                        = target.isSet() ? MWBase::Environment::get().getWorldModel()->getPtr(target) : MWWorld::Ptr();
+                    if (!ptr.isEmpty())
+                    {
+                        lua->mpLoadLocalScripts(ptr, message.data);
+                        mLastLocalStates[message.target.toString()] = std::hash<std::string>{}(message.data);
+                    }
+                    break;
+                }
                 case LuaMessage::GLOBAL_EVENT:
                     lua->mpDeliverGlobalEvent(
                         message.name, toLocal(message.data), (message.flags & LuaMessage::FLAG_AUTHORITY_ONLY) != 0);
@@ -420,6 +443,31 @@ void LuaSync::updateLua(float dt)
     if (!mHasConfig)
         return;
 
+    // Player script state, once the server's stored state has been applied
+    mPlayerStateTimer += dt;
+    if (mPlayerStateReceived && mPlayerStateTimer >= sPlayerStateInterval)
+    {
+        mPlayerStateTimer = 0.f;
+        std::string state = lua->mpSavePlayerScripts();
+        if (state != mLastPlayerState)
+        {
+            mLastPlayerState = state;
+            LuaMessage message;
+            message.kind = LuaMessage::PLAYER_STATE;
+            message.data = std::move(state);
+            queue(std::move(message));
+        }
+    }
+
+    // Local script state of the objects this client simulates
+    mLocalStateTimer += dt;
+    if (mLocalStateTimer >= sLocalStateInterval)
+    {
+        mLocalStateTimer = 0.f;
+        lua->mpForEachSimulatedLocalScripts(
+            [&](const MWWorld::Ptr& ptr) { onLocalScriptsSaved(ptr, lua->mpSaveLocalScripts(ptr)); });
+    }
+
     if (mIsAuthority && hasAuthorityModeScripts())
     {
         mStateSaveTimer += dt;
@@ -443,6 +491,29 @@ void LuaSync::updateLua(float dt)
         mPendingAuthorityState.clear();
         mStateSaveTimer = 0.f;
     }
+}
+
+void LuaSync::onLocalScriptsSaved(const MWWorld::Ptr& ptr, std::string data)
+{
+    if (!mHasConfig || !ptr.isInCell() || ptr.getCell()->getCell()->isEsm4())
+        return;
+
+    LuaMessage message;
+    message.kind = LuaMessage::LOCAL_STATE;
+    message.target = toNetObject(ptr.getCellRef().getRefNum());
+    if (message.target.kind != NetObjectId::CONTENT && message.target.kind != NetObjectId::MP)
+        return;
+
+    // Only send states that changed since they were last sent or received
+    const std::size_t hash = std::hash<std::string>{}(data);
+    auto [it, inserted] = mLastLocalStates.try_emplace(message.target.toString(), hash);
+    if (!inserted && it->second == hash)
+        return;
+    it->second = hash;
+
+    message.cell = ptr.getCell()->getCell()->getEsm3().getShortDescription();
+    message.data = std::move(data);
+    queue(std::move(message));
 }
 
 void LuaSync::sendGlobalState()

@@ -39,7 +39,6 @@ The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `ce
 * **Settings and menus:** the difficulty widget still shows in the settings menu, though the server's difficulty is
   what's used. The race menu's back button is still visible.
 * **Global map:** player names in global map marker tooltips (TODO in `GUIController.cpp`).
-* **Script state:** player and local Lua script state is not persisted between sessions.
 * **Server browser:** `tes3mp-browser` hasn't been ported to Qt 6.
 * **Testing:** most of these hooks are compile-tested and covered by the automated login and Lua tests. They have
   not been played through by hand: trading, containers, combat, spells, doors, jail and crafting all need it.

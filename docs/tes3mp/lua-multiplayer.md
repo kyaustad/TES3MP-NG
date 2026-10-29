@@ -139,7 +139,15 @@ TES3MP doesn't use OpenMW saves.
   state survives changes in `.omwscripts` order.
 * `client` mode global scripts keep their state across authority changes on the same client, but start fresh each
   session.
-* Player and local script state is not persisted between sessions yet.
+* PLAYER scripts: the client sends their `onSave` data to the server every 30 seconds when it changed. The server
+  stores it per character (`data/lua/players/<name>.bin`) and sends it back at login, where the scripts restore it
+  with `onLoad`. A client only starts saving once it has received the stored state, so a fresh login can't
+  overwrite it.
+* Local scripts (NPCs, creatures, objects): the client that simulates an object sends its scripts' state when the
+  object leaves the scene, and every 60 seconds when it changed. Only the cell's authority is accepted. The server
+  keeps it per cell (`data/lua/localState.bin`) and sends it to every player who loads the cell, so the next client
+  to simulate the object continues where the last one stopped.
+* A client that crashes or is killed loses whatever changed since its last save.
 
 ## Wire format
 

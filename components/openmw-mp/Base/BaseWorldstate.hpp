@@ -373,7 +373,9 @@ namespace mwmp
             STORAGE_SET = 4,   // name is the global storage section, key the key, data the value (empty to remove)
             STORAGE_RESET = 5, // name is the global storage section, data its whole content as a table
             GLOBAL_STATE = 6,  // data is the saved state of authority mode global scripts
-            REQUEST_STATE = 7  // server -> authority: send GLOBAL_STATE now
+            REQUEST_STATE = 7, // server -> authority: send GLOBAL_STATE now
+            PLAYER_STATE = 8,  // data is the saved state of the player's own PLAYER scripts (server -> client on login)
+            LOCAL_STATE = 9    // data is the saved state of an object's local scripts, target the object, cell its cell
         };
 
         enum Flags : uint8_t

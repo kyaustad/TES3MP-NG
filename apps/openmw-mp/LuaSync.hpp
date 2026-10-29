@@ -1,6 +1,7 @@
 #ifndef OPENMW_LUASYNC_HPP
 #define OPENMW_LUASYNC_HPP
 
+#include <filesystem>
 #include <map>
 #include <string>
 #include <vector>
@@ -25,6 +26,7 @@ public:
     static void init(const std::string& dataDirectory);
 
     static void onPlayerLoaded(Player& player);
+    static void onCellLoaded(Player& player, const std::string& cellDescription);
     static void onPlayerDisconnect(Player& player);
 
     static void processMessages(Player& sender, const mwmp::BaseWorldstate& worldstate);
@@ -47,6 +49,10 @@ private:
     static void routeLocalEvent(Player& sender, const mwmp::LuaMessage& message);
     static void persistStorage();
     static void persistState();
+    static void persistLocalStates();
+    static std::filesystem::path playerStatePath(const Player& player);
+    static void sendLocalStates(Player& player, const std::string& cellDescription);
+    static Player* getCellAuthority(const std::string& cellDescription);
 
     static std::string sDataDirectory;
     static std::string sPolicy;
@@ -55,6 +61,8 @@ private:
     static std::map<std::string, std::map<std::string, std::string>> sStorage; // section -> key -> value
     static std::map<std::string, bool> sPersistentSections;
     static std::string sGlobalState;
+    // Saved state of local scripts: cell short description -> object -> state
+    static std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>> sLocalStates;
     static bool sDropCurrentEvent;
 };
 

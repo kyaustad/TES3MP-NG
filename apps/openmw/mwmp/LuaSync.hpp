@@ -1,6 +1,7 @@
 #ifndef OPENMW_MWMP_LUASYNC_HPP
 #define OPENMW_MWMP_LUASYNC_HPP
 
+#include <map>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -53,6 +54,8 @@ namespace mwmp
         void onLocalEvent(const MWWorld::Ptr& target, const std::string& eventName, const std::string& data);
         void onStorageValueChanged(std::string_view section, std::string_view key, std::string data, bool persistent);
         void onStorageSectionReplaced(std::string_view section, std::string data);
+        // State of an object's local scripts, in network form, saved by MWLua when the object leaves the scene
+        void onLocalScriptsSaved(const MWWorld::Ptr& ptr, std::string data);
 
         // Lua data with local RefNums <-> network form with NetObjectIds
         std::string dataToNetwork(std::string_view data) const;
@@ -85,6 +88,11 @@ namespace mwmp
         std::string mPendingAuthorityState;
         bool mHasPendingAuthorityState = false;
         float mStateSaveTimer = 0.f;
+        bool mPlayerStateReceived = false; // player script state is saved only after the server sent the stored one
+        float mPlayerStateTimer = 0.f;
+        float mLocalStateTimer = 0.f;
+        std::string mLastPlayerState;
+        std::map<std::string, std::size_t> mLastLocalStates; // object -> hash of the last sent state
     };
 }
 

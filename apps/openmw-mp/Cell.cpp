@@ -6,6 +6,16 @@
 #include "Player.hpp"
 #include "Script/Script.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "LuaSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 Cell::Cell(ESM::Cell cell) : cell(cell)
 {
     cellActorList.count = 0;
@@ -45,6 +55,9 @@ void Cell::addPlayer(Player *player)
     Script::Call<Script::CallbackIdentity("OnCellLoad")>(player->getId(), getShortDescription().c_str());
 
     players.push_back(player);
+
+    // tes3mp addition: send the saved state of Lua local scripts in this cell
+    LuaSync::onCellLoaded(*player, getShortDescription());
 }
 
 void Cell::removePlayer(Player *player, bool cleanPlayer)

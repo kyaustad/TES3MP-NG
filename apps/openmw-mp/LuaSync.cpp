@@ -26,6 +26,7 @@ bool LuaSync::sHasAuthority = false;
 std::map<std::string, std::map<std::string, std::string>> LuaSync::sStorage;
 std::map<std::string, bool> LuaSync::sPersistentSections;
 std::string LuaSync::sGlobalState;
+std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>> LuaSync::sLocalStates;
 bool LuaSync::sDropCurrentEvent = false;
 
 namespace
@@ -75,6 +76,35 @@ namespace
     {
         return player != nullptr && player->isHandshaked() && player->getLoadState() == Player::POSTLOADED;
     }
+
+    void writeNetObject(std::ostream& out, const mwmp::NetObjectId& id)
+    {
+        const uint8_t kind = id.kind;
+        out.write(reinterpret_cast<const char*>(&kind), sizeof(kind));
+        out.write(reinterpret_cast<const char*>(&id.refNumIndex), sizeof(id.refNumIndex));
+        out.write(reinterpret_cast<const char*>(&id.contentFile), sizeof(id.contentFile));
+        out.write(reinterpret_cast<const char*>(&id.mpNum), sizeof(id.mpNum));
+        out.write(reinterpret_cast<const char*>(&id.guid), sizeof(id.guid));
+    }
+
+    bool readNetObject(std::istream& in, mwmp::NetObjectId& id)
+    {
+        uint8_t kind = 0;
+        in.read(reinterpret_cast<char*>(&kind), sizeof(kind));
+        in.read(reinterpret_cast<char*>(&id.refNumIndex), sizeof(id.refNumIndex));
+        in.read(reinterpret_cast<char*>(&id.contentFile), sizeof(id.contentFile));
+        in.read(reinterpret_cast<char*>(&id.mpNum), sizeof(id.mpNum));
+        in.read(reinterpret_cast<char*>(&id.guid), sizeof(id.guid));
+        id.kind = static_cast<mwmp::NetObjectId::Kind>(kind);
+        return static_cast<bool>(in);
+    }
+
+    std::string lowerCase(std::string value)
+    {
+        for (char& c : value)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return value;
+    }
 }
 
 void LuaSync::init(const std::string& dataDirectory)
@@ -84,6 +114,30 @@ void LuaSync::init(const std::string& dataDirectory)
     std::filesystem::create_directories(luaDirectory(dataDirectory), ec);
 
     reloadPolicy();
+
+    // Local script states: cell count, then for each cell its description and objects
+    {
+        std::ifstream in(luaDirectory(dataDirectory) / "localState.bin", std::ios::binary);
+        uint32_t cellCount = 0;
+        if (in && in.read(reinterpret_cast<char*>(&cellCount), sizeof(cellCount)))
+        {
+            for (uint32_t i = 0; i < cellCount; ++i)
+            {
+                std::string cell;
+                uint32_t objectCount = 0;
+                if (!readString(in, cell) || !in.read(reinterpret_cast<char*>(&objectCount), sizeof(objectCount)))
+                    break;
+                for (uint32_t o = 0; o < objectCount; ++o)
+                {
+                    mwmp::NetObjectId id;
+                    std::string state;
+                    if (!readNetObject(in, id) || !readString(in, state))
+                        break;
+                    sLocalStates[cell][id.toString()] = { id, state };
+                }
+            }
+        }
+    }
 
     // Global storage: sections, each with a persistent flag and its keys
     std::ifstream storage(luaDirectory(dataDirectory) / "globalStorage.bin", std::ios::binary);
@@ -168,7 +222,16 @@ void LuaSync::onPlayerLoaded(Player& player)
         }
     }
 
+    // The player's own PLAYER script state; empty if there is none yet, so the client knows it may start saving
+    LuaMessage playerState;
+    playerState.kind = LuaMessage::PLAYER_STATE;
+    playerState.data = readFile(playerStatePath(player));
+    messages.push_back(std::move(playerState));
+
     send(std::move(messages), &player);
+
+    for (const Cell* cell : *player.getCells())
+        sendLocalStates(player, cell->getShortDescription());
 
     if (!sHasAuthority || !isLoaded(Players::getPlayer(sAuthority)))
         electAuthority(nullptr);
@@ -179,6 +242,43 @@ void LuaSync::onPlayerLoaded(Player& player)
         authority.target = playerTarget(*Players::getPlayer(sAuthority));
         send({ authority }, &player);
     }
+}
+
+void LuaSync::onCellLoaded(Player& player, const std::string& cellDescription)
+{
+    if (isLoaded(&player))
+        sendLocalStates(player, cellDescription);
+}
+
+void LuaSync::sendLocalStates(Player& player, const std::string& cellDescription)
+{
+    auto it = sLocalStates.find(lowerCase(cellDescription));
+    if (it == sLocalStates.end() || it->second.empty())
+        return;
+
+    std::vector<LuaMessage> messages;
+    for (const auto& [key, entry] : it->second)
+    {
+        LuaMessage state;
+        state.kind = LuaMessage::LOCAL_STATE;
+        state.target = entry.first;
+        state.cell = cellDescription;
+        state.data = entry.second;
+        messages.push_back(std::move(state));
+    }
+    send(std::move(messages), &player);
+}
+
+std::filesystem::path LuaSync::playerStatePath(const Player& player)
+{
+    // Account names are player names, which CoreScripts also uses for its player files
+    std::string name = lowerCase(player.npc.mName);
+    for (char& c : name)
+    {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_' && c != ' ')
+            c = '_';
+    }
+    return luaDirectory(sDataDirectory) / "players" / (name + ".bin");
 }
 
 void LuaSync::onPlayerDisconnect(Player& player)
@@ -323,6 +423,33 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
                 persistState();
                 break;
             }
+            case LuaMessage::PLAYER_STATE:
+            {
+                const std::filesystem::path path = playerStatePath(sender);
+                std::error_code ec;
+                std::filesystem::create_directories(path.parent_path(), ec);
+                std::ofstream out(path, std::ios::binary | std::ios::trunc);
+                out.write(message.data.data(), static_cast<std::streamsize>(message.data.size()));
+                break;
+            }
+            case LuaMessage::LOCAL_STATE:
+            {
+                // Only the client that simulates the cell has the current state of its objects
+                if (getCellAuthority(message.cell) != &sender)
+                {
+                    LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE,
+                        "Ignoring Lua state of %s in %s from %s, who isn't the cell authority",
+                        message.target.toString().c_str(), message.cell.c_str(), sender.npc.mName.c_str());
+                    break;
+                }
+                auto& cellStates = sLocalStates[lowerCase(message.cell)];
+                if (message.data.empty())
+                    cellStates.erase(message.target.toString());
+                else
+                    cellStates[message.target.toString()] = { message.target, message.data };
+                persistLocalStates();
+                break;
+            }
             default:
                 LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Unexpected Lua message kind %u from %s", message.kind,
                     sender.npc.mName.c_str());
@@ -342,17 +469,7 @@ void LuaSync::routeLocalEvent(Player& sender, const LuaMessage& message)
         recipient = Players::getPlayer(guid);
     }
     else if (!message.cell.empty())
-    {
-        // Cells are identified by their short description: "x, y" for exteriors, the name for interiors
-        static const std::regex exterior(R"(^\s*(-?\d+)\s*,\s*(-?\d+)\s*$)");
-        std::smatch match;
-        Cell* cell = std::regex_match(message.cell, match, exterior)
-            ? CellController::get()->getCellByXY(std::stoi(match[1]), std::stoi(match[2]))
-            : CellController::get()->getCellByName(message.cell);
-
-        if (cell != nullptr && cell->getAuthority() != nullptr)
-            recipient = Players::getPlayer(*cell->getAuthority());
-    }
+        recipient = getCellAuthority(message.cell);
 
     if (!isLoaded(recipient))
     {
@@ -438,6 +555,40 @@ void LuaSync::persistStorage()
         {
             writeString(out, key);
             writeString(out, value);
+        }
+    }
+}
+
+Player* LuaSync::getCellAuthority(const std::string& cellDescription)
+{
+    // Cells are identified by their short description: "x, y" for exteriors, the name for interiors
+    static const std::regex exterior(R"(^\s*(-?\d+)\s*,\s*(-?\d+)\s*$)");
+    std::smatch match;
+    Cell* cell = std::regex_match(cellDescription, match, exterior)
+        ? CellController::get()->getCellByXY(std::stoi(match[1]), std::stoi(match[2]))
+        : CellController::get()->getCellByName(cellDescription);
+
+    if (cell == nullptr || cell->getAuthority() == nullptr)
+        return nullptr;
+    return Players::getPlayer(*cell->getAuthority());
+}
+
+void LuaSync::persistLocalStates()
+{
+    std::ofstream out(luaDirectory(sDataDirectory) / "localState.bin", std::ios::binary | std::ios::trunc);
+    if (!out)
+        return;
+    const uint32_t cellCount = static_cast<uint32_t>(sLocalStates.size());
+    out.write(reinterpret_cast<const char*>(&cellCount), sizeof(cellCount));
+    for (const auto& [cell, objects] : sLocalStates)
+    {
+        writeString(out, cell);
+        const uint32_t objectCount = static_cast<uint32_t>(objects.size());
+        out.write(reinterpret_cast<const char*>(&objectCount), sizeof(objectCount));
+        for (const auto& [key, entry] : objects)
+        {
+            writeNetObject(out, entry.first);
+            writeString(out, entry.second);
         }
     }
 }

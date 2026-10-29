@@ -198,6 +198,13 @@ namespace MWLua
         void mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data);
         void mpResetStorageSection(std::string_view section, std::string_view data);
         void mpClearGlobalStorage();
+        // Saved state of the local player's PLAYER scripts and of objects' local scripts, in network form
+        std::string mpSavePlayerScripts();
+        void mpLoadPlayerScripts(std::string_view data);
+        std::string mpSaveLocalScripts(const MWWorld::Ptr& ptr);
+        void mpLoadLocalScripts(const MWWorld::Ptr& ptr, std::string_view data);
+        // Objects in the scene with local scripts that this client simulates
+        void mpForEachSimulatedLocalScripts(const std::function<void(const MWWorld::Ptr&)>& callback);
         /*
             End of tes3mp addition
         */
@@ -214,6 +221,8 @@ namespace MWLua
         */
         LuaUtil::ScriptIdsWithInitializationData mpGlobalConf(bool authority) const;
         void mpUpdateLocalScriptSimulation();
+        std::string mpEncodeScripts(const ESM::LuaScripts& saved) const;
+        ESM::LuaScripts mpDecodeScripts(std::string_view data, std::string_view what) const;
 
         class MpStorageListener;
         std::unique_ptr<MpStorageListener> mMpStorageListener;
