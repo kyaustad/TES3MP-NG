@@ -53,6 +53,7 @@ void MasterServer::Thread()
         Packet *packet = peer->Receive();
 
         auto now = steady_clock::now();
+        std::unique_lock serversLock(serversMutex); // tes3mp-ng addition
         if (now - startTime >= 60s)
         {
             startTime = steady_clock::now();
@@ -77,7 +78,10 @@ void MasterServer::Thread()
         }
 
         if (packet == nullptr)
+        {
+            serversLock.unlock(); // tes3mp-ng addition
             RakSleep(10);
+        }
         else
             for (; packet; peer->DeallocatePacket(packet), packet = peer->Receive())
             {
@@ -229,4 +233,9 @@ void MasterServer::Wait()
 MasterServer::ServerMap *MasterServer::GetServers()
 {
     return &servers;
+}
+
+std::mutex &MasterServer::GetMutex()
+{
+    return serversMutex;
 }

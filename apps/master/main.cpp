@@ -1,37 +1,63 @@
+#include <atomic>
+#include <csignal>
+#include <cstdlib>
 #include <iostream>
-#include <Kbhit.h>
+#include <memory>
+#include <string>
+
 #include <RakSleep.h>
+
 #include "MasterServer.hpp"
 #include "RestServer.hpp"
 
-using namespace RakNet;
 using namespace std;
 
-unique_ptr<RestServer> restServer;
-unique_ptr<MasterServer> masterServer;
-bool run = true;
-
-int main()
+namespace
 {
-    masterServer.reset(new MasterServer(2000, 25560));
-    restServer.reset(new RestServer(8080, masterServer->GetServers()));
+    atomic<bool> run{ true };
 
-    auto onExit = [](int /*sig*/){
-        restServer->stop();
-        masterServer->Stop(false);
-        masterServer->Wait();
+    void onExit(int /*sig*/)
+    {
         run = false;
-    };
+    }
+
+    // tes3mp-ng addition: the ports can be set on the command line
+    bool readPort(const char* arg, unsigned short& port)
+    {
+        char* end = nullptr;
+        const unsigned long value = strtoul(arg, &end, 10);
+        if (end == arg || *end != '\0' || value == 0 || value > 65535)
+            return false;
+        port = static_cast<unsigned short>(value);
+        return true;
+    }
+}
+
+int main(int argc, char* argv[])
+{
+    unsigned short masterPort = 25560;
+    unsigned short httpPort = 8080;
+
+    if (argc > 3 || (argc > 1 && !readPort(argv[1], masterPort)) || (argc > 2 && !readPort(argv[2], httpPort)))
+    {
+        cout << "Usage: " << argv[0] << " [master server port (25560)] [HTTP API port (8080)]" << endl;
+        return 1;
+    }
 
     signal(SIGINT, onExit);
     signal(SIGTERM, onExit);
 
+    auto masterServer = make_unique<MasterServer>(2000, masterPort);
+    auto restServer = make_unique<RestServer>(httpPort, *masterServer);
+
+    cout << "Master server port " << masterPort << endl;
     masterServer->Start();
+    restServer->start();
 
-    thread server_thread([]() { restServer->start(); });
+    while (run && masterServer->isRunning())
+        RakSleep(100);
 
-    server_thread.join();
-    masterServer->Wait();
-
+    restServer->stop();
+    masterServer->Stop(true);
     return 0;
 }

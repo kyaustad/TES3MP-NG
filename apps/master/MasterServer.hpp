@@ -1,8 +1,10 @@
 #ifndef NEWMASTERPROTO_MASTERSERVER_HPP
 #define NEWMASTERPROTO_MASTERSERVER_HPP
 
+#include <atomic>
 #include <thread>
 #include <chrono>
+#include <mutex>
 #include <RakPeerInterface.h>
 #include <components/openmw-mp/Master/MasterData.hpp>
 
@@ -34,6 +36,8 @@ public:
     void Wait();
 
     ServerMap* GetServers();
+    // tes3mp-ng addition: guards the server map, which the HTTP API reads from its own thread
+    std::mutex& GetMutex();
 
 private:
     void Thread();
@@ -43,7 +47,8 @@ private:
     RakNet::RakPeerInterface* peer;
     RakNet::SocketDescriptor sockdescr;
     ServerMap servers;
-    bool run;
+    std::mutex serversMutex;
+    std::atomic<bool> run;
     std::map<RakNet::RakNetGUID, std::chrono::steady_clock::time_point> pendingACKs;
 };
 
