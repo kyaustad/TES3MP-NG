@@ -16,6 +16,20 @@
 
 #include <cmath>
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmechanics/actorutil.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWPhysics
 {
 
@@ -113,6 +127,23 @@ namespace MWPhysics
 
         addCollisionMask(getCollisionMask());
         updateCollisionObjectPositionUnsafe();
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to disable collision for players or regular actors from a packet
+        */
+        if (mwmp::Main::isInitialized() && ptr != MWMechanics::getPlayer())
+        {
+            const mwmp::BaseWorldstate* worldstate = mwmp::Main::get().getNetworking()->getWorldstate();
+            const bool hasCollision = mwmp::PlayerList::isDedicatedPlayer(ptr) ? worldstate->hasPlayerCollision
+                                                                                : worldstate->hasActorCollision;
+            if (!hasCollision)
+                enableCollisionBody(false);
+        }
+        /*
+            End of tes3mp addition
+        */
     }
 
     Actor::~Actor()

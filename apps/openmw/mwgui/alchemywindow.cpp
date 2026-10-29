@@ -32,6 +32,18 @@
 #include "sortfilteritemmodel.hpp"
 #include "widgets.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmechanics/actorutil.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     AlchemyWindow::AlchemyWindow()
@@ -143,6 +155,9 @@ namespace MWGui
                 break;
             case MWMechanics::Alchemy::Result_Success:
                 winMgr->playSound(ESM::RefId::stringRefId("potion success"));
+                // tes3mp addition: send an ID_OBJECT_SOUND packet every time the player makes a sound here
+                if (mwmp::Main::isInitialized())
+                    MechanicsHelper::sendSound(MWMechanics::getPlayer(), "potion success");
                 if (count == 1)
                     winMgr->messageBox("#{sPotionSuccess}");
                 else
@@ -153,6 +168,9 @@ namespace MWGui
             case MWMechanics::Alchemy::Result_RandomFailure:
                 winMgr->messageBox("#{sNotifyMessage8}");
                 winMgr->playSound(ESM::RefId::stringRefId("potion fail"));
+                // tes3mp addition: send an ID_OBJECT_SOUND packet every time the player makes a sound here
+                if (mwmp::Main::isInitialized())
+                    MechanicsHelper::sendSound(MWMechanics::getPlayer(), "potion fail");
                 break;
         }
 

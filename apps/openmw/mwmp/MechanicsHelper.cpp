@@ -154,6 +154,17 @@ void MechanicsHelper::syncProjectileOrigin(
         getProjectileOrigin(dedicatedAttack->projectileOrigin, pos, orient);
 }
 
+void MechanicsHelper::sendSound(const MWWorld::Ptr& ptr, const std::string& soundId)
+{
+    if (!ptr.isInCell())
+        return;
+    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+    objectList->reset();
+    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+    objectList->addObjectSound(ptr, soundId, 1.0, 1.0);
+    objectList->sendObjectSound();
+}
+
 void MechanicsHelper::sendGoldPool(const MWWorld::Ptr& merchant, int goldPool)
 {
     const MWMechanics::CreatureStats& stats = merchant.getClass().getCreatureStats(merchant);

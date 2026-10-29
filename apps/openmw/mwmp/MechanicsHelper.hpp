@@ -50,6 +50,9 @@ namespace MechanicsHelper
     // Asks the server to set a merchant's gold pool
     void sendGoldPool(const MWWorld::Ptr& merchant, int goldPool);
 
+    // Lets other players hear a sound made by this object
+    void sendSound(const MWWorld::Ptr& ptr, const std::string& soundId);
+
     // Hits by the LocalPlayer or LocalActors: the Attack being prepared for sending, with its target and hit position
     // recorded, or nullptr if the attacker isn't local
     mwmp::Attack* beginLocalHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition,

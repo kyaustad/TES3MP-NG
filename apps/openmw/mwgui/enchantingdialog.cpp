@@ -28,6 +28,18 @@
 
 #include "sortfilteritemmodel.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmechanics/actorutil.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
 
@@ -374,12 +386,18 @@ namespace MWGui
         if (mEnchanting.create())
         {
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("enchant success"));
+            // tes3mp addition: send an ID_OBJECT_SOUND packet every time the player makes a sound here
+            if (mwmp::Main::isInitialized())
+                MechanicsHelper::sendSound(MWMechanics::getPlayer(), "enchant success");
             MWBase::Environment::get().getWindowManager()->messageBox("#{sEnchantmentMenu12}");
             MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_Enchanting);
         }
         else
         {
             MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("enchant fail"));
+            // tes3mp addition: send an ID_OBJECT_SOUND packet every time the player makes a sound here
+            if (mwmp::Main::isInitialized())
+                MechanicsHelper::sendSound(MWMechanics::getPlayer(), "enchant fail");
             MWBase::Environment::get().getWindowManager()->messageBox("#{sNotifyMessage34}");
             if (!mEnchanting.getGem().isEmpty() && !mEnchanting.getGem().getCellRef().getCount())
             {

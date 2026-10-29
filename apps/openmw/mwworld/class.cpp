@@ -25,6 +25,22 @@
 
 #include "../mwmechanics/npcstats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <components/openmw-mp/Utils.hpp>
+#include <components/vfs/pathutil.hpp>
+#include "../mwphysics/physicssystem.hpp"
+#include "../mwphysics/collisiontype.hpp"
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWWorld
 {
     std::map<unsigned, Class*>& Class::getClasses()
@@ -46,6 +62,25 @@ namespace MWWorld
     void Class::insertObjectPhysics(
         const Ptr& ptr, const std::string& mesh, const osg::Quat& rotation, MWPhysics::PhysicsSystem& physics) const
     {
+        /*
+            Start of tes3mp addition
+
+            Make it possible to enable collision for placed items from a packet
+        */
+        if (mwmp::Main::isInitialized() && !mesh.empty() && isItem(ptr))
+        {
+            const mwmp::BaseWorldstate* worldstate = mwmp::Main::get().getNetworking()->getWorldstate();
+            if (worldstate->hasPlacedObjectCollision
+                || Utils::vectorContains(worldstate->enforcedCollisionRefIds, ptr.getCellRef().getRefId().serializeText()))
+            {
+                physics.addObject(ptr, VFS::Path::Normalized(mesh), rotation,
+                    worldstate->useActorCollisionForPlacedObjects ? MWPhysics::CollisionType_Actor
+                                                                  : MWPhysics::CollisionType_World);
+            }
+        }
+        /*
+            End of tes3mp addition
+        */
     }
 
     bool Class::consume(const MWWorld::Ptr& consumable, const MWWorld::Ptr& actor) const
