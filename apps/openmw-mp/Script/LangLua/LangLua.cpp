@@ -1,6 +1,7 @@
 #include <utility>
 #include <iostream>
 #include "LangLua.hpp"
+#include "LuaIo2.hpp"
 #include <Script/Script.hpp>
 #include <Script/Types.hpp>
 
@@ -36,6 +37,7 @@ LangLua::LangLua()
 {
     lua = luaL_newstate();
     luaL_openlibs(lua); // load all lua std libs
+    LuaIo2::registerPreload(lua); // tes3mp addition: built-in io2 for Unicode paths
 
     std::string p, cp;
     for (auto& path : packagePath)

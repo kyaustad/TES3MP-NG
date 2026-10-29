@@ -689,6 +689,12 @@ if (BUILD_TES3MP OR BUILD_TES3MP_SERVER OR BUILD_TES3MP_MASTER)
 endif()
 if (BUILD_TES3MP_SERVER)
     add_subdirectory (apps/openmw-mp)
+    configure_resource_file(${OpenMW_SOURCE_DIR}/files/tes3mp/tes3mp-server-default.cfg
+        "${OpenMW_BINARY_DIR}" "tes3mp-server-default.cfg")
+endif()
+if (BUILD_TES3MP)
+    configure_resource_file(${OpenMW_SOURCE_DIR}/files/tes3mp/tes3mp-client-default.cfg
+        "${OpenMW_BINARY_DIR}" "tes3mp-client-default.cfg")
 endif()
 if (BUILD_TES3MP_BROWSER)
     add_subdirectory (apps/browser)

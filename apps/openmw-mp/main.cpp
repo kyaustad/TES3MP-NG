@@ -157,17 +157,17 @@ private:
     std::ostream &out2;
 };
 
-boost::program_options::variables_map launchOptions(int argc, char *argv[], Files::ConfigurationManager cfgMgr)
+boost::program_options::variables_map launchOptions(int argc, char *argv[], Files::ConfigurationManager &cfgMgr)
 {
     namespace bpo = boost::program_options;
     bpo::variables_map variables;
     bpo::options_description desc;
 
     desc.add_options()
-            ("resources", bpo::value<std::string>()->default_value("resources"), "set resources directory")
             ("no-logs", bpo::value<bool>()->implicit_value(true)->default_value(false),
              "Do not write logs. Useful for daemonizing.");
 
+    Files::ConfigurationManager::addCommonOptions(desc);
     cfgMgr.readConfiguration(variables, desc, true);
 
     bpo::parsed_options valid_opts = bpo::command_line_parser(argc, argv).options(desc).allow_unregistered().run();
@@ -178,7 +178,7 @@ boost::program_options::variables_map launchOptions(int argc, char *argv[], File
     return variables;
 }
 
-int main(int argc, char *argv[])
+int runServer(int argc, char *argv[])
 {
     ServerSettings mgr;
     Files::ConfigurationManager cfgMgr;
@@ -365,4 +365,17 @@ int main(int argc, char *argv[])
 
     breakpad_close();
     return code;
+}
+
+int main(int argc, char *argv[])
+{
+    try
+    {
+        return runServer(argc, argv);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Fatal error: " << e.what() << std::endl;
+        return 1;
+    }
 }

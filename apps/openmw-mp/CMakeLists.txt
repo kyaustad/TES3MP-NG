@@ -17,9 +17,11 @@ endif(ENABLE_BREAKPAD)
 # The server always uses the same Lua runtime as the client (LuaJIT by default, see USE_LUAJIT)
 set(LuaScript_Sources
         Script/LangLua/LangLua.cpp
-        Script/LangLua/LuaFunc.cpp)
+        Script/LangLua/LuaFunc.cpp
+        Script/LangLua/LuaIo2.cpp)
 set(LuaScript_Headers
-        Script/LangLua/LangLua.hpp)
+        Script/LangLua/LangLua.hpp
+        Script/LangLua/LuaIo2.hpp)
 add_compile_definitions(ENABLE_LUA)
 include_directories(SYSTEM ${LUA_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/extern/LuaBridge)
 
