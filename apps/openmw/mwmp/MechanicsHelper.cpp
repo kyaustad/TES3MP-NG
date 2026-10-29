@@ -154,6 +154,17 @@ void MechanicsHelper::syncProjectileOrigin(
         getProjectileOrigin(dedicatedAttack->projectileOrigin, pos, orient);
 }
 
+void MechanicsHelper::sendGoldPool(const MWWorld::Ptr& merchant, int goldPool)
+{
+    const MWMechanics::CreatureStats& stats = merchant.getClass().getCreatureStats(merchant);
+    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+    objectList->reset();
+    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+    objectList->addObjectMiscellaneous(merchant, goldPool, static_cast<float>(stats.getLastRestockTime().getHour()),
+        stats.getLastRestockTime().getDay());
+    objectList->sendObjectMiscellaneous();
+}
+
 void MechanicsHelper::sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel)
 {
     mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();

@@ -31,6 +31,18 @@
 #include "spellview.hpp"
 #include "statswindow.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
 
@@ -226,6 +238,10 @@ namespace MWGui
         MWBase::Environment::get().getWindowManager()->setSelectedSpell(
             spellId, int(MWMechanics::getSpellSuccessChance(spellId, player)));
 
+        // tes3mp addition: send a PlayerMiscellaneous packet with the player's new selected spell
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getLocalPlayer()->sendSelectedSpell(spellId.serializeText());
+
         updateSpells();
     }
 
@@ -239,6 +255,11 @@ namespace MWGui
             MWBase::Environment::get().getWindowManager()->unsetSelectedSpell();
 
         spells.remove(mSpellToDelete);
+
+        // tes3mp addition: send an ID_PLAYER_SPELLBOOK packet every time a player deletes one of their spells
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getLocalPlayer()->sendSpellChange(
+                mSpellToDelete.serializeText(), mwmp::SpellbookChanges::REMOVE);
 
         updateSpells();
     }

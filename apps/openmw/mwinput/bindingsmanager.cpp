@@ -17,6 +17,17 @@
 
 #include "actions.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/GUIController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWInput
 {
     static const int sFakeDeviceId = 1; // As we only support one controller at a time, use a fake deviceID so we don't
@@ -629,6 +640,10 @@ namespace MWInput
 
     void BindingsManager::keyPressed(const SDL_KeyboardEvent& arg)
     {
+        // tes3mp addition: pass the pressed key to the multiplayer-specific GUI controller (chat)
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getGUIController()->pressedKey(arg.keysym.scancode);
+
         mInputBinder->keyPressed(arg);
     }
 

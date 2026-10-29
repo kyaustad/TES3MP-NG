@@ -22,6 +22,18 @@
 #include "../mwmechanics/spells.hpp"
 #include "../mwmechanics/spellutil.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     SpellBuyingWindow::SpellBuyingWindow()
@@ -186,11 +198,19 @@ namespace MWGui
         assert(spell != mSpellsWidgetMap.end());
 
         spells.add(spell->second);
+
+        // tes3mp addition: send an ID_PLAYER_SPELLBOOK packet every time a player buys a spell
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getLocalPlayer()->sendSpellChange(spell->second.serializeText(), mwmp::SpellbookChanges::ADD);
         player.getClass().getContainerStore(player).remove(MWWorld::ContainerStore::sGoldId, price);
 
         // add gold to NPC trading gold pool
         MWMechanics::CreatureStats& npcStats = mPtr.getClass().getCreatureStats(mPtr);
-        npcStats.setGoldPool(npcStats.getGoldPool() + price);
+        // tes3mp change (major): don't change the merchant's gold pool unilaterally and let the server do it instead
+        if (mwmp::Main::isInitialized())
+            MechanicsHelper::sendGoldPool(mPtr, npcStats.getGoldPool() + price);
+        else
+            npcStats.setGoldPool(npcStats.getGoldPool() + price);
 
         setPtr(mPtr, mSpellsView->getViewOffset().top);
 

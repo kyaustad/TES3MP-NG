@@ -24,6 +24,16 @@
 #include "settingswindow.hpp"
 #include "videowidget.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     void MenuVideo::run()
@@ -303,15 +313,18 @@ namespace MWGui
         if (state == MWBase::StateManager::State_Running)
             buttons.emplace_back("return");
 
-        buttons.emplace_back("newgame");
+        // tes3mp change (major): in multiplayer, the main menu has no options for starting or loading a game
+        if (!mwmp::Main::isInitialized())
+            buttons.emplace_back("newgame");
 
         if (state == MWBase::StateManager::State_Running
             && MWBase::Environment::get().getWorld()->getGlobalInt(MWWorld::Globals::sCharGenState) == -1
             && MWBase::Environment::get().getWindowManager()->isSavingAllowed())
             buttons.emplace_back("savegame");
 
-        if (MWBase::Environment::get().getStateManager()->characterBegin()
-            != MWBase::Environment::get().getStateManager()->characterEnd())
+        if (!mwmp::Main::isInitialized() // tes3mp change (major)
+            && MWBase::Environment::get().getStateManager()->characterBegin()
+                != MWBase::Environment::get().getStateManager()->characterEnd())
             buttons.emplace_back("loadgame");
 
         buttons.emplace_back("options");

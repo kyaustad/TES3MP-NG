@@ -26,6 +26,18 @@
 #include "../mwmechanics/actorutil.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     TravelWindow::TravelWindow()
@@ -194,7 +206,11 @@ namespace MWGui
 
         // add gold to NPC trading gold pool
         MWMechanics::CreatureStats& npcStats = mPtr.getClass().getCreatureStats(mPtr);
-        npcStats.setGoldPool(npcStats.getGoldPool() + price);
+        // tes3mp change (major): don't change the merchant's gold pool unilaterally and let the server do it instead
+        if (mwmp::Main::isInitialized())
+            MechanicsHelper::sendGoldPool(mPtr, npcStats.getGoldPool() + price);
+        else
+            npcStats.setGoldPool(npcStats.getGoldPool() + price);
 
         MWBase::Environment::get().getWindowManager()->fadeScreenOut(1);
         ESM::Position pos = *sender->getUserData<ESM::Position>();
@@ -211,7 +227,9 @@ namespace MWGui
                                               ->mValue.getFloat();
             int hours = static_cast<int>(d / fTravelTimeMult);
             MWBase::Environment::get().getMechanicsManager()->rest(hours, true);
-            MWBase::Environment::get().getWorld()->advanceTime(hours);
+            // tes3mp change (major): multiplayer requires that time not get advanced here
+            if (!mwmp::Main::isInitialized())
+                MWBase::Environment::get().getWorld()->advanceTime(hours);
         }
 
         MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_Travel);

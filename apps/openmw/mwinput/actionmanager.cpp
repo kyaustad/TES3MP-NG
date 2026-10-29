@@ -24,6 +24,17 @@
 #include "actions.hpp"
 #include "bindingsmanager.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWInput
 {
 
@@ -204,12 +215,18 @@ namespace MWInput
 
     void ActionManager::quickLoad()
     {
+        // tes3mp change (major): it should not be possible to quickload in multiplayer
+        if (mwmp::Main::isInitialized())
+            return;
         if (!MyGUI::InputManager::getInstance().isModalAny())
             MWBase::Environment::get().getStateManager()->quickLoad();
     }
 
     void ActionManager::quickSave()
     {
+        // tes3mp change (major): it should not be possible to quicksave in multiplayer
+        if (mwmp::Main::isInitialized())
+            return;
         if (!MyGUI::InputManager::getInstance().isModalAny())
             MWBase::Environment::get().getStateManager()->quickSave();
     }
@@ -223,12 +240,32 @@ namespace MWInput
             || MWBase::Environment::get().getWindowManager()->isGuiMode())
             return;
 
+        /*
+            Start of tes3mp addition
+
+            Ignore attempts to rest if the player has not logged in on the server yet, and mark this as rest menu use
+            rather than bed use
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            if (!mwmp::Main::get().getLocalPlayer()->isLoggedIn())
+                return;
+            mwmp::Main::get().getLocalPlayer()->isUsingBed = false;
+        }
+        /*
+            End of tes3mp addition
+        */
+
         MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Rest); // Open rest GUI
     }
 
     void ActionManager::toggleConsole()
     {
         if (MyGUI::InputManager::getInstance().isModalAny())
+            return;
+
+        // tes3mp addition: if a player's console is disabled by the server, go no further
+        if (mwmp::Main::isInitialized() && !mwmp::Main::get().getLocalPlayer()->consoleAllowed)
             return;
 
         MWBase::Environment::get().getWindowManager()->toggleConsole();

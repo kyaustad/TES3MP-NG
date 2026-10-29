@@ -18,6 +18,18 @@
 #include "../mwworld/containerstore.hpp"
 #include "../mwworld/esmstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
     MerchantRepair::MerchantRepair()
@@ -164,7 +176,11 @@ namespace MWGui
 
         // add gold to NPC trading gold pool
         MWMechanics::CreatureStats& actorStats = mActor.getClass().getCreatureStats(mActor);
-        actorStats.setGoldPool(actorStats.getGoldPool() + price);
+        // tes3mp change (major): don't change the merchant's gold pool unilaterally and let the server do it instead
+        if (mwmp::Main::isInitialized())
+            MechanicsHelper::sendGoldPool(mActor, actorStats.getGoldPool() + price);
+        else
+            actorStats.setGoldPool(actorStats.getGoldPool() + price);
 
         setPtr(mActor);
     }

@@ -47,6 +47,9 @@ namespace MechanicsHelper
     // Asks the server to lock (lockLevel > 0) or unlock (0) an object
     void sendObjectLock(const MWWorld::Ptr& ptr, int lockLevel);
 
+    // Asks the server to set a merchant's gold pool
+    void sendGoldPool(const MWWorld::Ptr& merchant, int goldPool);
+
     // Hits by the LocalPlayer or LocalActors: the Attack being prepared for sending, with its target and hit position
     // recorded, or nullptr if the attacker isn't local
     mwmp::Attack* beginLocalHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const osg::Vec3f& hitPosition,

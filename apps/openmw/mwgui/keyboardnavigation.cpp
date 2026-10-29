@@ -10,6 +10,17 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/GUIController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
 
@@ -105,7 +116,9 @@ namespace MWGui
         if (!mEnabled)
             return;
 
-        if (!MWBase::Environment::get().getWindowManager()->isGuiMode())
+        // tes3mp change (minor): don't clear key focus when not in menus if the chat is currently focused
+        if (!MWBase::Environment::get().getWindowManager()->isGuiMode()
+            && !(mwmp::Main::isInitialized() && mwmp::Main::get().getGUIController()->getChatEditState()))
         {
             MWBase::Environment::get().getWindowManager()->setKeyFocusWidget(nullptr);
             return;

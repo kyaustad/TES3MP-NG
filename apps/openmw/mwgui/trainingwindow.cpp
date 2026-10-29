@@ -22,6 +22,18 @@
 
 #include "tooltips.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWGui
 {
 
@@ -199,7 +211,11 @@ namespace MWGui
 
         // add gold to NPC trading gold pool
         MWMechanics::NpcStats& npcStats = mPtr.getClass().getNpcStats(mPtr);
-        npcStats.setGoldPool(npcStats.getGoldPool() + price);
+        // tes3mp change (major): don't change the merchant's gold pool unilaterally and let the server do it instead
+        if (mwmp::Main::isInitialized())
+            MechanicsHelper::sendGoldPool(mPtr, npcStats.getGoldPool() + price);
+        else
+            npcStats.setGoldPool(npcStats.getGoldPool() + price);
 
         setVisible(false);
         mProgressBar.setVisible(true);
@@ -221,7 +237,9 @@ namespace MWGui
 
         // advance time
         MWBase::Environment::get().getMechanicsManager()->rest(2, false);
-        MWBase::Environment::get().getWorld()->advanceTime(2);
+        // tes3mp change (major): multiplayer requires that time not get advanced here
+        if (!mwmp::Main::isInitialized())
+            MWBase::Environment::get().getWorld()->advanceTime(2);
 
         // go back to game mode
         MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_Training);

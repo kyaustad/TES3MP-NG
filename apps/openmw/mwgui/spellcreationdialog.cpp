@@ -32,6 +32,20 @@
 #include "textcolours.hpp"
 #include "tooltips.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -658,15 +672,33 @@ namespace MWGui
 
         // add gold to NPC trading gold pool
         MWMechanics::CreatureStats& npcStats = mPtr.getClass().getCreatureStats(mPtr);
-        npcStats.setGoldPool(npcStats.getGoldPool() + price);
+        // tes3mp change (major): don't change the merchant's gold pool unilaterally and let the server do it instead
+        if (mwmp::Main::isInitialized())
+            MechanicsHelper::sendGoldPool(mPtr, npcStats.getGoldPool() + price);
+        else
+            npcStats.setGoldPool(npcStats.getGoldPool() + price);
 
         MWBase::Environment::get().getWindowManager()->playSound(ESM::RefId::stringRefId("Mysticism Hit"));
 
-        const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->insert(mSpell);
+        /*
+            Start of tes3mp change (major)
 
-        MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
-        MWMechanics::Spells& spells = stats.getSpells();
-        spells.add(spell->mId);
+            Don't create a record and don't add the spell to the player's spellbook; instead just send its record to
+            the server and expect the server to add it to the player's spellbook
+        */
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getNetworking()->getWorldstate()->sendSpellRecord(&mSpell);
+        else
+        {
+            const ESM::Spell* spell = MWBase::Environment::get().getESMStore()->insert(mSpell);
+
+            MWMechanics::CreatureStats& stats = player.getClass().getCreatureStats(player);
+            MWMechanics::Spells& spells = stats.getSpells();
+            spells.add(spell->mId);
+        }
+        /*
+            End of tes3mp change (major)
+        */
 
         MWBase::Environment::get().getWindowManager()->removeGuiMode(GM_SpellCreation);
     }
