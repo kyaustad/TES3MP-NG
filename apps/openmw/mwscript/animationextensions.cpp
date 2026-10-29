@@ -14,6 +14,19 @@
 
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwworld/class.hpp"
+#include "../mwmp/Main.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Animation
@@ -54,6 +67,25 @@ namespace MWScript
                     if (mode < 0 || mode > 2)
                         throw std::runtime_error("animation mode out of range");
                 }
+
+                /*
+                    Start of tes3mp addition
+
+                    Send an ID_OBJECT_ANIM_PLAY every time an animation is played for an object through an approved
+                    script
+                */
+                if (mwmp::Main::isInitialized() && ptr.isInCell()
+                    && mwmp::Main::isValidPacketScript(ptr.getClass().getScript(ptr)))
+                {
+                    if (mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime))
+                    {
+                        objectList->addObjectAnimPlay(ptr, std::string(group), mode);
+                        objectList->sendObjectAnimPlay();
+                    }
+                }
+                /*
+                    End of tes3mp addition
+                */
 
                 MWBase::Environment::get().getMechanicsManager()->playAnimationGroup(
                     ptr, group, mode, std::numeric_limits<uint32_t>::max(), true);

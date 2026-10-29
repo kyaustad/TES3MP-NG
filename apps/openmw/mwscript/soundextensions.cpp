@@ -18,6 +18,17 @@
 #include "interpretercontext.hpp"
 #include "ref.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/ScriptController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWScript
 {
     namespace Sound
@@ -65,6 +76,13 @@ namespace MWScript
             {
                 const VFS::Path::Normalized music(runtime.getStringLiteral(runtime[0].mInteger));
                 runtime.pop();
+
+                // tes3mp addition: send an ID_MUSIC_PLAY packet every time new music is streamed through a script
+                if (mwmp::ObjectList* objectList = ScriptController::prepareObjectList(runtime))
+                {
+                    objectList->addMusicPlay(std::string(music.value()));
+                    objectList->sendMusicPlay();
+                }
 
                 MWBase::Environment::get().getSoundManager()->streamMusic(
                     Misc::ResourceHelpers::correctMusicPath(music), MWSound::MusicType::MWScript);

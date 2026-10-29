@@ -52,6 +52,19 @@
 #include "filter.hpp"
 #include "keywordsearch.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/LocalActor.hpp"
+#include "../mwmp/CellController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWDialogue
 {
     DialogueManager::DialogueManager(
@@ -120,6 +133,10 @@ namespace MWDialogue
 
         for (const auto& topicId : parseTopicIdsFromText(text))
         {
+            // tes3mp addition: send an ID_PLAYER_TOPIC packet every time a new topic becomes known
+            if (mwmp::Main::isInitialized() && mActorKnownTopics.count(topicId) && isNewTopic(topicId))
+                mwmp::Main::get().getLocalPlayer()->sendTopic(topicId.serializeText());
+
             if (mActorKnownTopics.count(topicId))
                 mKnownTopics.insert(topicId);
         }
@@ -688,7 +705,13 @@ namespace MWDialogue
             if (Settings::gui().mSubtitles)
                 winMgr->messageBox(info->mResponse);
             if (!info->mSound.empty())
+            {
                 sndMgr->say(actor, Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(info->mSound)));
+
+                // tes3mp addition: if we are the cell authority over this actor, record this new sound for it
+                if (mwmp::Main::isInitialized() && mwmp::Main::get().getCellController()->isLocalActor(actor))
+                    mwmp::Main::get().getCellController()->getLocalActor(actor)->sound = info->mSound;
+            }
             if (!info->mResultScript.empty())
                 executeScript(info->mResultScript, actor);
             MWBase::Environment::get().getLuaManager()->onDialogueResponse(actor, *info, *dial);

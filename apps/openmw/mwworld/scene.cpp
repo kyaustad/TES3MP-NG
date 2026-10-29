@@ -52,6 +52,17 @@
 #include "player.hpp"
 #include "worldimp.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     using MWWorld::RotationOrder;
@@ -382,6 +393,10 @@ namespace MWWorld
             return;
         Log(Debug::Info) << "Unloading cell " << cell->getCell()->getDescription();
 
+        // tes3mp addition: store a cell unload for the LocalPlayer
+        if (mwmp::Main::isInitialized() && !cell->getCell()->isEsm4())
+            mwmp::Main::get().getLocalPlayer()->storeCellState(cell->getCell()->getEsm3(), mwmp::CellState::UNLOAD);
+
         ListAndResetObjectsVisitor visitor;
 
         cell->forEach(visitor, true); // Include objects being teleported by Lua
@@ -446,6 +461,10 @@ namespace MWWorld
 
         assert(mActiveCells.find(&cell) == mActiveCells.end());
         mActiveCells.insert(&cell);
+
+        // tes3mp addition: store a cell load for the LocalPlayer
+        if (mwmp::Main::isInitialized() && !cell.getCell()->isEsm4())
+            mwmp::Main::get().getLocalPlayer()->storeCellState(cell.getCell()->getEsm3(), mwmp::CellState::LOAD);
 
         Log(Debug::Info) << "Loading cell " << cell.getCell()->getDescription();
 
@@ -705,6 +724,21 @@ namespace MWWorld
         mNavigator.update(pos, navigatorUpdateGuard.get());
 
         navigatorUpdateGuard.reset();
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_PLAYER_CELL_STATE packet with all cell states stored in LocalPlayer and then clear them, but only
+            if the player is logged in on the server; the server uses them to decide cell authority
+        */
+        if (mwmp::Main::isInitialized() && mwmp::Main::get().getLocalPlayer()->isLoggedIn())
+        {
+            mwmp::Main::get().getLocalPlayer()->sendCellStates();
+            mwmp::Main::get().getLocalPlayer()->clearCellStates();
+        }
+        /*
+            End of tes3mp addition
+        */
 
         CellStore& current = mWorld.getWorldModel().getExterior(playerCellIndex);
         MWBase::Environment::get().getWindowManager()->changeCell(&current);
@@ -986,6 +1020,21 @@ namespace MWWorld
         // Load cell.
         mPagedRefs.clear();
         loadCell(cell, loadingListener, changeEvent, position.asVec3(), navigatorUpdateGuard.get());
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_PLAYER_CELL_STATE packet with all cell states stored in LocalPlayer and then clear them, but only
+            if the player is logged in on the server; the server uses them to decide cell authority
+        */
+        if (mwmp::Main::isInitialized() && mwmp::Main::get().getLocalPlayer()->isLoggedIn())
+        {
+            mwmp::Main::get().getLocalPlayer()->sendCellStates();
+            mwmp::Main::get().getLocalPlayer()->clearCellStates();
+        }
+        /*
+            End of tes3mp addition
+        */
 
         navigatorUpdateGuard.reset();
 
