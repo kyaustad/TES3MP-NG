@@ -83,6 +83,7 @@ namespace MWLua
         {
             ESM::RefNum mActor;
             int mDays;
+            bool mIgnoreSkillIncreases = false; // tes3mp addition: the server's ignoreJailSkillIncreases
         };
         using Event = std::variant<OnActive, OnInactive, OnConsume, OnActivate, OnUseItem, OnNewExterior, OnTeleported,
             OnAnimationTextKey, OnAnimationEnded, OnSkillUse, OnSkillLevelUp, OnJailTimeServed>;

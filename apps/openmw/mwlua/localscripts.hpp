@@ -108,7 +108,11 @@ namespace MWLua
         {
             callEngineHandlers(mOnSkillLevelUp, skillId, source);
         }
-        void onJailTimeServed(int days) { callEngineHandlers(mOnJailTimeServed, days); }
+        // tes3mp change (minor): the server can disable the skill increases of jail time
+        void onJailTimeServed(int days, bool ignoreSkillIncreases = false)
+        {
+            callEngineHandlers(mOnJailTimeServed, days, ignoreSkillIncreases);
+        }
 
         void applyStatsCache();
 

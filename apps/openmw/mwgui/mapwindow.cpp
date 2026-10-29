@@ -926,6 +926,10 @@ namespace MWGui
         mGlobalMap->setVisible(global);
         mLocalMap->setVisible(!global);
 
+        // tes3mp addition: show other players' names in the tooltips of global map markers
+        getPlayerMarkerCollection().eventMarkersChanged
+            += MyGUI::newDelegate(this, &MapWindow::updateGlobalMapMarkerTooltips);
+
         if (Settings::gui().mControllerMenus)
         {
             mControllerButtons.mB = "#{Interface:Back}";
@@ -1145,7 +1149,30 @@ namespace MWGui
         resizeGlobalMap();
     }
 
-    MapWindow::~MapWindow() = default;
+    MapWindow::~MapWindow()
+    {
+        // tes3mp addition
+        getPlayerMarkerCollection().eventMarkersChanged
+            -= MyGUI::newDelegate(this, &MapWindow::updateGlobalMapMarkerTooltips);
+    }
+
+    /*
+        Start of tes3mp addition
+
+        Refresh the tooltips of global map markers when other players move
+    */
+    void MapWindow::updateGlobalMapMarkerTooltips()
+    {
+        for (const auto& [marker, elements] : mGlobalMapMarkers)
+        {
+            if (marker.widget != nullptr)
+                setGlobalMapMarkerTooltip(
+                    marker.widget, static_cast<int>(marker.position.x()), static_cast<int>(marker.position.y()));
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
 
     void MapWindow::setCellName(const std::string& cellName)
     {
@@ -1258,6 +1285,11 @@ namespace MWGui
         CustomMarkerCollection::RangeType markers = mCustomMarkers.getMarkers(cellRefId);
         std::vector<std::string> destNotes;
         for (CustomMarkerCollection::ContainerType::const_iterator it = markers.first; it != markers.second; ++it)
+            destNotes.push_back(it->second.mNote);
+
+        // tes3mp addition: list the other players in this cell, whose markers are named after them
+        CustomMarkerCollection::RangeType playerMarkers = getPlayerMarkerCollection().getMarkers(cellRefId);
+        for (auto it = playerMarkers.first; it != playerMarkers.second; ++it)
             destNotes.push_back(it->second.mNote);
 
         if (!destNotes.empty())

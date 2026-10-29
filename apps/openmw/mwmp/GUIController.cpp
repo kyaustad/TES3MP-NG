@@ -339,7 +339,5 @@ ESM::CustomMarker mwmp::GUIController::createMarker(const RakNet::RakNetGUID &gu
 
 /*
     Other players' markers are drawn by MWGui::LocalMapBase itself in OpenMW 0.49+, from the collection returned
-    by MWGui::getPlayerMarkerCollection()
-
-    TODO: show other players' names in the tooltips of global map markers again
+    by MWGui::getPlayerMarkerCollection(), and MWGui::MapWindow lists them in the tooltips of global map markers
 */

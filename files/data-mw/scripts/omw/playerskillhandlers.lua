@@ -116,7 +116,8 @@ local function skillLevelUpHandler(skillid, source, params)
     end
 end
 
-local function jailTimeServed(days)
+-- tes3mp change (minor): a multiplayer server can disable the skill increases of jail time
+local function jailTimeServed(days, ignoreSkillIncreases)
     if not days or days <= 0 then
         return
     end
@@ -132,7 +133,9 @@ local function jailTimeServed(days)
     for day=1,days do
         local skillid = skillByNumber[math.random(#skillByNumber)]
         -- skillLevelUp() handles skill-based increase/decrease
-        I.SkillProgression.skillLevelUp(skillid, I.SkillProgression.SKILL_INCREASE_SOURCES.Jail)
+        if not (ignoreSkillIncreases and (skillid == 'security' or skillid == 'sneak')) then
+            I.SkillProgression.skillLevelUp(skillid, I.SkillProgression.SKILL_INCREASE_SOURCES.Jail)
+        end
     end
 
     local message = mechanicsL10n('ReleasedFromPrison', { days = days })

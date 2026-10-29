@@ -17,8 +17,9 @@ behavior into Lua have been adapted rather than copied.
 | Crafting and services | `alchemy.cpp`, `enchanting.cpp`, `repair.cpp`, `recharge.cpp`, trade/training/travel/spell windows | The server creates potion, enchantment and spell records. Merchant gold pools are set by the server. Travel and training don't advance time |
 | mwscript | `mwscript/*extensions.cpp`, `globalscripts.cpp` | Enable/Disable, Lock/Unlock, SetDelete, SetScale, PlaceItem/PlaceAt, PositionCell, AddItem/RemoveItem (console), spellbook, factions, journal, topics, werewolf, AI packages, PlayGroup and StreamMusic send packets. Script context and name are tracked |
 | GUI and input | `messagebox.*`, `console.cpp`, `quickkeysmenu.cpp`, `jailscreen.cpp`, `waitdialog.cpp`, `mainmenu.cpp`, `bindingsmanager.cpp`, `actionmanager.cpp`, `keyboardnavigation.cpp` | Server message boxes send replies; console commands are reported; quick keys sync; jail and rest rules apply; the chat receives key presses; there's no quicksave/quickload and no new or load game |
-| Cells and map | `scene.cpp`, `globalmap.cpp` | Cell load and unload states are sent (they drive cell authority), and explored global map tiles are shared |
+| Cells and map | `scene.cpp`, `globalmap.cpp`, `mapwindow.cpp` | Cell load and unload states are sent (they drive cell authority), explored global map tiles are shared, and global map tooltips list the players in each cell |
 | Physics | `mwphysics/actor.cpp`, `mwworld/class.cpp` | Collision settings from the server apply to players, actors and placed items |
+| Jail and menus | `jailscreen.cpp`, `playerskillhandlers.lua`, `settingswindow.cpp`, `race.cpp` | The server's jail overrides apply, including `ignoreJailSkillIncreases` (passed to the Lua jail handler). The difficulty slider is hidden; the race menu has no back button after login |
 | Character creation | `mwgui/charactercreation.cpp`, `mwmp/LocalPlayer.cpp` | The server drives the stages. Automated tests can log in with `--tes3mp-autologin <name> --tes3mp-autologin-password <test password>` |
 
 The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `cellref.cpp`, `dialogue.cpp`,
@@ -34,11 +35,7 @@ The earlier port work covers `worldimp.cpp`, `weather.cpp`, `cellstore.cpp`, `ce
 
 ## Not ported or not verified
 
-* **Jail skill increases:** `ignoreJailSkillIncreases` from the server isn't applied. OpenMW 0.51 raises those
-  skills in Lua (`jailTimeServed`).
-* **Settings and menus:** the difficulty widget still shows in the settings menu, though the server's difficulty is
-  what's used. The race menu's back button is still visible.
-* **Global map:** player names in global map marker tooltips (TODO in `GUIController.cpp`).
 * **Server browser:** `tes3mp-browser` hasn't been ported to Qt 6.
-* **Testing:** most of these hooks are compile-tested and covered by the automated login and Lua tests. They have
-  not been played through by hand: trading, containers, combat, spells, doors, jail and crafting all need it.
+* **Testing:** played by hand so far: movement, NPCs, cell loading, equipping, NPC dialogue, weather and map sharing.
+  Other hooks are compile-tested and covered by the automated login, Lua sync, Lua mod and persistence tests;
+  trading, containers, combat, spells, doors, jail and crafting still need hands-on testing.

@@ -21,6 +21,16 @@
 
 #include "tooltips.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     bool sortRaces(const std::pair<ESM::RefId, std::string>& left, const std::pair<ESM::RefId, std::string>& right)
@@ -146,6 +156,10 @@ namespace MWGui
     void RaceDialog::onOpen()
     {
         WindowModal::onOpen();
+
+        // tes3mp addition: hide the back button so players can't change their names after logging in
+        if (mwmp::Main::isInitialized())
+            mBackButton->setVisible(false);
 
         updateRaces();
         updateSkills();
@@ -474,7 +488,8 @@ namespace MWGui
     {
         if (arg.button == SDL_CONTROLLER_BUTTON_B)
         {
-            onBackClicked(mBackButton);
+            if (!mwmp::Main::isInitialized()) // tes3mp change (minor)
+                onBackClicked(mBackButton);
         }
         else if (arg.button == SDL_CONTROLLER_BUTTON_X)
         {

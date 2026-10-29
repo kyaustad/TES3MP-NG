@@ -321,6 +321,7 @@ namespace MWGui
         void onChangeScrollWindowCoord(MyGUI::Widget* sender);
         void globalMapUpdatePlayer();
         void setGlobalMapMarkerTooltip(MyGUI::Widget* widget, int x, int y);
+        void updateGlobalMapMarkerTooltips(); // tes3mp addition
         float getMarkerSize(size_t agregatedWeight) const;
         void resizeGlobalMap();
         void shiftMap(int dx, int dy);

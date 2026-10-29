@@ -41,6 +41,16 @@
 #include "confirmationdialog.hpp"
 #include "weightedsearch.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
     std::string_view textureFilteringToStr(const std::string& mipFilter, const std::string& magFilter)
@@ -166,6 +176,21 @@ namespace MWGui
                 if (init)
                     current->eventMouseButtonClick += MyGUI::newDelegate(this, &SettingsWindow::onButtonToggled);
             }
+            /*
+                Start of tes3mp addition
+
+                Hide the difficulty widget because it has no use in multiplayer, with the difficulty being set by
+                the server instead
+            */
+            if (mwmp::Main::isInitialized() && type == sliderType && getSettingName(current) == "difficulty")
+            {
+                current->getParent()->setVisible(false);
+                current->getParent()->setEnabled(false);
+                continue;
+            }
+            /*
+                End of tes3mp addition
+            */
             if (type == sliderType)
             {
                 MyGUI::ScrollBar* scroll = current->castType<MyGUI::ScrollBar>();

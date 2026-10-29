@@ -47,6 +47,8 @@
     Include additional headers for multiplayer purposes
 */
 #include "../mwmp/LuaSync.hpp"
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
 /*
     End of tes3mp addition
 */
@@ -746,7 +748,10 @@ namespace MWLua
 
     void LuaManager::jailTimeServed(const MWWorld::Ptr& actor, int days)
     {
-        mEngineEvents.addToQueue(EngineEvents::OnJailTimeServed{ getId(actor), days });
+        // tes3mp change (minor): pass on the server's ignoreJailSkillIncreases for the local player
+        const bool ignoreSkillIncreases = mwmp::Main::isInitialized() && actor == mPlayer
+            && mwmp::Main::get().getLocalPlayer()->ignoreJailSkillIncreases;
+        mEngineEvents.addToQueue(EngineEvents::OnJailTimeServed{ getId(actor), days, ignoreSkillIncreases });
     }
 
     void LuaManager::onHit(const MWWorld::Ptr& attacker, const MWWorld::Ptr& victim, const MWWorld::Ptr& weapon,
