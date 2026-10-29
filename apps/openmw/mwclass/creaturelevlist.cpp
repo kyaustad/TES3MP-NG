@@ -17,6 +17,16 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWClass
 {
     class CreatureLevListCustomData : public MWWorld::TypedCustomData<CreatureLevListCustomData>
@@ -107,6 +117,20 @@ namespace MWClass
         CreatureLevListCustomData& customData = ptr.getRefData().getCustomData()->asCreatureLevListCustomData();
         if (!customData.mSpawn)
             return;
+
+        /*
+            Start of tes3mp change (major)
+
+            Don't spawn leveled creatures in multiplayer; they'll be spawned when the server requests them
+        */
+        if (mwmp::Main::isInitialized())
+        {
+            customData.mSpawn = false;
+            return;
+        }
+        /*
+            End of tes3mp change (major)
+        */
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
         auto& prng = MWBase::Environment::get().getWorld()->getPrng();

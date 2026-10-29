@@ -36,6 +36,18 @@
 #include "classmodel.hpp"
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWClass
 {
     ContainerCustomData::ContainerCustomData(const ESM::Container& container, MWWorld::CellStore* cell)
@@ -177,13 +189,45 @@ namespace MWClass
         if (isLocked && hasKey)
         {
             MWBase::Environment::get().getWindowManager()->messageBox(std::string{ keyName } + " #{sKeyUsed}");
-            ptr.getCellRef().unlock();
+            /*
+                Start of tes3mp change (major)
+
+                Disable unilateral unlocking and trap disarming on this client and expect the server's
+                reply to our packets to do it instead
+
+                Send an ID_OBJECT_LOCK packet every time this is unlocked here, and an ID_OBJECT_TRAP packet
+                every time a trap is disarmed
+            */
+            if (!mwmp::Main::isInitialized())
+                ptr.getCellRef().unlock();
+            else
+            {
+                mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                objectList->reset();
+                objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                objectList->addObjectLock(ptr, 0);
+                objectList->sendObjectLock();
+            }
+            /*
+                End of tes3mp change (major)
+            */
             // using a key disarms the trap
             if (isTrapped)
             {
-                ptr.getCellRef().setTrap(ESM::RefId());
-                MWBase::Environment::get().getSoundManager()->playSound3D(
-                    ptr, ESM::RefId::stringRefId("Disarm Trap"), 1.0f, 1.0f);
+                if (!mwmp::Main::isInitialized())
+                {
+                    ptr.getCellRef().setTrap(ESM::RefId());
+                    MWBase::Environment::get().getSoundManager()->playSound3D(
+                        ptr, ESM::RefId::stringRefId("Disarm Trap"), 1.0f, 1.0f);
+                }
+                else
+                {
+                    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                    objectList->reset();
+                    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                    objectList->addObjectTrap(ptr, ptr.getRefData().getPosition(), true);
+                    objectList->sendObjectTrap();
+                }
                 isTrapped = false;
             }
         }

@@ -16,6 +16,19 @@
 #include "class.hpp"
 #include "containerstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWWorld
 {
     ActionHarvest::ActionHarvest(const MWWorld::Ptr& container)
@@ -34,12 +47,41 @@ namespace MWWorld
         store.resolve();
         MWWorld::ContainerStore& actorStore = actor.getClass().getContainerStore(actor);
         std::map<std::string, int> takenMap;
+
+        /*
+            Start of tes3mp addition
+
+            Prepare an ID_CONTAINER packet that will let the server know about the
+            items removed from the harvested objects
+        */
+        const bool mpSend = mwmp::Main::isInitialized() && target.isInCell() && !target.getCell()->getCell()->isEsm4();
+        mwmp::ObjectList* objectList = nullptr;
+        mwmp::BaseObject baseObject;
+        if (mpSend)
+        {
+            objectList = mwmp::Main::get().getNetworking()->getObjectList();
+            objectList->reset();
+            objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+            objectList->cell = target.getCell()->getCell()->getEsm3();
+            objectList->action = mwmp::BaseObjectList::REMOVE;
+            objectList->containerSubAction = mwmp::BaseObjectList::NONE;
+            baseObject = objectList->getBaseObjectFromPtr(target);
+        }
+        /*
+            End of tes3mp addition
+        */
+
         for (MWWorld::ContainerStoreIterator it = store.begin(); it != store.end(); ++it)
         {
             if (!it->getClass().showsInInventory(*it))
                 continue;
 
             int itemCount = it->getCellRef().getCount();
+
+            // tes3mp addition: track this item removal in the ID_CONTAINER packet being prepared
+            if (objectList)
+                objectList->addContainerItem(baseObject, *it, 0, itemCount);
+
             // Note: it is important to check for crime before move an item from container. Otherwise owner check will
             // not work for a last item in the container - empty harvested containers are considered as "allowed to
             // use".
@@ -90,6 +132,20 @@ namespace MWWorld
             if (tooltip.size() > 0)
                 MWBase::Environment::get().getWindowManager()->messageBox(tooltip);
         }
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_CONTAINER packet if the local player is logged in
+        */
+        if (objectList && mwmp::Main::get().getLocalPlayer()->isLoggedIn())
+        {
+            objectList->addBaseObject(baseObject);
+            objectList->sendContainer();
+        }
+        /*
+            End of tes3mp addition
+        */
 
         auto world = MWBase::Environment::get().getWorld();
         MWRender::Animation* anim = world->getAnimation(target);

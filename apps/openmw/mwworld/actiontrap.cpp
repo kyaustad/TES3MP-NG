@@ -5,6 +5,18 @@
 #include "../mwbase/environment.hpp"
 #include "../mwbase/world.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWWorld
 {
     void ActionTrap::executeImp(const Ptr& actor)
@@ -31,6 +43,35 @@ namespace MWWorld
             cast.mHitPosition = actorPosition;
             cast.cast(mSpellId);
         }
-        mTrapSource.getCellRef().setTrap(ESM::RefId());
+        /*
+            Start of tes3mp change (major)
+
+            Disable unilateral trap disarming on this client and expect the server's reply to our
+            packet to do it instead
+
+            Send an ID_OBJECT_TRAP packet every time a trap is triggered
+        */
+        if (!mwmp::Main::isInitialized())
+        {
+            mTrapSource.getCellRef().setTrap(ESM::RefId());
+            return;
+        }
+
+        mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+        objectList->reset();
+        objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+
+        ESM::Position pos;
+        if (actor == MWBase::Environment::get().getWorld()->getPlayerPtr()
+            && MWBase::Environment::get().getWorld()->getDistanceToFocusObject() > trapRange)
+            pos = mTrapSource.getRefData().getPosition();
+        else
+            pos = actor.getRefData().getPosition();
+
+        objectList->addObjectTrap(mTrapSource, pos, false);
+        objectList->sendObjectTrap();
+        /*
+            End of tes3mp change (major)
+        */
     }
 }

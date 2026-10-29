@@ -28,6 +28,19 @@
 #include "classmodel.hpp"
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWClass
 {
     Weapon::Weapon()
@@ -264,6 +277,18 @@ namespace MWClass
         newItem.mData.mEnchant = static_cast<uint16_t>(enchCharge);
         newItem.mEnchant = enchId;
         newItem.mData.mFlags |= ESM::Weapon::Magical;
+        /*
+            Start of tes3mp addition
+
+            Send the newly created record to the server and expect it to be
+            returned with a server-set id
+        */
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getNetworking()->getWorldstate()->sendWeaponRecord(&newItem, ref->mBase->mId.serializeText(), mwmp::Main::get().getLocalPlayer()->lastEnchantmentQuantity);
+        /*
+            End of tes3mp addition
+        */
+
         const ESM::Weapon* record = MWBase::Environment::get().getESMStore()->insert(newItem);
         return record->mId;
     }

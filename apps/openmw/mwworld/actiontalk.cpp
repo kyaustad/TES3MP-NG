@@ -14,7 +14,15 @@ namespace MWWorld
 
     void ActionTalk::executeImp(const Ptr& actor)
     {
-        if (actor == MWMechanics::getPlayer())
-            MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Dialogue, getTarget());
+        /*
+            Start of tes3mp change (major)
+
+            We need to be able to make actors start conversations with players, so don't require the
+            local player to be the one activating
+        */
+        MWBase::Environment::get().getWindowManager()->pushGuiMode(MWGui::GM_Dialogue, getTarget());
+        /*
+            End of tes3mp change (major)
+        */
     }
 }

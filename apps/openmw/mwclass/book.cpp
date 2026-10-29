@@ -26,6 +26,19 @@
 #include "classmodel.hpp"
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWClass
 {
     Book::Book()
@@ -148,6 +161,18 @@ namespace MWClass
         newItem.mData.mIsScroll = 1;
         newItem.mData.mEnchant = enchCharge;
         newItem.mEnchant = enchId;
+        /*
+            Start of tes3mp addition
+
+            Send the newly created record to the server and expect it to be
+            returned with a server-set id
+        */
+        if (mwmp::Main::isInitialized())
+            mwmp::Main::get().getNetworking()->getWorldstate()->sendBookRecord(&newItem, ref->mBase->mId.serializeText());
+        /*
+            End of tes3mp addition
+        */
+
         const ESM::Book* record = MWBase::Environment::get().getESMStore()->insert(newItem);
         return record->mId;
     }

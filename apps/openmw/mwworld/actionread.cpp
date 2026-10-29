@@ -14,6 +14,17 @@
 #include "class.hpp"
 #include "esmstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWWorld
 {
     ActionRead::ActionRead(const MWWorld::Ptr& object)
@@ -53,6 +64,17 @@ namespace MWWorld
             MWBase::Environment::get().getLuaManager()->skillLevelUp(player, skill, "book");
 
             npcStats.flagAsUsed(ref->mBase->mId);
+
+            /*
+                Start of tes3mp addition
+
+                Send an ID_PLAYER_BOOK packet every time a player reads a skill book
+            */
+            if (mwmp::Main::isInitialized())
+                mwmp::Main::get().getLocalPlayer()->sendBook(ref->mBase->mId.serializeText());
+            /*
+                End of tes3mp addition
+            */
         }
     }
 }

@@ -37,6 +37,19 @@
 #include "classmodel.hpp"
 #include "nameorid.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/CellController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWClass
 {
     class DoorCustomData : public MWWorld::TypedCustomData<DoorCustomData>
@@ -159,13 +172,45 @@ namespace MWClass
         {
             if (actor == MWMechanics::getPlayer())
                 MWBase::Environment::get().getWindowManager()->messageBox(std::string{ keyName } + " #{sKeyUsed}");
-            ptr.getCellRef().unlock(); // Call the function here. because that makes sense.
+            /*
+                Start of tes3mp change (major)
+
+                Disable unilateral unlocking and trap disarming on this client and expect the server's
+                reply to our packets to do it instead
+
+                Send an ID_OBJECT_LOCK packet every time this is unlocked here, and an ID_OBJECT_TRAP packet
+                every time a trap is disarmed
+            */
+            if (!mwmp::Main::isInitialized())
+                ptr.getCellRef().unlock(); // Call the function here. because that makes sense.
+            else
+            {
+                mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                objectList->reset();
+                objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                objectList->addObjectLock(ptr, 0);
+                objectList->sendObjectLock();
+            }
+            /*
+                End of tes3mp change (major)
+            */
             // using a key disarms the trap
             if (isTrapped)
             {
-                ptr.getCellRef().setTrap(ESM::RefId());
-                MWBase::Environment::get().getSoundManager()->playSound3D(
-                    ptr, ESM::RefId::stringRefId("Disarm Trap"), 1.0f, 1.0f);
+                if (!mwmp::Main::isInitialized())
+                {
+                    ptr.getCellRef().setTrap(ESM::RefId());
+                    MWBase::Environment::get().getSoundManager()->playSound3D(
+                        ptr, ESM::RefId::stringRefId("Disarm Trap"), 1.0f, 1.0f);
+                }
+                else
+                {
+                    mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                    objectList->reset();
+                    objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                    objectList->addObjectTrap(ptr, ptr.getRefData().getPosition(), true);
+                    objectList->sendObjectTrap();
+                }
                 isTrapped = false;
             }
         }
@@ -192,8 +237,10 @@ namespace MWClass
                 }
                 else
                 {
+                    // tes3mp change (minor): use the server's destination override for this door, if any
                     std::unique_ptr<MWWorld::Action> action = std::make_unique<MWWorld::ActionTeleport>(
-                        ptr.getCellRef().getDestCell(), ptr.getCellRef().getDoorDest(), true);
+                        mwmp::CellController::getDestinationOverride(ptr.getCellRef().getDestCell()),
+                        ptr.getCellRef().getDoorDest(), true);
                     action->setSound(openSound);
                     return action;
                 }
@@ -298,8 +345,10 @@ namespace MWClass
 
     std::string Door::getDestination(const MWWorld::LiveCellRef<ESM::Door>& door)
     {
+        // tes3mp change (minor): use the server's destination override for this door, if any
         std::string_view dest = MWBase::Environment::get().getWorld()->getCellName(
-            &MWBase::Environment::get().getWorldModel()->getCell(door.mRef.getDestCell()));
+            &MWBase::Environment::get().getWorldModel()->getCell(
+                mwmp::CellController::getDestinationOverride(door.mRef.getDestCell())));
 
         return "#{sCell=" + std::string{ dest } + "}";
     }

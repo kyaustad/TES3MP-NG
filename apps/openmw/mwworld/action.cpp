@@ -7,6 +7,19 @@
 
 #include "../mwmechanics/actorutil.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include "../mwmp/CellController.hpp"
+/*
+    End of tes3mp addition
+*/
+
 const MWWorld::Ptr& MWWorld::Action::getTarget() const
 {
     return mTarget;
@@ -38,6 +51,25 @@ void MWWorld::Action::execute(const Ptr& actor, bool noSound)
         {
             envType = MWSound::PlayMode::NoEnv;
         }
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_OBJECT_SOUND packet every time the local player or a local actor makes a sound here
+        */
+        if (mwmp::Main::isInitialized()
+            && (actor == MWMechanics::getPlayer() || mwmp::Main::get().getCellController()->isLocalActor(actor)))
+        {
+            bool local = mTarget.isEmpty() || !mTarget.isInCell();
+            mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+            objectList->reset();
+            objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+            objectList->addObjectSound(local ? actor : mTarget, mSoundId.serializeText(), 1.0, 1.0);
+            objectList->sendObjectSound();
+        }
+        /*
+            End of tes3mp addition
+        */
 
         if (mKeepSound && actor == MWMechanics::getPlayer())
             MWBase::Environment::get().getSoundManager()->playSound(

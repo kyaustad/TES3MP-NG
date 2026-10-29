@@ -12,6 +12,10 @@
 #include "CellController.hpp"
 #include "PlayerList.hpp"
 #include "../mwworld/worldmodel.hpp"
+#include <sstream>
+#include <components/misc/strings/algorithm.hpp>
+#include "Networking.hpp"
+#include "Worldstate.hpp"
 #include "Main.hpp"
 #include "LocalActor.hpp"
 #include "LocalPlayer.hpp"
@@ -499,4 +503,35 @@ void CellController::updateMultiplayerPtr(const MWWorld::Ptr& oldPtr, const MWWo
 int CellController::getCellSize() const
 {
     return 8192;
+}
+
+ESM::RefId CellController::getDestinationOverride(const ESM::RefId& destCell)
+{
+    if (!Main::isInitialized() || destCell.empty())
+        return destCell;
+
+    const auto& overrides = Main::get().getNetworking()->getWorldstate()->destinationOverrides;
+    if (overrides.empty())
+        return destCell;
+
+    // Overrides are keyed by cell descriptions: interior names, or "x, y" for exteriors
+    std::string description;
+    if (const auto* exterior = destCell.getIf<ESM::ESM3ExteriorCellRefId>())
+        description = std::to_string(exterior->getX()) + ", " + std::to_string(exterior->getY());
+    else
+        description = destCell.toString();
+
+    for (const auto& [original, replacement] : overrides)
+    {
+        if (!Misc::StringUtils::ciEqual(original, description))
+            continue;
+
+        int x = 0, y = 0;
+        char comma = 0;
+        std::istringstream stream(replacement);
+        if (stream >> x >> comma >> y && comma == ',' && stream.peek() == std::char_traits<char>::eof())
+            return ESM::RefId::esm3ExteriorCell(x, y);
+        return ESM::RefId::stringRefId(replacement);
+    }
+    return destCell;
 }

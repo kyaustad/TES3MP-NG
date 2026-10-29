@@ -71,6 +71,9 @@ namespace mwmp
 
         static bool isSameCell(const ESM::Cell& cell, const ESM::Cell& otherCell);
 
+        // The cell a door leading to destCell should lead to, following the server's destination overrides
+        static ESM::RefId getDestinationOverride(const ESM::RefId& destCell);
+
         /*
             OpenMW 0.49+ wraps cells in MWWorld::Cell, which can also be an ESM4 cell; those are never synchronized
         */
