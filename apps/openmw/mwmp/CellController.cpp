@@ -1,5 +1,5 @@
 #include <components/detournavigator/navigator.hpp>
-#include <components/esm/cellid.hpp>
+#include <components/esm3/cellid.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <components/openmw-mp/Utils.hpp>
 
@@ -10,6 +10,8 @@
 #include "../mwworld/worldimp.hpp"
 
 #include "CellController.hpp"
+#include "PlayerList.hpp"
+#include "../mwworld/worldmodel.hpp"
 #include "Main.hpp"
 #include "LocalActor.hpp"
 #include "LocalPlayer.hpp"
@@ -39,7 +41,7 @@ void CellController::updateLocal(bool forceUpdate)
     {
         mwmp::Cell *mpCell = it->second;
 
-        if (mpCell->getCellStore() == nullptr || mpCell->getCellStore()->getCell() == nullptr || !world->isCellActive(*mpCell->getCellStore()->getCell()))
+        if (mpCell->getCellStore() == nullptr || mpCell->getCellStore()->getCell() == nullptr || !world->isCellActive(mpCell->getCellStore()->getCell()->getEsm3()))
         {
             mpCell->uninitializeLocalActors();
             mpCell->uninitializeDedicatedActors();
@@ -69,11 +71,6 @@ void CellController::updateLocal(bool forceUpdate)
                 mpCell->initializeLocalActors();
             }
         }
-    }
-    // Otherwise, disable the DetourNavigator for advanced pathfinding for the time being
-    else
-    {
-        world->getNavigator()->setUpdatesEnabled(false);
     }
 }
 
@@ -389,7 +386,7 @@ std::string CellController::generateMapIndex(int refNum, int mpNum)
 
 std::string CellController::generateMapIndex(MWWorld::Ptr ptr)
 {
-    return generateMapIndex(ptr.getCellRef().getRefNum().mIndex, ptr.getCellRef().getMpNum());
+    return generateMapIndex(ptr.getCellRef().getMpRefNumIndex(), ptr.getCellRef().getMpNum());
 }
 
 std::string CellController::generateMapIndex(BaseActor baseActor)
@@ -429,27 +426,19 @@ MWWorld::CellStore *CellController::getCellStore(const ESM::Cell& cell)
 {
     MWWorld::CellStore *cellStore;
 
+    MWWorld::WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
+
     if (cell.isExterior())
-        cellStore = MWBase::Environment::get().getWorld()->getExterior(cell.mData.mX, cell.mData.mY);
+        cellStore = &worldModel->getExterior(
+            ESM::ExteriorCellLocation(cell.mData.mX, cell.mData.mY, ESM::Cell::sDefaultWorldspaceId));
     else
-    {
-        try
-        {
-            cellStore = MWBase::Environment::get().getWorld()->getInterior(cell.mName);
-        }
-        catch (std::exception&)
-        {
-            cellStore = nullptr;
-        }
-    }
+        cellStore = worldModel->findInterior(cell.mName);
 
     return cellStore;
 }
 
 bool CellController::isSameCell(const ESM::Cell& cell, const ESM::Cell& otherCell)
 {
-    if (&cell == nullptr || &otherCell == nullptr) return false;
-
     bool isCellExterior = false;
     bool isOtherCellExterior = false;
 
@@ -473,6 +462,38 @@ bool CellController::isSameCell(const ESM::Cell& cell, const ESM::Cell& otherCel
         return true;
 
     return false;
+}
+
+bool CellController::isSameCell(const ESM::Cell& cell, const MWWorld::CellStore& cellStore)
+{
+    if (cellStore.getCell() == nullptr || cellStore.getCell()->isEsm4())
+        return false;
+
+    return isSameCell(cell, cellStore.getCell()->getEsm3());
+}
+
+bool CellController::isSameCell(const MWWorld::Ptr& ptr, const MWWorld::CellStore& cellStore)
+{
+    if (PlayerList::isDedicatedPlayer(ptr))
+        return isSameCell(PlayerList::getPlayer(ptr)->cell, cellStore);
+
+    CellController* cellController = Main::get().getCellController();
+    if (cellController->isDedicatedActor(ptr))
+        return isSameCell(cellController->getDedicatedActor(ptr)->cell, cellStore);
+
+    return true;
+}
+
+void CellController::updateMultiplayerPtr(const MWWorld::Ptr& oldPtr, const MWWorld::Ptr& newPtr)
+{
+    CellController* cellController = Main::get().getCellController();
+
+    if (cellController->isLocalActor(oldPtr))
+        cellController->getLocalActor(oldPtr)->setPtr(newPtr);
+    else if (cellController->isDedicatedActor(oldPtr))
+        cellController->getDedicatedActor(oldPtr)->setPtr(newPtr);
+    else if (PlayerList::isDedicatedPlayer(oldPtr))
+        PlayerList::getPlayer(oldPtr)->setPtr(newPtr);
 }
 
 int CellController::getCellSize() const

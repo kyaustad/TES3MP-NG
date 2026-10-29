@@ -3,6 +3,7 @@
 
 
 #include <RakPeerInterface.h>
+#include <components/openmw-mp/WinMacroGuard.hpp>
 #include "../Packets/System/SystemPacket.hpp"
 #include <unordered_map>
 #include <memory>

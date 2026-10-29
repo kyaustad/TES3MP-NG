@@ -146,6 +146,21 @@ namespace MWMechanics
         /// Force resistances
         void addSpell(const ESM::Spell* spell, const MWWorld::Ptr& actor, bool ignoreResistances = true);
 
+        /*
+            Start of tes3mp addition
+
+            Apply an active spell received from the network, as already resolved by the client that simulates
+            its target, and remove one by its source spell id
+        */
+        void addMultiplayerSpell(const ESM::RefId& sourceSpellId, bool isStackingSpell,
+            const std::vector<ESM::ActiveEffect>& effects, const std::string& displayName, ESM::RefNum caster);
+
+        bool removeMultiplayerSpell(const MWWorld::Ptr& ptr, const ESM::RefId& sourceSpellId);
+        /*
+            End of tes3mp addition
+        */
+
+
         /// Removes the active effects from this spell/potion/.. with \a id
         void removeEffectsBySourceSpellId(const MWWorld::Ptr& ptr, const ESM::RefId& id);
         /// Removes the active effects of a specific active spell

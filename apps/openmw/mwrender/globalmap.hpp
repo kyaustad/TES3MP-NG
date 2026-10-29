@@ -45,6 +45,24 @@ namespace MWRender
 
         void exploreCell(int cellX, int cellY, osg::ref_ptr<osg::Texture2D> localMapTexture);
 
+        /*
+            Start of tes3mp addition
+
+            Allow the setting of the image data for a global map tile from elsewhere
+            in the code
+        */
+        void setImage(int cellX, int cellY, const std::vector<char>& imageData);
+
+        /*
+            Map tiles need consistent sizes on every client, because the server's map is gradually
+            filled in through tiles sent by players via WorldMap packets
+        */
+        static constexpr int sMultiplayerCellSize = 18;
+        /*
+            End of tes3mp addition
+        */
+
+
         /// Clears the overlay
         void clear();
 

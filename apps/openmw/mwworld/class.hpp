@@ -169,6 +169,21 @@ namespace MWWorld
         ///< Return inventory store or throw an exception, if class does not have a
         /// inventory store (default implementation: throw an exception)
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a class has a container store and whether
+            it can be harvested
+        */
+        virtual bool hasContainerStore(const ConstPtr& ptr) const { return false; }
+        ///< Does this object have a container store? (default implementation: false)
+
+        virtual bool canBeHarvested(const ConstPtr& ptr) const { return false; }
+        ///< Can this object be harvested? (default implementation: false)
+        /*
+            End of tes3mp addition
+        */
+
         virtual bool hasInventoryStore(const ConstPtr& ptr) const;
         ///< Does this object have an inventory store, i.e. equipment slots? (default implementation: false)
 

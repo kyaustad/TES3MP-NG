@@ -556,6 +556,49 @@ namespace MWMechanics
         mQueue.emplace_back(ActiveSpellParams{ spell, actor, ignoreResistances });
     }
 
+    /*
+        Start of tes3mp addition
+
+        Apply an active spell received from the network, as already resolved by the client that simulates
+        its target, and remove one by its source spell id
+    */
+    void ActiveSpells::addMultiplayerSpell(const ESM::RefId& sourceSpellId, bool isStackingSpell,
+        const std::vector<ESM::ActiveEffect>& effects, const std::string& displayName, ESM::RefNum caster)
+    {
+        ESM::ActiveSpells::ActiveSpellParams esmParams;
+        esmParams.mActiveSpellId = MWBase::Environment::get().getESMStore()->generateId();
+        esmParams.mSourceSpellId = sourceSpellId;
+        esmParams.mEffects = effects;
+        esmParams.mDisplayName = displayName;
+        esmParams.mCaster = caster;
+        esmParams.mFlags = static_cast<ESM::ActiveSpells::Flags>(
+            ESM::ActiveSpells::Flag_Temporary | (isStackingSpell ? ESM::ActiveSpells::Flag_Stackable : 0));
+        esmParams.mWorsenings = -1;
+        esmParams.mNextWorsening = ESM::TimeStamp();
+
+        // The effects were already resolved where the spell was cast; don't reapply them as new
+        for (ESM::ActiveEffect& effect : esmParams.mEffects)
+            effect.mFlags &= ~ESM::ActiveEffect::Flag_Applied;
+
+        mQueue.emplace_back(ActiveSpellParams(esmParams));
+    }
+
+    bool ActiveSpells::removeMultiplayerSpell(const MWWorld::Ptr& ptr, const ESM::RefId& sourceSpellId)
+    {
+        for (const ActiveSpellParams& spell : mSpells)
+        {
+            if (spell.getSourceSpellId() == sourceSpellId)
+            {
+                removeEffectsByActiveSpellId(ptr, spell.getActiveSpellId());
+                return true;
+            }
+        }
+        return false;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void ActiveSpells::purge(ParamsPredicate predicate, const MWWorld::Ptr& ptr)
     {
         assert(&ptr.getClass().getCreatureStats(ptr).getActiveSpells() == this);

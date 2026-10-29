@@ -134,6 +134,22 @@ namespace MWPhysics
         mTaskScheduler = std::make_unique<PhysicsTaskScheduler>(mPhysicsDt, mCollisionWorld.get(), mDebugDrawer.get());
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to set the physics framerate from elsewhere
+    */
+    void PhysicsSystem::setPhysicsFramerate(float physFramerate)
+    {
+        if (physFramerate <= 0.f)
+            return;
+        mPhysicsDt = 1.f / physFramerate;
+        mTaskScheduler->setDefaultPhysicsDt(mPhysicsDt);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     PhysicsSystem::~PhysicsSystem()
     {
         mResourceSystem->removeResourceManager(mShapeManager.get());

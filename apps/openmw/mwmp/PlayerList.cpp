@@ -71,26 +71,22 @@ DedicatedPlayer *PlayerList::getPlayer(const MWWorld::Ptr &ptr)
         if (playerEntry.second == nullptr || playerEntry.second->getPtr().mRef == nullptr)
             continue;
         
-        std::string refId = ptr.getCellRef().getRefId();
-        
-        if (playerEntry.second->getPtr().getCellRef().getRefId() == refId)
+        if (playerEntry.second->getPtr().getCellRef().getRefId() == ptr.getCellRef().getRefId())
             return playerEntry.second;
     }
 
     return nullptr;
 }
 
-DedicatedPlayer* PlayerList::getPlayer(int actorId)
+DedicatedPlayer* PlayerList::getPlayer(ESM::RefNum actorId)
 {
+    // OpenMW 0.49+ identifies actors by RefNum, which every object in the scene has
     for (auto& playerEntry : playerList)
     {
         if (playerEntry.second == nullptr || playerEntry.second->getPtr().mRef == nullptr)
             continue;
 
-        MWWorld::Ptr playerPtr = playerEntry.second->getPtr();
-        int playerActorId = playerPtr.getClass().getCreatureStats(playerPtr).getActorId();
-
-        if (actorId == playerActorId)
+        if (playerEntry.second->getPtr().getCellRef().getRefNum() == actorId)
             return playerEntry.second;
     }
 
@@ -120,8 +116,8 @@ bool PlayerList::isDedicatedPlayer(const MWWorld::Ptr &ptr)
     if (ptr.mRef == nullptr)
         return false;
 
-    // Players always have 0 as their refNum and mpNum
-    if (ptr.getCellRef().getRefNum().mIndex != 0 || ptr.getCellRef().getMpNum() != 0)
+    // Players are never from content files and never have an mpNum
+    if (ptr.getCellRef().hasContentFile() || ptr.getCellRef().getMpNum() != 0)
         return false;
 
     return (getPlayer(ptr) != nullptr);
@@ -147,7 +143,7 @@ void PlayerList::enableMarkers(const ESM::Cell& cell)
 
     This resets the combat target for a DedicatedPlayer's followers in Actors::update()
 */
-void PlayerList::clearHitAttemptActorId(int actorId)
+void PlayerList::clearHitAttemptActorId(ESM::RefNum actorId)
 {
     for (auto &playerEntry : playerList)
     {
@@ -156,7 +152,7 @@ void PlayerList::clearHitAttemptActorId(int actorId)
 
         MWMechanics::CreatureStats &playerCreatureStats = playerEntry.second->getPtr().getClass().getCreatureStats(playerEntry.second->getPtr());
 
-        if (playerCreatureStats.getHitAttemptActorId() == actorId)
-            playerCreatureStats.setHitAttemptActorId(-1);
+        if (playerCreatureStats.getHitAttemptActor() == actorId)
+            playerCreatureStats.setHitAttemptActor(ESM::RefNum());
     }
 }

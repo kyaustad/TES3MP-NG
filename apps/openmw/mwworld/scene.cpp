@@ -360,6 +360,22 @@ namespace MWWorld
         preloadCells(duration);
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to unload a cell from elsewhere
+    */
+    void Scene::unloadCellFromElsewhere(CellStore* cell)
+    {
+        if (!mActiveCells.contains(cell))
+            return;
+        auto navigatorUpdateGuard = mNavigator.makeUpdateGuard();
+        unloadCell(cell, navigatorUpdateGuard.get());
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void Scene::unloadCell(CellStore* cell, const DetourNavigator::UpdateGuard* navigatorUpdateGuard)
     {
         if (mActiveCells.find(cell) == mActiveCells.end())

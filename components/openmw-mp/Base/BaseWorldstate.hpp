@@ -33,6 +33,7 @@
 
 #include <RakNetTypes.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 namespace mwmp
 {
     enum RECORD_TYPE

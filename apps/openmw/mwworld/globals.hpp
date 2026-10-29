@@ -61,6 +61,18 @@ namespace MWWorld
         char getType(GlobalVariableName name) const;
         ///< If there is no global variable with this name, ' ' is returned.
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to add a global record from elsewhere and to check whether a global exists
+        */
+        void addRecord(const ESM::Global& global);
+        bool hasRecord(std::string_view name) const;
+        /*
+            End of tes3mp addition
+        */
+
+
         void fill(const MWWorld::ESMStore& store);
         ///< Replace variables with variables from \a store with default values.
 

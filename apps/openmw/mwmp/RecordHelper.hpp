@@ -3,7 +3,11 @@
 
 #include <components/openmw-mp/Base/BaseWorldstate.hpp>
 
+#include <components/openmw-mp/Utils.hpp>
+
 #include "../mwbase/environment.hpp"
+#include "../mwbase/world.hpp"
+#include "../mwworld/esmstore.hpp"
 
 namespace RecordHelper
 {
@@ -46,15 +50,21 @@ namespace RecordHelper
     {
         MWBase::World *world = MWBase::Environment::get().getWorld();
 
-        return world->createRecord(record);
+        return world->getStore().insert(record);
+    }
+
+    template<class RecordType>
+    bool doesRecordIdExist(const ESM::RefId& id)
+    {
+        MWBase::World *world = MWBase::Environment::get().getWorld();
+
+        return world->getStore().get<RecordType>().search(id) != nullptr;
     }
 
     template<class RecordType>
     bool doesRecordIdExist(const std::string& id)
     {
-        MWBase::World *world = MWBase::Environment::get().getWorld();
-
-        return world->getStore().get<RecordType>().search(id);
+        return doesRecordIdExist<RecordType>(Utils::toRefId(id));
     }
 
     void createPlaceholderInteriorCell();

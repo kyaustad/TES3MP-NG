@@ -309,6 +309,31 @@ namespace MWWorld
         void changeWeather(const ESM::RefId& regionID, const unsigned int weatherID);
         void changeWeather(const ESM::RefId& regionID, const ESM::RefId& weatherID);
         void modRegion(const ESM::RefId& regionID, const std::vector<uint8_t>& chances);
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set a specific weather state for a region from elsewhere
+            in the code
+        */
+        void setRegionWeather(const ESM::RefId& region, const int currentWeather, const int nextWeather,
+            const int queuedWeather, const float transitionFactor, bool force);
+
+        /*
+            Make it possible to check whether the local WeatherManager has the
+            ability to create weather changes, and to enable and disable it
+        */
+        bool getWeatherCreationState() const;
+        void setWeatherCreationState(bool state);
+
+        /*
+            Make it possible to send the current weather in a WorldWeather packet
+            when requested from elsewhere in the code
+        */
+        void sendWeather();
+        /*
+            End of tes3mp addition
+        */
         void playerTeleported(const ESM::RefId& playerRegion, bool isExterior);
 
         /**
@@ -397,6 +422,18 @@ namespace MWWorld
         ESM::RefId mCurrentRegion;
         float mTimePassed;
         bool mFastForward;
+
+        /*
+            Start of tes3mp addition
+
+            Track whether the local WeatherManager should be creating any weather changes
+            by itself; when set to false, only weather changes sent by the server are used
+        */
+        bool mWeatherCreationState = false;
+        /*
+            End of tes3mp addition
+        */
+
         float mWeatherUpdateTime;
         float mTransitionFactor;
         NightDayMode mNightDayMode;

@@ -152,6 +152,29 @@ void MWWorld::WorldModel::clear()
     mIdCacheIndex = 0;
 }
 
+/*
+    Start of tes3mp addition
+
+    Forget the state of an inactive cell, so that it is loaded again from content files
+    the next time it's needed
+*/
+void MWWorld::WorldModel::resetCell(CellStore& cell)
+{
+    const ESM::RefId id = cell.getCell()->getId();
+    std::erase_if(mInteriors, [&](const auto& entry) { return entry.second == &cell; });
+    std::erase_if(mExteriors, [&](const auto& entry) { return entry.second == &cell; });
+    for (auto& cached : mIdCache)
+    {
+        if (cached.second == &cell)
+            cached = std::make_pair(ESM::RefId(), (MWWorld::CellStore*)nullptr);
+    }
+    mCells.erase(id);
+}
+/*
+    End of tes3mp addition
+*/
+
+
 MWWorld::Ptr MWWorld::WorldModel::getPtrAndCache(const ESM::RefId& name, CellStore& cellStore)
 {
     Ptr ptr = cellStore.getPtr(name);

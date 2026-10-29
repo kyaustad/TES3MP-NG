@@ -21,22 +21,22 @@ namespace mwmp
             MWBase::World *world = MWBase::Environment::get().getWorld();
 
             if (worldstate.time.hour != -1)
-                world->setGlobalFloat("gamehour", worldstate.time.hour);
+                world->setGlobalFloat(std::string_view("gamehour"), worldstate.time.hour);
 
             if (worldstate.time.day != -1)
-                world->setGlobalInt("day", worldstate.time.day);
+                world->setGlobalInt(std::string_view("day"), worldstate.time.day);
 
             if (worldstate.time.month != -1)
-                world->setGlobalInt("month", worldstate.time.month);
+                world->setGlobalInt(std::string_view("month"), worldstate.time.month);
 
             if (worldstate.time.year != -1)
-                world->setGlobalInt("year", worldstate.time.year);
+                world->setGlobalInt(std::string_view("year"), worldstate.time.year);
 
             if (worldstate.time.timeScale != -1)
-                world->setGlobalFloat("timescale", worldstate.time.timeScale);
+                world->setGlobalFloat(std::string_view("timescale"), worldstate.time.timeScale);
 
             if (worldstate.time.daysPassed != -1)
-                world->setGlobalInt("dayspassed", worldstate.time.daysPassed);
+                world->setGlobalInt(std::string_view("dayspassed"), worldstate.time.daysPassed);
         }
     };
 }

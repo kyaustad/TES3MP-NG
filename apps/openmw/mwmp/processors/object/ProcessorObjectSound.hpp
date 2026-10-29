@@ -24,7 +24,7 @@ namespace mwmp
             MWBase::World* world = MWBase::Environment::get().getWorld();
 
             // Only play sounds in active cells
-            if (world->isCellActive(*ptrCellStore->getCell()))
+            if (world->isCellActive(ptrCellStore->getCell()->getEsm3()))
             {
                 objectList.playObjectSounds(ptrCellStore);
             }

@@ -30,6 +30,17 @@
 
 #include "vismask.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <osgDB/ReaderWriter>
+#include <osgDB/Registry>
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -281,7 +292,7 @@ namespace MWRender
                 mMaxY = it->getGridY();
         }
 
-        const int cellSize = Settings::map().mGlobalMapCellSize;
+        const int cellSize = GlobalMap::sMultiplayerCellSize /* tes3mp change: enforce consistent tile sizes */;
 
         mWidth = cellSize * (mMaxX - mMinX + 1);
         mHeight = cellSize * (mMaxY - mMinY + 1);
@@ -398,7 +409,7 @@ namespace MWRender
         if (!localMapTexture)
             return;
 
-        const int cellSize = Settings::map().mGlobalMapCellSize;
+        const int cellSize = GlobalMap::sMultiplayerCellSize /* tes3mp change: enforce consistent tile sizes */;
         const int originX = (cellX - mMinX) * cellSize;
         // +1 because we want the top left corner of the cell, not the bottom left
         const int originY = (cellY - mMinY + 1) * cellSize;
@@ -409,6 +420,56 @@ namespace MWRender
         requestOverlayTextureUpdate(
             originX, mHeight - originY, cellSize, cellSize, std::move(localMapTexture), false, true);
     }
+
+    /*
+        Start of tes3mp addition
+
+        Allow the setting of the image data for a global map tile from elsewhere
+        in the code
+    */
+    void GlobalMap::setImage(int cellX, int cellY, const std::vector<char>& imageData)
+    {
+        ensureLoaded();
+
+        if (imageData.empty() || cellX > mMaxX || cellX < mMinX || cellY > mMaxY || cellY < mMinY)
+            return;
+
+        Files::IMemStream istream(imageData.data(), imageData.size());
+
+        osgDB::ReaderWriter* reader = osgDB::Registry::instance()->getReaderWriterForExtension("png");
+        if (!reader)
+        {
+            Log(Debug::Error) << "Error: Failed to read map tile image data, no png readerwriter found";
+            return;
+        }
+        osgDB::ReaderWriter::ReadResult result = reader->readImage(istream);
+
+        if (!result.success())
+        {
+            Log(Debug::Error) << "Error: Can't read map tile image: " << result.message() << " code "
+                              << result.status();
+            return;
+        }
+
+        osg::ref_ptr<osg::Image> image = result.getImage();
+
+        const int cellSize = sMultiplayerCellSize;
+        const int posX = (cellX - mMinX) * cellSize;
+        const int posY = (cellY - mMinY + 1) * cellSize;
+
+        osg::ref_ptr<osg::Texture2D> texture(new osg::Texture2D);
+        texture->setImage(image);
+        texture->setWrap(osg::Texture::WRAP_S, osg::Texture::CLAMP_TO_EDGE);
+        texture->setWrap(osg::Texture::WRAP_T, osg::Texture::CLAMP_TO_EDGE);
+        texture->setFilter(osg::Texture::MIN_FILTER, osg::Texture::LINEAR);
+        texture->setFilter(osg::Texture::MAG_FILTER, osg::Texture::LINEAR);
+        texture->setResizeNonPowerOfTwoHint(false);
+
+        requestOverlayTextureUpdate(posX, mHeight - posY, cellSize, cellSize, texture, true, false);
+    }
+    /*
+        End of tes3mp addition
+    */
 
     void GlobalMap::clear()
     {
@@ -508,7 +569,7 @@ namespace MWRender
         // If cell bounds of the currently loaded content and the loaded savegame do not match,
         // we need to resize source/dest boxes to accommodate
         // This means nonexisting cells will be dropped silently
-        const int cellImageSizeDst = Settings::map().mGlobalMapCellSize;
+        const int cellImageSizeDst = GlobalMap::sMultiplayerCellSize /* tes3mp change: enforce consistent tile sizes */;
 
         // Completely off-screen? -> no need to blit anything
         if (bounds.mMaxX < mMinX || bounds.mMaxY < mMinY || bounds.mMinX > mMaxX || bounds.mMinY > mMaxY)

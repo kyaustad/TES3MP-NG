@@ -37,7 +37,18 @@ namespace MWClass
 
         MWWorld::Ptr copyToCellImpl(const MWWorld::ConstPtr& ptr, MWWorld::CellStore& cell) const override;
 
-        bool canBeHarvested(const MWWorld::ConstPtr& ptr) const;
+        bool canBeHarvested(const MWWorld::ConstPtr& ptr) const override;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a class has a container store
+        */
+        bool hasContainerStore(const MWWorld::ConstPtr& ptr) const override { return true; }
+        /*
+            End of tes3mp addition
+        */
+
 
     public:
         void insertObjectRendering(const MWWorld::Ptr& ptr, const std::string& model,

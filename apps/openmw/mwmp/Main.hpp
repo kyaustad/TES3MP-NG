@@ -4,6 +4,8 @@
 #include "../mwworld/ptr.hpp"
 #include <boost/program_options.hpp>
 #include <components/files/collections.hpp>
+#include <components/esm/refid.hpp>
+#include <string_view>
 
 namespace mwmp
 {
@@ -28,8 +30,9 @@ namespace mwmp
         static const Main &get();
         static void frame(float dt);
 
-        static bool isValidPacketScript(std::string scriptId);
-        static bool isValidPacketGlobal(std::string globalId);
+        static bool isValidPacketScript(std::string_view scriptId);
+        static bool isValidPacketScript(const ESM::RefId& scriptId);
+        static bool isValidPacketGlobal(std::string_view globalId);
 
         static std::string getResDir();
 

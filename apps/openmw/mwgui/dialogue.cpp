@@ -1,5 +1,7 @@
 #include "dialogue.hpp"
 
+#include <components/openmw-mp/Base/BaseStructs.hpp> // tes3mp addition: dialogue choice types
+
 #include <MyGUI_Button.h>
 #include <MyGUI_LanguageManager.h>
 #include <MyGUI_ProgressBar.h>
@@ -467,6 +469,63 @@ namespace MWGui
         else
             updateTopics();
     }
+
+    /*
+        Start of tes3mp addition
+
+        Make it possible to activate any dialogue choice from elsewhere in the code
+    */
+    void DialogueWindow::activateDialogueChoice(unsigned char dialogueChoiceType, const std::string& topic)
+    {
+        MWBase::WindowManager* windowManager = MWBase::Environment::get().getWindowManager();
+        MWBase::DialogueManager* dialogueManager = MWBase::Environment::get().getDialogueManager();
+
+        switch (dialogueChoiceType)
+        {
+            case mwmp::DialogueChoiceType::TOPIC:
+                onTopicActivated(topic);
+                break;
+            case mwmp::DialogueChoiceType::PERSUASION:
+                mPersuasionDialog.setVisible(true);
+                break;
+            case mwmp::DialogueChoiceType::COMPANION_SHARE:
+                windowManager->pushGuiMode(GM_Companion, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::BARTER:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Barter))
+                    windowManager->pushGuiMode(GM_Barter, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::SPELLS:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Spells))
+                    windowManager->pushGuiMode(GM_SpellBuying, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::TRAVEL:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Travel))
+                    windowManager->pushGuiMode(GM_Travel, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::SPELLMAKING:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Spellmaking))
+                    windowManager->pushGuiMode(GM_SpellCreation, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::ENCHANTING:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Enchanting))
+                    windowManager->pushGuiMode(GM_Enchanting, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::TRAINING:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Training))
+                    windowManager->pushGuiMode(GM_Training, mPtr);
+                break;
+            case mwmp::DialogueChoiceType::REPAIR:
+                if (!dialogueManager->checkServiceRefused(mCallback.get(), MWBase::DialogueManager::Repair))
+                    windowManager->pushGuiMode(GM_MerchantRepair, mPtr);
+                break;
+            default:
+                break;
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
 
     void DialogueWindow::setPtr(const MWWorld::Ptr& actor)
     {

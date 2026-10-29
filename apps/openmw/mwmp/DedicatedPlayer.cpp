@@ -1,4 +1,9 @@
+#include "../mwmechanics/aisetting.hpp"
+#include "../mwworld/worldmodel.hpp"
+#include <components/settings/values.hpp>
+#include <components/misc/resourcehelpers.hpp>
 #include <boost/algorithm/clamp.hpp>
+#include <components/openmw-mp/Utils.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 #include <apps/openmw/mwmechanics/steering.hpp>
 
@@ -55,11 +60,11 @@ DedicatedPlayer::DedicatedPlayer(RakNet::RakNetGUID guid) : BasePlayer(guid)
 
     MWBase::World* world = MWBase::Environment::get().getWorld();
     
-    cell = *world->getInterior(RecordHelper::getPlaceholderInteriorCellName())->getCell();
+    cell = *(&MWBase::Environment::get().getWorldModel()->getInterior(RecordHelper::getPlaceholderInteriorCellName()))->getCell();
     position.pos[0] = position.pos[1] = position.pos[2] = 0;
 
     npc = *world->getPlayerPtr().get<ESM::NPC>()->mBase;
-    npc.mId = "";
+    npc.mId = Utils::toRefId("");
     previousRace = npc.mRace;
 
     hasReceivedInitialEquipment = false;
@@ -108,10 +113,10 @@ void DedicatedPlayer::update(float dt)
     ptrCreatureStats->getAiSequence().stopCombat();
 
     ptrCreatureStats->setAlarmed(false);
-    ptrCreatureStats->setAiSetting(MWMechanics::CreatureStats::AI_Alarm, 0);
-    ptrCreatureStats->setAiSetting(MWMechanics::CreatureStats::AI_Fight, 0);
-    ptrCreatureStats->setAiSetting(MWMechanics::CreatureStats::AI_Flee, 0);
-    ptrCreatureStats->setAiSetting(MWMechanics::CreatureStats::AI_Hello, 0);
+    ptrCreatureStats->setAiSetting(MWMechanics::AiSetting::Alarm, 0);
+    ptrCreatureStats->setAiSetting(MWMechanics::AiSetting::Fight, 0);
+    ptrCreatureStats->setAiSetting(MWMechanics::AiSetting::Flee, 0);
+    ptrCreatureStats->setAiSetting(MWMechanics::AiSetting::Hello, 0);
 }
 
 void DedicatedPlayer::move(float dt)
@@ -133,12 +138,12 @@ void DedicatedPlayer::move(float dt)
         static const int timeMultiplier = 15;
         osg::Vec3f lerp = MechanicsHelper::getLinearInterpolation(refPos.asVec3(), position.asVec3(), dt * timeMultiplier);
 
-        world->moveObject(ptr, lerp.x(), lerp.y(), lerp.z());
+        world->moveObject(ptr, lerp);
     }
     else
-        world->moveObject(ptr, position.pos[0], position.pos[1], position.pos[2]);
+        world->moveObject(ptr, osg::Vec3f(position.pos[0], position.pos[1], position.pos[2]));
 
-    world->rotateObject(ptr, position.rot[0], 0, position.rot[2]);
+    world->rotateObject(ptr, osg::Vec3f(position.rot[0], 0, position.rot[2]));
 
     MWMechanics::Movement *move = &ptr.getClass().getMovementSettings(ptr);
     move->mPosition[0] = direction.pos[0];
@@ -158,12 +163,12 @@ void DedicatedPlayer::setBaseInfo()
 {
     // Use the previous race if the new one doesn't exist
     if (!RecordHelper::doesRecordIdExist<ESM::Race>(npc.mRace))
-        npc.mRace = previousRace;
+        npc.mRace = Utils::toRefId(previousRace);
 
     if (!reference)
     {
         npc.mId = RecordHelper::createRecord(npc)->mId;
-        createReference(npc.mId);
+        createReference(Utils::refIdToString(npc.mId));
     }
     else
     {
@@ -172,7 +177,7 @@ void DedicatedPlayer::setBaseInfo()
     }
 
     // Only set equipment if the player isn't disguised as a creature
-    if (ptr.getTypeName() == typeid(ESM::NPC).name())
+    if (ptr.getType() == ESM::NPC::sRecordId)
         setEquipment();
 
     previousRace = npc.mRace;
@@ -225,7 +230,7 @@ void DedicatedPlayer::setAnimFlags()
 
     MWMechanics::CreatureStats *ptrCreatureStats = &ptr.getClass().getCreatureStats(ptr);
 
-    ptrCreatureStats->setDrawState(static_cast<MWMechanics::DrawState_>(drawState));
+    ptrCreatureStats->setDrawState(static_cast<MWMechanics::DrawState>(drawState));
 
     ptrCreatureStats->setMovementFlag(CreatureStats::Flag_Run, (movementFlags & CreatureStats::Flag_Run) != 0);
     ptrCreatureStats->setMovementFlag(CreatureStats::Flag_Sneak, (movementFlags & CreatureStats::Flag_Sneak) != 0);
@@ -241,14 +246,14 @@ void DedicatedPlayer::setAttributes()
     for (int i = 0; i < 8; ++i)
     {
         attributeValue.readState(creatureStats.mAttributes[i]);
-        ptrCreatureStats->setAttribute(i, attributeValue);
+        ptrCreatureStats->setAttribute(ESM::Attribute::indexToRefId(i), attributeValue);
     }
 }
 
 void DedicatedPlayer::setSkills()
 {
     // Go no further if the player is disguised as a creature
-    if (ptr.getTypeName() != typeid(ESM::NPC).name()) return;
+    if (ptr.getType() != ESM::NPC::sRecordId) return;
 
     MWMechanics::NpcStats *ptrNpcStats = &ptr.getClass().getNpcStats(ptr);
     MWMechanics::SkillValue skillValue;
@@ -256,7 +261,7 @@ void DedicatedPlayer::setSkills()
     for (int i = 0; i < 27; ++i)
     {
         skillValue.readState(npcStats.mSkills[i]);
-        ptrNpcStats->setSkill(i, skillValue);
+        ptrNpcStats->setSkill(ESM::Skill::indexToRefId(i), skillValue);
     }
 }
 
@@ -298,7 +303,7 @@ void DedicatedPlayer::setEquipment()
                 
                 if (shouldRemove)
                 {
-                    store.remove(ptrItemId, store.count(ptrItemId), ptr);
+                    store.remove(ptrItemId, store.count(Utils::toRefId(ptrItemId)), ptr);
                 }
             }
             else
@@ -309,7 +314,7 @@ void DedicatedPlayer::setEquipment()
             continue;
 
         const int count = equipmentItems[slot].count;
-        ptr.getClass().getContainerStore(ptr).add(packetRefId, count, ptr);
+        ptr.getClass().getContainerStore(ptr).add(packetRefId, count, false);
         // Equip items silently if this is the first time equipment is being set for this character
         equipItem(packetRefId, !hasReceivedInitialEquipment);
         equippedSomething = true;
@@ -327,7 +332,7 @@ void DedicatedPlayer::setShapeshift()
     bool isNpc = false;
 
     if (reference)
-        isNpc = ptr.getTypeName() == typeid(ESM::NPC).name();
+        isNpc = ptr.getType() == ESM::NPC::sRecordId;
 
     if (creatureRefId != previousCreatureRefId || displayCreatureName != previousDisplayCreatureName)
     {
@@ -337,7 +342,7 @@ void DedicatedPlayer::setShapeshift()
 
             const ESM::Creature* tmpCreature = world->getStore().get<ESM::Creature>().search(creatureRefId);
             creature = *tmpCreature;
-            creature.mScript = "";
+            creature.mScript = Utils::toRefId("");
             if (!displayCreatureName)
                 creature.mName = npc.mName;
             LOG_APPEND(TimedLog::LOG_INFO, "- %s is disguised as %s", npc.mName.c_str(), creatureRefId.c_str());
@@ -351,12 +356,12 @@ void DedicatedPlayer::setShapeshift()
             }
             else
             {
-                creature.mId = creatureRecordId;
+                creature.mId = Utils::toRefId(creatureRecordId);
                 RecordHelper::overrideRecord(creature);
             }
 
-            LOG_APPEND(TimedLog::LOG_INFO, "- Creating reference for %s", creature.mId.c_str());
-            createReference(creature.mId);
+            LOG_APPEND(TimedLog::LOG_INFO, "- Creating reference for %s", Utils::refIdToCString(creature.mId));
+            createReference(Utils::refIdToString(creature.mId));
         }
         // This player was already a creature, but the new creature refId was empty or
         // invalid, so we'll turn this player into their NPC self again as a result
@@ -368,7 +373,7 @@ void DedicatedPlayer::setShapeshift()
             }
 
             RecordHelper::overrideRecord(npc);
-            createReference(npc.mId);
+            createReference(Utils::refIdToString(npc.mId));
             reloadPtr();
         }
 
@@ -376,7 +381,7 @@ void DedicatedPlayer::setShapeshift()
         previousDisplayCreatureName = displayCreatureName;
     }
 
-    if (ptr.getTypeName() == typeid(ESM::NPC).name())
+    if (ptr.getType() == ESM::NPC::sRecordId)
     {
         MWBase::Environment::get().getMechanicsManager()->setWerewolf(ptr, isWerewolf);
 
@@ -415,7 +420,7 @@ void DedicatedPlayer::setCell()
 
     // Allow this player's reference to move across a cell now that a manual cell
     // update has been called
-    setPtr(world->moveObject(ptr, cellStore, position.pos[0], position.pos[1], position.pos[2]));
+    setPtr(world->moveObject(ptr, cellStore, osg::Vec3f(position.pos[0], position.pos[1], position.pos[2])));
 
     // Remove the marker entirely if this player has moved to an interior that is inactive for us
     if (!cell.isExterior() && !Main::get().getCellController()->isActiveWorldCell(cell))
@@ -435,8 +440,8 @@ void DedicatedPlayer::setCell()
     // or is a new player, we should send our latest weather data to the server
     if (world->getWeatherCreationState())
     {
-        if (!hasFinishedInitialTeleportation || Misc::StringUtils::ciEqual(getPtr().getCell()->getCell()->mRegion,
-            world->getPlayerPtr().getCell()->getCell()->mRegion))
+        if (!hasFinishedInitialTeleportation || Misc::StringUtils::ciEqual(getPtr().getCell()->getCell()->getRegion(),
+            world->getPlayerPtr().getCell()->getCell()->getRegion()))
         {
             world->sendWeather();
         }
@@ -453,10 +458,10 @@ void DedicatedPlayer::playAnimation()
 
 void DedicatedPlayer::playSpeech()
 {
-    MWBase::Environment::get().getSoundManager()->say(getPtr(), sound);
+    MWBase::Environment::get().getSoundManager()->say(getPtr(), Misc::ResourceHelpers::correctSoundPath(VFS::Path::Normalized(sound)));
 
     MWBase::WindowManager *winMgr = MWBase::Environment::get().getWindowManager();
-    if (winMgr->getSubtitlesEnabled())
+    if (Settings::gui().mSubtitles)
         winMgr->messageBox(MWBase::Environment::get().getDialogueManager()->getVoiceCaption(sound), MWGui::ShowInDialogueMode_Never);
 }
 
@@ -464,7 +469,7 @@ void DedicatedPlayer::equipItem(std::string itemId, bool noSound)
 {
     for (const auto& itemPtr : ptr.getClass().getInventoryStore(ptr))
     {
-        if (::Misc::StringUtils::ciEqual(itemPtr.getCellRef().getRefId(), itemId))
+        if ((itemPtr.getCellRef().getRefId() == itemId))
         {
             std::shared_ptr<MWWorld::Action> action = itemPtr.getClass().use(itemPtr);
             action->execute(ptr, noSound);
@@ -504,13 +509,12 @@ void DedicatedPlayer::addSpellsActive()
 
     for (const auto& activeSpell : spellsActiveChanges.activeSpells)
     {
-        MWWorld::TimeStamp timestamp = MWWorld::TimeStamp(activeSpell.timestampHour, activeSpell.timestampDay);
-        int casterActorId = MechanicsHelper::getActorId(activeSpell.caster);
+        const ESM::RefNum casterActorId = MechanicsHelper::getActorId(activeSpell.caster);
 
         MechanicsHelper::createSpellGfx(getPtr(), activeSpell.params.mEffects);
 
         // Don't do a check for a spell's existence, because active effects from potions need to be applied here too
-        activeSpells.addSpell(activeSpell.id, activeSpell.isStackingSpell, activeSpell.params.mEffects, activeSpell.params.mDisplayName, casterActorId, timestamp, false);
+        activeSpells.addMultiplayerSpell(Utils::toRefId(activeSpell.id), activeSpell.isStackingSpell, activeSpell.params.mEffects, activeSpell.params.mDisplayName, casterActorId);
     }
 }
 
@@ -523,12 +527,11 @@ void DedicatedPlayer::removeSpellsActive()
         // Remove stacking spells based on their timestamps
         if (activeSpell.isStackingSpell)
         {
-            MWWorld::TimeStamp timestamp = MWWorld::TimeStamp(activeSpell.timestampHour, activeSpell.timestampDay);
-            activeSpells.removeSpellByTimestamp(activeSpell.id, timestamp);
+            activeSpells.removeMultiplayerSpell(getPtr(), Utils::toRefId(activeSpell.id));
         }
         else
         {
-            activeSpells.removeEffects(activeSpell.id);
+            activeSpells.removeEffectsBySourceSpellId(getPtr(), Utils::toRefId(activeSpell.id));
         }
     }
 }
@@ -536,7 +539,7 @@ void DedicatedPlayer::removeSpellsActive()
 void DedicatedPlayer::setSpellsActive()
 {
     MWMechanics::ActiveSpells& activeSpells = getPtr().getClass().getCreatureStats(getPtr()).getActiveSpells();
-    activeSpells.clear();
+    activeSpells.clear(getPtr());
 
     // Proceed by adding spells active
     addSpellsActive();

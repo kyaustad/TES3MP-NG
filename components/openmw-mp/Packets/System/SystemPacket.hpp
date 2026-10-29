@@ -5,6 +5,7 @@
 #include <RakNetTypes.h>
 #include <BitStream.h>
 #include <PacketPriority.h>
+#include <components/openmw-mp/WinMacroGuard.hpp>
 #include <components/openmw-mp/Base/BaseSystem.hpp>
 
 #include <components/openmw-mp/Packets/BasePacket.hpp>

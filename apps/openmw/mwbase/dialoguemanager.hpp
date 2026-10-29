@@ -59,6 +59,22 @@ namespace MWBase
 
         virtual void addTopic(const ESM::RefId& topic) = 0;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a topic is known by the player, to update the topics known by the
+            current actor and to get the caption of a voice dialogue from elsewhere in the code
+        */
+        virtual bool isNewTopic(const ESM::RefId& topic) const = 0;
+
+        virtual void updateActorKnownTopics() = 0;
+
+        virtual std::string getVoiceCaption(std::string_view sound) const = 0;
+        /*
+            End of tes3mp addition
+        */
+
+
         virtual void addChoice(std::string_view text, int choice) = 0;
         virtual const std::vector<std::pair<std::string, int>>& getChoices() const = 0;
 

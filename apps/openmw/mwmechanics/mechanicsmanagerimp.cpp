@@ -600,6 +600,19 @@ namespace MWMechanics
         return std::max(1, offerPrice);
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to set the number of deaths for an actor with the given refId
+    */
+    void MechanicsManager::setDeaths(const ESM::RefId& id, int number)
+    {
+        mActors.setDeaths(id, number);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     int MechanicsManager::countDeaths(const ESM::RefId& id) const
     {
         return mActors.countDeaths(id);
@@ -888,10 +901,32 @@ namespace MWMechanics
 
     bool MechanicsManager::isBoundItem(const MWWorld::Ptr& item)
     {
+        /*
+            Start of tes3mp change (minor)
+
+            Share the lookup with the refId-based check below
+        */
+        return isBoundItem(item.getCellRef().getRefId());
+        /*
+            End of tes3mp change (minor)
+        */
+    }
+
+    /*
+        Start of tes3mp addition
+
+        Make it possible to check if an itemId corresponds to a bound item
+    */
+    bool MechanicsManager::isBoundItem(const ESM::RefId& itemId)
+    {
         static const std::set<ESM::RefId> boundItemIdCache = makeBoundItemIdCache();
 
-        return boundItemIdCache.find(item.getCellRef().getRefId()) != boundItemIdCache.end();
+        return boundItemIdCache.find(itemId) != boundItemIdCache.end();
     }
+    /*
+        End of tes3mp addition
+    */
+
 
     bool MechanicsManager::isAllowedToUse(const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, MWWorld::Ptr& victim)
     {

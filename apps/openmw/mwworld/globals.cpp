@@ -29,6 +29,25 @@ namespace MWWorld
         return iter;
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to add a global record from elsewhere and to check whether a global exists
+    */
+    void Globals::addRecord(const ESM::Global& global)
+    {
+        mVariables.insert_or_assign(global.mId, global);
+    }
+
+    bool Globals::hasRecord(std::string_view name) const
+    {
+        return find(name) != mVariables.end();
+    }
+    /*
+        End of tes3mp addition
+    */
+
+
     void Globals::fill(const MWWorld::ESMStore& store)
     {
         mVariables.clear();

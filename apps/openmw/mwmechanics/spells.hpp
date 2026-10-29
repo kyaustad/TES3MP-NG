@@ -62,6 +62,17 @@ namespace MWMechanics
         bool canUsePower(const ESM::Spell* spell) const;
         void usePower(const ESM::Spell* spell);
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set the timestamp of a power's last use from elsewhere in the code
+        */
+        void setPowerUseTimestamp(const ESM::Spell* spell, int startDay, float startHour);
+        /*
+            End of tes3mp addition
+        */
+
+
         void purgeCommonDisease();
         void purgeBlightDisease();
         void purgeCorprusDisease();

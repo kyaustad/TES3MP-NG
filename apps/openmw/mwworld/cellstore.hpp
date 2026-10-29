@@ -185,6 +185,35 @@ namespace MWWorld
 
         float getWaterLevel() const;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to clear the moves to other cells tracked for objects, allowing for
+            on-the-fly cell resets that don't cause crashes
+        */
+        void clearMovesToCells();
+
+        /*
+            Allow the searching of objects by their reference numbers and, optionally,
+            their refIds. Objects created during a multiplayer session are matched by
+            mpNum alone, because their RefNum is generated locally.
+        */
+        Ptr searchExact(unsigned int refNum, unsigned int mpNum, const ESM::RefId& refId = ESM::RefId(),
+            bool actorsOnly = false);
+
+        /*
+            Make it possible to get the merged references and some of the reference lists
+            from elsewhere in the code
+        */
+        std::vector<LiveCellRefBase*>& getMergedRefs();
+        CellRefList<ESM::NPC>* getNpcs() { return &get<ESM::NPC>(); }
+        CellRefList<ESM::Creature>* getCreatures() { return &get<ESM::Creature>(); }
+        CellRefList<ESM::CreatureLevList>* getCreatureLists() { return &get<ESM::CreatureLevList>(); }
+        CellRefList<ESM::Container>* getContainers() { return &get<ESM::Container>(); }
+        /*
+            End of tes3mp addition
+        */
+
         bool movedHere(const MWWorld::Ptr& ptr) const;
 
         void setWaterLevel(float level);

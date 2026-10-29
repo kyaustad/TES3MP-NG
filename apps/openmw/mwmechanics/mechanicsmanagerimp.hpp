@@ -95,6 +95,17 @@ namespace MWMechanics
         ///< Calculate the diposition of an NPC toward the player.
 
         int countDeaths(const ESM::RefId& id) const override;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set the number of deaths for an actor with the given refId
+        */
+        void setDeaths(const ESM::RefId& id, int number) override;
+        /*
+            End of tes3mp addition
+        */
+
         ///< Return the number of deaths for actors with the given ID.
 
         void getPersuasionDispositionChange(
@@ -220,6 +231,17 @@ namespace MWMechanics
         bool isItemStolenFrom(const ESM::RefId& itemid, const MWWorld::Ptr& ptr) override;
 
         bool isBoundItem(const MWWorld::Ptr& item) override;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check if an itemId corresponds to a bound item
+        */
+        bool isBoundItem(const ESM::RefId& itemId) override;
+        /*
+            End of tes3mp addition
+        */
+
 
         /// @return is \a ptr allowed to take/use \a target or is it a crime?
         bool isAllowedToUse(const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, MWWorld::Ptr& victim) override;

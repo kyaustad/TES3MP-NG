@@ -104,6 +104,17 @@ namespace MWMechanics
         ///< Simulate the passing of time
 
         int countDeaths(const ESM::RefId& id) const;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set the number of deaths for an actor with the given refId
+        */
+        void setDeaths(const ESM::RefId& id, int number) { mDeathCount[id] = number; }
+        /*
+            End of tes3mp addition
+        */
+
         ///< Return the number of deaths for actors with the given ID.
 
         bool isAttackPreparing(const MWWorld::Ptr& ptr) const;

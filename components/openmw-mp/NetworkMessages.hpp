@@ -3,6 +3,7 @@
 
 #include <MessageIdentifiers.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 enum GameMessages
 {
     _ID_UNUSED = ID_USER_PACKET_ENUM+1,

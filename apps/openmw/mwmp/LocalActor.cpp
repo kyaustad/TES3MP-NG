@@ -1,3 +1,4 @@
+#include <components/openmw-mp/Utils.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 
 #include "../mwbase/environment.hpp"
@@ -8,6 +9,7 @@
 #include "../mwrender/animation.hpp"
 
 #include "../mwworld/class.hpp"
+#include "../mwworld/worldmodel.hpp"
 #include "../mwworld/inventorystore.hpp"
 #include "../mwworld/worldimp.hpp"
 
@@ -76,9 +78,9 @@ void LocalActor::updateCell()
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "Sending ID_ACTOR_CELL_CHANGE about %s %i-%i in cell %s to server",
                        refId.c_str(), refNum, mpNum, cell.getShortDescription().c_str());
 
-    LOG_APPEND(TimedLog::LOG_VERBOSE, "- Moved to cell %s", ptr.getCell()->getCell()->getShortDescription().c_str());
+    LOG_APPEND(TimedLog::LOG_VERBOSE, "- Moved to cell %s", ptr.getCell()->getCell()->getEsm3().getShortDescription().c_str());
 
-    cell = *ptr.getCell()->getCell();
+    cell = ptr.getCell()->getCell()->getEsm3();
     position = ptr.getRefData().getPosition();
     isFollowerCellChange = false;
 
@@ -124,7 +126,7 @@ void LocalActor::updateAnimFlags(bool forceUpdate)
 
     isFlying = world->isFlying(ptr);
 
-    MWMechanics::DrawState_ currentDrawState = ptr.getClass().getCreatureStats(ptr).getDrawState();
+    MWMechanics::DrawState currentDrawState = ptr.getClass().getCreatureStats(ptr).getDrawState();
 
     if (wasRunning != isRunning || wasSneaking != isSneaking ||
         wasForceJumping != isForceJumping || wasForceMoveJumping != isForceMoveJumping ||
@@ -151,7 +153,7 @@ void LocalActor::updateAnimFlags(bool forceUpdate)
 
 #undef __SETFLAG
 
-        drawState = currentDrawState;
+        drawState = static_cast<char>(currentDrawState);
 
         mwmp::Main::get().getNetworking()->getActorList()->addAnimFlagsActor(*this);
     }
@@ -219,7 +221,7 @@ void LocalActor::updateEquipment(bool forceUpdate, bool sendImmediately)
     // If we've never sent any data, autoEquip the actor just in case its inventory
     // slots have been cleared by a previous Container packet
     if (!hasSentData)
-        invStore.autoEquip(ptr);
+        invStore.autoEquip();
 
     if (forceUpdate)
         equipmentChanged = true;
@@ -232,14 +234,14 @@ void LocalActor::updateEquipment(bool forceUpdate, bool sendImmediately)
         if (it != invStore.end())
         {
             auto &cellRef = it->getCellRef();
-            if (!::Misc::StringUtils::ciEqual(cellRef.getRefId(), item.refId))
+            if (!(cellRef.getRefId() == item.refId))
             {
                 equipmentChanged = true;
 
-                item.refId = cellRef.getRefId();
+                item.refId = cellRef.getRefId().serializeText();
                 item.charge = cellRef.getCharge();
                 item.enchantmentCharge = it->getCellRef().getEnchantmentCharge();
-                item.count = it->getRefData().getCount();
+                item.count = it->getCellRef().getCount();
             }
         }
         else if (!item.refId.empty())
@@ -290,21 +292,23 @@ void LocalActor::sendEquipment()
 void LocalActor::sendSpellsActiveAddition(const std::string id, bool isStackingSpell, const MWMechanics::ActiveSpells::ActiveSpellParams& params)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (id.find("$dynamic") != std::string::npos)
+    if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear();
+    spellsActiveChanges.activeSpells.clear(getPtr());
 
-    const MWWorld::Ptr& caster = MWBase::Environment::get().getWorld()->searchPtrViaActorId(params.mCasterActorId);
+    const MWWorld::Ptr caster = MWBase::Environment::get().getWorldModel()->getPtr(params.getCaster());
+    const MWWorld::TimeStamp timeStamp = MWBase::Environment::get().getWorld()->getTimeStamp();
 
     mwmp::ActiveSpell spell;
     spell.id = id;
     spell.isStackingSpell = isStackingSpell;
     spell.caster = MechanicsHelper::getTarget(caster);
-    spell.timestampDay = params.mTimeStamp.getDay();
-    spell.timestampHour = params.mTimeStamp.getHour();
-    spell.params.mEffects = params.mEffects;
-    spell.params.mDisplayName = params.mDisplayName;
+    spell.timestampDay = timeStamp.getDay();
+    spell.timestampHour = timeStamp.getHour();
+    spell.params.mEffects = params.getEffects();
+    spell.params.mDisplayName = params.getDisplayName();
+    spell.params.mSourceSpellId = params.getSourceSpellId();
     spellsActiveChanges.activeSpells.push_back(spell);
 
     spellsActiveChanges.action = mwmp::SpellsActiveChanges::ADD;
@@ -319,10 +323,10 @@ void LocalActor::sendSpellsActiveAddition(const std::string id, bool isStackingS
 void LocalActor::sendSpellsActiveRemoval(const std::string id, bool isStackingSpell, MWWorld::TimeStamp timestamp)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (id.find("$dynamic") != std::string::npos)
+    if (Utils::isDynamicRefId(id))
         return;
 
-    spellsActiveChanges.activeSpells.clear();
+    spellsActiveChanges.activeSpells.clear(getPtr());
 
     mwmp::ActiveSpell spell;
     spell.id = id;
@@ -368,8 +372,8 @@ void LocalActor::setPtr(const MWWorld::Ptr& newPtr)
 {
     ptr = newPtr;
 
-    refId = ptr.getCellRef().getRefId();
-    refNum = ptr.getCellRef().getRefNum().mIndex;
+    refId = ptr.getCellRef().getRefId().serializeText();
+    refNum = ptr.getCellRef().getMpRefNumIndex();
     mpNum = ptr.getCellRef().getMpNum();
 
     lastDrawState = ptr.getClass().getCreatureStats(ptr).getDrawState();

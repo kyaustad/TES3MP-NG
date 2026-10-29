@@ -244,6 +244,18 @@ namespace MWGui
         /// @param name The ESM::Cell::mName
         void addVisitedLocation(const std::string& name, int x, int y);
 
+        /*
+            Start of tes3mp addition
+
+            Allow the setting of the image data for a global map tile from elsewhere
+            in the code
+        */
+        void setGlobalMapImage(int cellX, int cellY, const std::vector<char>& imageData);
+        /*
+            End of tes3mp addition
+        */
+
+
         // reveals this cell's map on the global map
         void cellExplored(int x, int y);
 

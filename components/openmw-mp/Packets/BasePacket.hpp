@@ -7,6 +7,7 @@
 #include <BitStream.h>
 #include <PacketPriority.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 #include <variant>
 
 #include <components/esm/refid.hpp>

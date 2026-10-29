@@ -1119,6 +1119,20 @@ namespace MWGui
         return markerWidget;
     }
 
+    /*
+        Start of tes3mp addition
+
+        Allow the setting of the image data for a global map tile from elsewhere
+        in the code
+    */
+    void MapWindow::setGlobalMapImage(int cellX, int cellY, const std::vector<char>& imageData)
+    {
+        mGlobalMapRender->setImage(cellX, cellY, imageData);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void MapWindow::addVisitedLocation(const std::string& name, int x, int y)
     {
         CellId cell;

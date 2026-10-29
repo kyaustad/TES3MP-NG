@@ -31,6 +31,21 @@ namespace MWDialogue
         ///< Gets the quest requested. Attempts to create it and inserts it in quests if it is not yet started.
 
         void addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor) override;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to override current time when adding journal entries, and to check whether
+            a journal entry already exists from elsewhere in the code
+        */
+        void addEntry(
+            const ESM::RefId& id, int index, const MWWorld::Ptr& actor, int daysPassed, int month, int day) override;
+
+        bool hasEntry(const ESM::RefId& id, int index) override;
+        /*
+            End of tes3mp addition
+        */
+
         ///< Add a journal entry.
         /// @param actor Used as context for replacing of escape sequences (%name, etc).
 

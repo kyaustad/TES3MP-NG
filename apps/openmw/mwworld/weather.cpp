@@ -10,6 +10,20 @@
 #include <components/esm3/loadregn.hpp>
 #include <components/esm3/weatherstate.hpp>
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <components/openmw-mp/TimedLog.hpp>
+#include <components/openmw-mp/Utils.hpp>
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/Worldstate.hpp"
+/*
+    End of tes3mp addition
+*/
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/world.hpp"
@@ -763,11 +777,103 @@ namespace MWWorld
             auto it = mRegions.find(playerRegion);
             if (it != mRegions.end() && playerRegion != mCurrentRegion)
             {
+                /*
+                    Start of tes3mp addition
+
+                    If we've moved to another region, set our weather creation ability to false;
+                    the server will set it to true if it wants us creating weather here
+                */
+                setWeatherCreationState(false);
+                /*
+                    End of tes3mp addition
+                */
+
                 mCurrentRegion = playerRegion;
                 forceWeather(it->second.getWeather());
             }
+            /*
+                Start of tes3mp addition
+
+                There's no scenario where we want our weather creation ability to be true in
+                an interior, so set it to false
+            */
+            else if (!isExterior)
+                setWeatherCreationState(false);
+            /*
+                End of tes3mp addition
+            */
         }
     }
+
+    /*
+        Start of tes3mp addition
+
+        Make it possible to set a specific weather state for a region from elsewhere
+        in the code
+    */
+    void WeatherManager::setRegionWeather(const ESM::RefId& region, const int currentWeather, const int nextWeather,
+        const int queuedWeather, const float transitionFactor, bool force)
+    {
+        const bool isSameRegion = region == mCurrentRegion;
+        const int weatherCount = static_cast<int>(mWeatherSettings.size());
+        auto isValid = [&](int weather) { return weather >= 0 && weather < weatherCount; };
+
+        // Only ever force weather if we are in the correct region for it
+        if (isSameRegion)
+        {
+            if (force)
+            {
+                if (!isValid(currentWeather))
+                    return;
+                mCurrentWeather = currentWeather;
+                mNextWeather = isValid(nextWeather) ? nextWeather : invalidWeatherID;
+                mQueuedWeather = isValid(queuedWeather) ? queuedWeather : invalidWeatherID;
+                mTransitionFactor = transitionFactor;
+            }
+            else
+            {
+                // Keep the queued weather in sync if everything else already is
+                if (mCurrentWeather == currentWeather && mNextWeather == nextWeather)
+                {
+                    mQueuedWeather = isValid(queuedWeather) ? queuedWeather : invalidWeatherID;
+                }
+                // Start moving towards the next weather immediately if it's different from the one we have
+                else if (mNextWeather != nextWeather && isValid(nextWeather))
+                {
+                    changeWeather(region, static_cast<unsigned int>(nextWeather));
+                }
+                // Otherwise, if the current weather is different from the one we should have, move towards it
+                else if (mCurrentWeather != currentWeather && isValid(currentWeather))
+                {
+                    changeWeather(region, static_cast<unsigned int>(currentWeather));
+                }
+            }
+        }
+        else if (isValid(currentWeather))
+        {
+            changeWeather(region, static_cast<unsigned int>(currentWeather));
+        }
+    }
+
+    bool WeatherManager::getWeatherCreationState() const
+    {
+        return mWeatherCreationState;
+    }
+
+    void WeatherManager::setWeatherCreationState(bool state)
+    {
+        mWeatherCreationState = state;
+    }
+
+    void WeatherManager::sendWeather()
+    {
+        mwmp::Worldstate* worldstate = mwmp::Main::get().getNetworking()->getWorldstate();
+        worldstate->sendWeather(Utils::refIdToString(mCurrentRegion), mCurrentWeather, mNextWeather, mQueuedWeather,
+            mTransitionFactor);
+    }
+    /*
+        End of tes3mp addition
+    */
 
     float WeatherManager::calculateWindSpeed(int weatherId, float currentSpeed)
     {
@@ -1122,6 +1228,17 @@ namespace MWWorld
 
     inline bool WeatherManager::updateWeatherTime()
     {
+        /*
+            Start of tes3mp addition
+
+            Avoid creating any weather changes on this client unless approved by the server
+        */
+        if (!mWeatherCreationState)
+            return false;
+        /*
+            End of tes3mp addition
+        */
+
         mWeatherUpdateTime -= mTimePassed;
         mTimePassed = 0.0f;
         if (mWeatherUpdateTime <= 0.0f)
@@ -1147,6 +1264,17 @@ namespace MWWorld
         {
             mCurrentRegion = playerRegion;
 
+            /*
+                Start of tes3mp addition
+
+                If we've moved to another region, set our weather creation ability to false;
+                the server will set it to true if it wants us creating weather here
+            */
+            setWeatherCreationState(false);
+            /*
+                End of tes3mp addition
+            */
+
             return true;
         }
 
@@ -1155,6 +1283,16 @@ namespace MWWorld
 
     inline void WeatherManager::updateWeatherTransitions(const float elapsedRealSeconds)
     {
+        /*
+            Start of tes3mp addition
+
+            Track whether an ID_WORLD_WEATHER packet should be sent or not
+        */
+        bool shouldSendPacket = false;
+        /*
+            End of tes3mp addition
+        */
+
         // When a player chooses to train, wait, or serves jail time, any transitions will be fast forwarded to the last
         // weather type set, regardless of the remaining transition time.
         if (!mFastForward && inTransition())
@@ -1179,10 +1317,31 @@ namespace MWWorld
                 {
                     mTransitionFactor = 0.0f;
                 }
+
+                /*
+                    Start of tes3mp addition
+
+                    The weather is changing, so decide to send an ID_WORLD_WEATHER packet
+                */
+                shouldSendPacket = true;
+                /*
+                    End of tes3mp addition
+                */
             }
         }
         else
         {
+            /*
+                Start of tes3mp addition
+
+                If the weather is changing, decide to send an ID_WORLD_WEATHER packet
+            */
+            if (mQueuedWeather != invalidWeatherID || mNextWeather != invalidWeatherID)
+                shouldSendPacket = true;
+            /*
+                End of tes3mp addition
+            */
+
             if (mQueuedWeather != invalidWeatherID)
             {
                 mCurrentWeather = mQueuedWeather;
@@ -1196,6 +1355,18 @@ namespace MWWorld
             mQueuedWeather = invalidWeatherID;
             mFastForward = false;
         }
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_WORLD_WEATHER packet every time the weather changes here, but only
+            if we are allowed to create weather changes on this client
+        */
+        if (shouldSendPacket && mWeatherCreationState && !mCurrentRegion.empty())
+            sendWeather();
+        /*
+            End of tes3mp addition
+        */
     }
 
     inline void WeatherManager::forceWeather(const int weatherID)
@@ -1204,6 +1375,18 @@ namespace MWWorld
         mCurrentWeather = weatherID;
         mNextWeather = invalidWeatherID;
         mQueuedWeather = invalidWeatherID;
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_WORLD_WEATHER packet every time the weather changes here, but only
+            if we are allowed to create weather changes on this client
+        */
+        if (!mCurrentRegion.empty() && mWeatherCreationState)
+            sendWeather();
+        /*
+            End of tes3mp addition
+        */
     }
 
     inline bool WeatherManager::inTransition() const
@@ -1227,7 +1410,20 @@ namespace MWWorld
         {
             mQueuedWeather = weatherID;
         }
+
+        /*
+            Start of tes3mp addition
+
+            Send an ID_WORLD_WEATHER packet every time the weather changes here, but only
+            if we are allowed to create weather changes on this client
+        */
+        if (mWeatherCreationState)
+            sendWeather();
+        /*
+            End of tes3mp addition
+        */
     }
+
 
     inline void WeatherManager::calculateWeatherResult(
         const float gameHour, const float elapsedSeconds, const bool isPaused)

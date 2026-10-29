@@ -200,6 +200,37 @@ namespace MWGui
         mSortModel = nullptr;
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to check from elsewhere whether there is currently an item being dragged in the
+        container window, and to start dragging an item from it
+    */
+    bool ContainerWindow::isOnDragAndDrop() const
+    {
+        return mDragAndDrop->mIsOnDragAndDrop;
+    }
+
+    bool ContainerWindow::dragItemByPtr(const MWWorld::Ptr& itemPtr, int dragCount)
+    {
+        if (mModel == nullptr)
+            return false;
+
+        for (size_t i = 0; i < mModel->getItemCount(); ++i)
+        {
+            if (mModel->getItem(i).mBase == itemPtr)
+            {
+                mDragAndDrop->startDrag(static_cast<int>(i), mSortModel, mModel, mItemView, dragCount);
+                return true;
+            }
+        }
+
+        return false;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void ContainerWindow::onOpen()
     {
         mItemTransfer->addTarget(*mItemView);

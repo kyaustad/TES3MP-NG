@@ -5,6 +5,7 @@
 #include "../mwworld/cellstore.hpp"
 #include <RakNetTypes.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 #include "LocalActor.hpp"
 
 namespace mwmp

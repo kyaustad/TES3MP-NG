@@ -1829,6 +1829,81 @@ namespace MWGui
         mWaitDialog->wakeUp();
     }
 
+    /*
+        Start of tes3mp addition
+
+        Allow the setting of the image data for a global map tile from elsewhere
+        in the code
+    */
+    void WindowManager::setGlobalMapImage(int cellX, int cellY, const std::vector<char>& imageData)
+    {
+        mMap->setGlobalMapImage(cellX, cellY, imageData);
+    }
+    /*
+        End of tes3mp addition
+    */
+
+    /*
+        Start of tes3mp addition
+
+        Multiplayer additions, see MWBase::WindowManager
+    */
+    void WindowManager::setConsolePtr(const MWWorld::Ptr& object)
+    {
+        mConsole->setPtr(object);
+    }
+
+    void WindowManager::clearConsolePtr()
+    {
+        mConsole->resetReference();
+    }
+
+    void WindowManager::executeCommandInConsole(const std::string& command)
+    {
+        mConsole->execute(command);
+    }
+
+    void WindowManager::finishDragDrop()
+    {
+        if (mDragAndDrop->mIsOnDragAndDrop)
+            mDragAndDrop->finish();
+    }
+
+    void WindowManager::setQuickKey(int slot, int quickKeyType, const MWWorld::Ptr& item, const ESM::RefId& spellId)
+    {
+        if (slot <= 0)
+            return;
+
+        // The actual indexes recorded for quick keys are always 1 higher than their
+        // indexes in the mKey vector, so adjust for the latter
+        mQuickKeysMenu->setSelectedIndex(slot - 1);
+
+        // TES3MP's quick key types use the same values as ESM::QuickKeys::Type
+        switch (static_cast<ESM::QuickKeys::Type>(quickKeyType))
+        {
+            case ESM::QuickKeys::Type::Unassigned:
+                mQuickKeysMenu->unassignIndex(slot - 1);
+                break;
+            case ESM::QuickKeys::Type::Item:
+                if (!item.isEmpty())
+                    mQuickKeysMenu->onAssignItem(item);
+                break;
+            case ESM::QuickKeys::Type::MagicItem:
+                if (!item.isEmpty())
+                    mQuickKeysMenu->onAssignMagicItem(item);
+                break;
+            case ESM::QuickKeys::Type::Magic:
+                mQuickKeysMenu->onAssignMagic(spellId);
+                break;
+            default:
+                break;
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
+
+
     void WindowManager::addVisitedLocation(const std::string& name, int x, int y)
     {
         mMap->addVisitedLocation(name, x, y);

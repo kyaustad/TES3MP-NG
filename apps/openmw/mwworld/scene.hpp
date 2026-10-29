@@ -197,6 +197,17 @@ namespace MWWorld
 
         bool isCellActive(const CellStore& cell);
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to unload a cell from elsewhere
+        */
+        void unloadCellFromElsewhere(CellStore* cell);
+        /*
+            End of tes3mp addition
+        */
+
+
         void preload(const std::string& mesh, bool useAnim = false);
 
         void testExteriorCells();

@@ -1,4 +1,5 @@
 #include <components/openmw-mp/TimedLog.hpp>
+#include <components/openmw-mp/Utils.hpp>
 
 #include "../mwworld/cellstore.hpp"
 #include "../mwworld/worldimp.hpp"
@@ -27,9 +28,9 @@ void RecordHelper::overrideRecord(const mwmp::ActivatorRecord& record)
     }
     else if (doesRecordIdExist<ESM::Activator>(record.baseId))
     {
-        const ESM::Activator *baseData = world->getStore().get<ESM::Activator>().search(record.baseId);
+        const ESM::Activator *baseData = world->getStore().get<ESM::Activator>().search(Utils::toRefId(record.baseId));
         ESM::Activator finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -71,9 +72,9 @@ void RecordHelper::overrideRecord(const mwmp::ApparatusRecord& record)
     }
     else if (doesRecordIdExist<ESM::Apparatus>(record.baseId))
     {
-        const ESM::Apparatus *baseData = world->getStore().get<ESM::Apparatus>().search(record.baseId);
+        const ESM::Apparatus *baseData = world->getStore().get<ESM::Apparatus>().search(Utils::toRefId(record.baseId));
         ESM::Apparatus finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -128,7 +129,7 @@ void RecordHelper::overrideRecord(const mwmp::ArmorRecord& record)
     {
         if (!recordData.mEnchant.empty() && !doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
         {
-            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new armor record with invalid enchantmentId %s", recordData.mEnchant.c_str());
+            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new armor record with invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
             return;
         }
         else
@@ -136,9 +137,9 @@ void RecordHelper::overrideRecord(const mwmp::ArmorRecord& record)
     }
     else if (doesRecordIdExist<ESM::Armor>(record.baseId))
     {
-        const ESM::Armor *baseData = world->getStore().get<ESM::Armor>().search(record.baseId);
+        const ESM::Armor *baseData = world->getStore().get<ESM::Armor>().search(Utils::toRefId(record.baseId));
         ESM::Armor finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         finalData.mParts.mParts.at(0);
 
@@ -171,7 +172,7 @@ void RecordHelper::overrideRecord(const mwmp::ArmorRecord& record)
             if (recordData.mEnchant.empty() || doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
                 finalData.mEnchant = recordData.mEnchant;
             else
-                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", recordData.mEnchant.c_str());
+                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
         }
 
         if (record.baseOverrides.hasEnchantmentCharge)
@@ -213,9 +214,9 @@ void RecordHelper::overrideRecord(const mwmp::BodyPartRecord& record)
     }
     else if (doesRecordIdExist<ESM::BodyPart>(record.baseId))
     {
-        const ESM::BodyPart *baseData = world->getStore().get<ESM::BodyPart>().search(record.baseId);
+        const ESM::BodyPart *baseData = world->getStore().get<ESM::BodyPart>().search(Utils::toRefId(record.baseId));
         ESM::BodyPart finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasModel)
             finalData.mModel = recordData.mModel;
@@ -261,7 +262,7 @@ void RecordHelper::overrideRecord(const mwmp::BookRecord& record)
     {
         if (!recordData.mEnchant.empty() && !doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
         {
-            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new book record with invalid enchantmentId %s", recordData.mEnchant.c_str());
+            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new book record with invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
             return;
         }
         else
@@ -269,9 +270,9 @@ void RecordHelper::overrideRecord(const mwmp::BookRecord& record)
     }
     else if (doesRecordIdExist<ESM::Book>(record.baseId))
     {
-        const ESM::Book *baseData = world->getStore().get<ESM::Book>().search(record.baseId);
+        const ESM::Book *baseData = world->getStore().get<ESM::Book>().search(Utils::toRefId(record.baseId));
         ESM::Book finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -302,7 +303,7 @@ void RecordHelper::overrideRecord(const mwmp::BookRecord& record)
             if (recordData.mEnchant.empty() || doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
                 finalData.mEnchant = recordData.mEnchant;
             else
-                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", recordData.mEnchant.c_str());
+                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
         }
 
         if (record.baseOverrides.hasEnchantmentCharge)
@@ -336,7 +337,7 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
     }
 
     MWWorld::Ptr playerPtr = world->getPlayerPtr();
-    ESM::Cell playerCell = *playerPtr.getCell()->getCell();
+    ESM::Cell playerCell = playerPtr.getCell()->getCell()->getEsm3();
     ESM::Position playerPos = playerPtr.getRefData().getPosition();
 
     bool isActiveCell = world->isCellActive(recordData);
@@ -360,7 +361,7 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
     }
     else if (doesRecordIdExist<ESM::Cell>(record.baseId))
     {
-        const ESM::Cell *baseData = world->getStore().get<ESM::Cell>().search(record.baseId);
+        const ESM::Cell *baseData = world->getStore().get<ESM::Cell>().search(Utils::toRefId(record.baseId));
         ESM::Cell finalData = *baseData;
         finalData.mName = recordData.mName;
         finalData.mCellId.mWorldspace = Misc::StringUtils::lowerCase(recordData.mName);
@@ -372,12 +373,12 @@ void RecordHelper::overrideRecord(const mwmp::CellRecord& record)
         // Create a Pathgrid record for this new Cell based on the base Cell's Pathgrid
         // Note: This has to be done after the new Cell has been created so the Pathgrid override
         //       can correctly determine whether the Cell is an interior or an exterior
-        const ESM::Pathgrid* basePathgrid = world->getStore().get<ESM::Pathgrid>().search(record.baseId);
+        const ESM::Pathgrid* basePathgrid = world->getStore().get<ESM::Pathgrid>().search(Utils::toRefId(record.baseId));
 
         if (basePathgrid)
         {
             ESM::Pathgrid finalPathgrid = *basePathgrid;
-            finalPathgrid.mCell = recordData.mName;
+            finalPathgrid.mCell = Utils::toRefId(recordData.mName);
             world->getModifiableStore().overrideRecord(finalPathgrid);
         }
     }
@@ -414,7 +415,7 @@ void RecordHelper::overrideRecord(const mwmp::ClothingRecord& record)
     {
         if (!recordData.mEnchant.empty() && !doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
         {
-            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new clothing record with invalid enchantmentId %s", recordData.mEnchant.c_str());
+            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new clothing record with invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
             return;
         }
         else
@@ -422,9 +423,9 @@ void RecordHelper::overrideRecord(const mwmp::ClothingRecord& record)
     }
     else if (doesRecordIdExist<ESM::Clothing>(record.baseId))
     {
-        const ESM::Clothing *baseData = world->getStore().get<ESM::Clothing>().search(record.baseId);
+        const ESM::Clothing *baseData = world->getStore().get<ESM::Clothing>().search(Utils::toRefId(record.baseId));
         ESM::Clothing finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -449,7 +450,7 @@ void RecordHelper::overrideRecord(const mwmp::ClothingRecord& record)
             if (recordData.mEnchant.empty() || doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
                 finalData.mEnchant = recordData.mEnchant;
             else
-                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", recordData.mEnchant.c_str());
+                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
         }
 
         if (record.baseOverrides.hasEnchantmentCharge)
@@ -492,9 +493,9 @@ void RecordHelper::overrideRecord(const mwmp::ContainerRecord& record)
     }
     else if (doesRecordIdExist<ESM::Container>(record.baseId))
     {
-        const ESM::Container *baseData = world->getStore().get<ESM::Container>().search(record.baseId);
+        const ESM::Container *baseData = world->getStore().get<ESM::Container>().search(Utils::toRefId(record.baseId));
         ESM::Container finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -545,9 +546,9 @@ void RecordHelper::overrideRecord(const mwmp::CreatureRecord& record)
     }
     else if (doesRecordIdExist<ESM::Creature>(record.baseId))
     {
-        const ESM::Creature *baseData = world->getStore().get<ESM::Creature>().search(record.baseId);
+        const ESM::Creature *baseData = world->getStore().get<ESM::Creature>().search(Utils::toRefId(record.baseId));
         ESM::Creature finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -651,9 +652,9 @@ void RecordHelper::overrideRecord(const mwmp::DoorRecord& record)
     }
     else if (doesRecordIdExist<ESM::Door>(record.baseId))
     {
-        const ESM::Door *baseData = world->getStore().get<ESM::Door>().search(record.baseId);
+        const ESM::Door *baseData = world->getStore().get<ESM::Door>().search(Utils::toRefId(record.baseId));
         ESM::Door finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -706,9 +707,9 @@ void RecordHelper::overrideRecord(const mwmp::EnchantmentRecord& record)
     }
     else if (doesRecordIdExist<ESM::Enchantment>(record.baseId))
     {
-        const ESM::Enchantment *baseData = world->getStore().get<ESM::Enchantment>().search(record.baseId);
+        const ESM::Enchantment *baseData = world->getStore().get<ESM::Enchantment>().search(Utils::toRefId(record.baseId));
         ESM::Enchantment finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasSubtype)
             finalData.mData.mType = recordData.mData.mType;
@@ -752,9 +753,9 @@ void RecordHelper::overrideRecord(const mwmp::GameSettingRecord& record)
     }
     else if (doesRecordIdExist<ESM::GameSetting>(record.baseId))
     {
-        const ESM::GameSetting* baseData = world->getStore().get<ESM::GameSetting>().search(record.baseId);
+        const ESM::GameSetting* baseData = world->getStore().get<ESM::GameSetting>().search(Utils::toRefId(record.baseId));
         ESM::GameSetting finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         world->getModifiableStore().overrideRecord(finalData);
     }
@@ -784,9 +785,9 @@ void RecordHelper::overrideRecord(const mwmp::IngredientRecord& record)
     }
     else if (doesRecordIdExist<ESM::Ingredient>(record.baseId))
     {
-        const ESM::Ingredient *baseData = world->getStore().get<ESM::Ingredient>().search(record.baseId);
+        const ESM::Ingredient *baseData = world->getStore().get<ESM::Ingredient>().search(Utils::toRefId(record.baseId));
         ESM::Ingredient finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -849,9 +850,9 @@ void RecordHelper::overrideRecord(const mwmp::LightRecord& record)
     }
     else if (doesRecordIdExist<ESM::Light>(record.baseId))
     {
-        const ESM::Light *baseData = world->getStore().get<ESM::Light>().search(record.baseId);
+        const ESM::Light *baseData = world->getStore().get<ESM::Light>().search(Utils::toRefId(record.baseId));
         ESM::Light finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -917,9 +918,9 @@ void RecordHelper::overrideRecord(const mwmp::LockpickRecord& record)
     }
     else if (doesRecordIdExist<ESM::Lockpick>(record.baseId))
     {
-        const ESM::Lockpick *baseData = world->getStore().get<ESM::Lockpick>().search(record.baseId);
+        const ESM::Lockpick *baseData = world->getStore().get<ESM::Lockpick>().search(Utils::toRefId(record.baseId));
         ESM::Lockpick finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -976,9 +977,9 @@ void RecordHelper::overrideRecord(const mwmp::MiscellaneousRecord& record)
     }
     else if (doesRecordIdExist<ESM::Miscellaneous>(record.baseId))
     {
-        const ESM::Miscellaneous *baseData = world->getStore().get<ESM::Miscellaneous>().search(record.baseId);
+        const ESM::Miscellaneous *baseData = world->getStore().get<ESM::Miscellaneous>().search(Utils::toRefId(record.baseId));
         ESM::Miscellaneous finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1043,9 +1044,9 @@ void RecordHelper::overrideRecord(const mwmp::NpcRecord& record)
     }
     else if (doesRecordIdExist<ESM::NPC>(record.baseId))
     {
-        const ESM::NPC *baseData = world->getStore().get<ESM::NPC>().search(record.baseId);
+        const ESM::NPC *baseData = world->getStore().get<ESM::NPC>().search(Utils::toRefId(record.baseId));
         ESM::NPC finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1154,9 +1155,9 @@ void RecordHelper::overrideRecord(const mwmp::PotionRecord& record)
     }
     else if (doesRecordIdExist<ESM::Potion>(record.baseId))
     {
-        const ESM::Potion *baseData = world->getStore().get<ESM::Potion>().search(record.baseId);
+        const ESM::Potion *baseData = world->getStore().get<ESM::Potion>().search(Utils::toRefId(record.baseId));
         ESM::Potion finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1213,9 +1214,9 @@ void RecordHelper::overrideRecord(const mwmp::ProbeRecord& record)
     }
     else if (doesRecordIdExist<ESM::Probe>(record.baseId))
     {
-        const ESM::Probe *baseData = world->getStore().get<ESM::Probe>().search(record.baseId);
+        const ESM::Probe *baseData = world->getStore().get<ESM::Probe>().search(Utils::toRefId(record.baseId));
         ESM::Probe finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1272,9 +1273,9 @@ void RecordHelper::overrideRecord(const mwmp::RepairRecord& record)
     }
     else if (doesRecordIdExist<ESM::Repair>(record.baseId))
     {
-        const ESM::Repair *baseData = world->getStore().get<ESM::Repair>().search(record.baseId);
+        const ESM::Repair *baseData = world->getStore().get<ESM::Repair>().search(Utils::toRefId(record.baseId));
         ESM::Repair finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1330,9 +1331,9 @@ void RecordHelper::overrideRecord(const mwmp::ScriptRecord& record)
     }
     else if (doesRecordIdExist<ESM::Script>(record.baseId))
     {
-        const ESM::Script *baseData = world->getStore().get<ESM::Script>().search(record.baseId);
+        const ESM::Script *baseData = world->getStore().get<ESM::Script>().search(Utils::toRefId(record.baseId));
         ESM::Script finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasScriptText)
             finalData.mScriptText = recordData.mScriptText;
@@ -1365,9 +1366,9 @@ void RecordHelper::overrideRecord(const mwmp::SoundRecord& record)
     }
     else if (doesRecordIdExist<ESM::Sound>(record.baseId))
     {
-        const ESM::Sound* baseData = world->getStore().get<ESM::Sound>().search(record.baseId);
+        const ESM::Sound* baseData = world->getStore().get<ESM::Sound>().search(Utils::toRefId(record.baseId));
         ESM::Sound finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasSound)
             finalData.mSound = recordData.mSound;
@@ -1412,9 +1413,9 @@ void RecordHelper::overrideRecord(const mwmp::SpellRecord& record)
     }
     else if (doesRecordIdExist<ESM::Spell>(record.baseId))
     {
-        const ESM::Spell *baseData = world->getStore().get<ESM::Spell>().search(record.baseId);
+        const ESM::Spell *baseData = world->getStore().get<ESM::Spell>().search(Utils::toRefId(record.baseId));
         ESM::Spell finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1459,9 +1460,9 @@ void RecordHelper::overrideRecord(const mwmp::StaticRecord& record)
     }
     else if (doesRecordIdExist<ESM::Static>(record.baseId))
     {
-        const ESM::Static *baseData = world->getStore().get<ESM::Static>().search(record.baseId);
+        const ESM::Static *baseData = world->getStore().get<ESM::Static>().search(Utils::toRefId(record.baseId));
         ESM::Static finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasModel)
             finalData.mModel = recordData.mModel;
@@ -1495,7 +1496,7 @@ void RecordHelper::overrideRecord(const mwmp::WeaponRecord& record)
     {
         if (!recordData.mEnchant.empty() && !doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
         {
-            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new weapon record with invalid enchantmentId %s", recordData.mEnchant.c_str());
+            LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring new weapon record with invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
             return;
         }
         else
@@ -1503,9 +1504,9 @@ void RecordHelper::overrideRecord(const mwmp::WeaponRecord& record)
     }
     else if (doesRecordIdExist<ESM::Weapon>(record.baseId))
     {
-        const ESM::Weapon *baseData = world->getStore().get<ESM::Weapon>().search(record.baseId);
+        const ESM::Weapon *baseData = world->getStore().get<ESM::Weapon>().search(Utils::toRefId(record.baseId));
         ESM::Weapon finalData = *baseData;
-        finalData.mId = recordData.mId;
+        finalData.mId = Utils::toRefId(recordData.mId.serializeText());
 
         if (record.baseOverrides.hasName)
             finalData.mName = recordData.mName;
@@ -1560,7 +1561,7 @@ void RecordHelper::overrideRecord(const mwmp::WeaponRecord& record)
             if (recordData.mEnchant.empty() || doesRecordIdExist<ESM::Enchantment>(recordData.mEnchant))
                 finalData.mEnchant = recordData.mEnchant;
             else
-                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", recordData.mEnchant.c_str());
+                LOG_APPEND(TimedLog::LOG_INFO, "-- Ignoring invalid enchantmentId %s", Utils::refIdToCString(recordData.mEnchant));
         }
 
         if (record.baseOverrides.hasEnchantmentCharge)

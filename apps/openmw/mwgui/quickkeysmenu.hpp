@@ -35,6 +35,18 @@ namespace MWGui
         void onAssignItemCancel();
         void onAssignMagicItem(MWWorld::Ptr item);
         void onAssignMagic(const ESM::RefId& spellId);
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to add and remove quickKeys from elsewhere in the code
+        */
+        void setSelectedIndex(int index) { mSelected = &mKey[index]; }
+        void unassignIndex(int index) { unassign(&mKey[index]); }
+        /*
+            End of tes3mp addition
+        */
+
         void onAssignMagicCancel();
         void onOpen() override;
         void onClose() override;

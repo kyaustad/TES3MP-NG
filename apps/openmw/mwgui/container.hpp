@@ -49,6 +49,18 @@ namespace MWGui
         bool onControllerButtonEvent(const SDL_ControllerButtonEvent& arg) override;
         void setActiveControllerWindow(bool active) override;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check from elsewhere whether there is currently an item being dragged in the
+            container window, and to start dragging an item from it
+        */
+        bool isOnDragAndDrop() const;
+        bool dragItemByPtr(const MWWorld::Ptr& itemPtr, int dragCount);
+        /*
+            End of tes3mp addition
+        */
+
         MWGui::ItemView* getItemView() { return mItemView; }
         ItemModel* getModel() { return mModel; }
 

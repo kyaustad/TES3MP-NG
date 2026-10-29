@@ -8,6 +8,7 @@
 #include <list>
 #include <MessageIdentifiers.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 enum MASTER_PACKETS
 {
     ID_MASTER_QUERY = ID_USER_PACKET_ENUM,

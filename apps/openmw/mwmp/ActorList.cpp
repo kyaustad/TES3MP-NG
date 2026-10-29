@@ -91,23 +91,23 @@ void ActorList::addAiActor(BaseActor baseActor)
 void ActorList::addAiActor(const MWWorld::Ptr& actorPtr, const MWWorld::Ptr& targetPtr, unsigned int aiAction)
 {
     mwmp::BaseActor baseActor;
-    baseActor.refNum = actorPtr.getCellRef().getRefNum().mIndex;
+    baseActor.refNum = actorPtr.getCellRef().getMpRefNumIndex();
     baseActor.mpNum = actorPtr.getCellRef().getMpNum();
     baseActor.aiAction = aiAction;
     baseActor.aiTarget = MechanicsHelper::getTarget(targetPtr);
 
     LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Preparing to send ID_ACTOR_AI about %s %i-%i\n- action: %i",
-        actorPtr.getCellRef().getRefId().c_str(), baseActor.refNum, baseActor.mpNum, aiAction);
+        actorPtr.getCellRef().getRefId().serializeText().c_str(), baseActor.refNum, baseActor.mpNum, aiAction);
 
     if (baseActor.aiTarget.isPlayer)
     {
         LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "- Has player target %s",
-            targetPtr.getClass().getName(targetPtr).c_str());
+            std::string(targetPtr.getClass().getName(targetPtr)).c_str());
     }
     else
     {
         LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "- Has actor target %s %i-%i",
-            targetPtr.getCellRef().getRefId().c_str(), baseActor.aiTarget.refNum, baseActor.aiTarget.mpNum);
+            targetPtr.getCellRef().getRefId().serializeText().c_str(), baseActor.aiTarget.refNum, baseActor.aiTarget.mpNum);
     }
 
     addAiActor(baseActor);
@@ -121,7 +121,7 @@ void ActorList::addAttackActor(BaseActor baseActor)
 void ActorList::addAttackActor(const MWWorld::Ptr& actorPtr, const mwmp::Attack &attack)
 {
     mwmp::BaseActor baseActor;
-    baseActor.refNum = actorPtr.getCellRef().getRefNum().mIndex;
+    baseActor.refNum = actorPtr.getCellRef().getMpRefNumIndex();
     baseActor.mpNum = actorPtr.getCellRef().getMpNum();
     baseActor.attack = attack;
     attackActors.push_back(baseActor);
@@ -250,7 +250,7 @@ void ActorList::sendCellChangeActors()
 void ActorList::sendActorsInCell(MWWorld::CellStore* cellStore)
 {
     reset();
-    cell = *cellStore->getCell();
+    cell = cellStore->getCell()->getEsm3();
     action = BaseActorList::SET;
 
     for (auto &ref : cellStore->getNpcs()->mList)
@@ -258,11 +258,11 @@ void ActorList::sendActorsInCell(MWWorld::CellStore* cellStore)
         MWWorld::Ptr ptr(&ref, 0);
 
         // If this Ptr is lacking a unique index, ignore it
-        if (ptr.getCellRef().getRefNum().mIndex == 0 && ptr.getCellRef().getMpNum() == 0) continue;
+        if (ptr.getCellRef().getMpRefNumIndex() == 0 && ptr.getCellRef().getMpNum() == 0) continue;
 
         BaseActor actor;
-        actor.refId = ptr.getCellRef().getRefId();
-        actor.refNum = ptr.getCellRef().getRefNum().mIndex;
+        actor.refId = ptr.getCellRef().getRefId().serializeText();
+        actor.refNum = ptr.getCellRef().getMpRefNumIndex();
         actor.mpNum = ptr.getCellRef().getMpNum();
 
         addActor(actor);
@@ -273,11 +273,11 @@ void ActorList::sendActorsInCell(MWWorld::CellStore* cellStore)
         MWWorld::Ptr ptr(&ref, 0);
 
         // If this Ptr is lacking a unique index, ignore it
-        if (ptr.getCellRef().getRefNum().mIndex == 0 && ptr.getCellRef().getMpNum() == 0) continue;
+        if (ptr.getCellRef().getMpRefNumIndex() == 0 && ptr.getCellRef().getMpNum() == 0) continue;
 
         BaseActor actor;
-        actor.refId = ptr.getCellRef().getRefId();
-        actor.refNum = ptr.getCellRef().getRefNum().mIndex;
+        actor.refId = ptr.getCellRef().getRefId().serializeText();
+        actor.refNum = ptr.getCellRef().getMpRefNumIndex();
         actor.mpNum = ptr.getCellRef().getMpNum();
 
         addActor(actor);

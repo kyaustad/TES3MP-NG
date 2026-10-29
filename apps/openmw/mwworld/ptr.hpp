@@ -30,6 +30,16 @@ namespace MWWorld
 
         bool isEmpty() const { return mRef == nullptr; }
 
+        /*
+            Start of tes3mp addition
+
+            Allow Ptrs to be used in boolean contexts, as TES3MP's code has always done
+        */
+        explicit operator bool() const { return mRef != nullptr; }
+        /*
+            End of tes3mp addition
+        */
+
         // Returns a 32-bit id of the ESM record this object is based on.
         // Specific values of ids are defined in ESM::RecNameInts.
         // Note 1: ids are not sequential. E.g. for a creature `getType` returns 0x41455243.

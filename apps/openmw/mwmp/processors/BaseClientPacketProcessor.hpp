@@ -2,6 +2,7 @@
 #define OPENMW_BASECLIENTPACKETPROCESSOR_HPP
 
 #include <components/openmw-mp/Base/BasePacketProcessor.hpp>
+#include <components/openmw-mp/Utils.hpp>
 #include "../LocalPlayer.hpp"
 #include "../DedicatedPlayer.hpp"
 

@@ -76,6 +76,65 @@ namespace MWWorld
             mCellRef.mVariant);
     }
 
+    /*
+        Start of tes3mp addition
+
+        Multiplayer-only accessors; ESM4 references are never synchronized, so they only
+        report the default values
+    */
+    void CellRef::setRefNum(unsigned int index)
+    {
+        ESM::RefNum refNum = getRefNum();
+        refNum.mIndex = index;
+        setRefNum(refNum);
+    }
+
+    unsigned int CellRef::getMpNum() const
+    {
+        if (const ESM::CellRef* ref = std::get_if<ESM::CellRef>(&mCellRef.mVariant))
+            return ref->mMpNum;
+        return 0;
+    }
+
+    void CellRef::setMpNum(unsigned int index)
+    {
+        if (ESM::CellRef* ref = std::get_if<ESM::CellRef>(&mCellRef.mVariant))
+        {
+            ref->mMpNum = index;
+            mChanged = true;
+        }
+    }
+
+    void CellRef::setTeleport(bool teleportState)
+    {
+        if (ESM::CellRef* ref = std::get_if<ESM::CellRef>(&mCellRef.mVariant))
+        {
+            ref->mTeleport = teleportState;
+            mChanged = true;
+        }
+    }
+
+    void CellRef::setDoorDest(const ESM::Position& position)
+    {
+        if (ESM::CellRef* ref = std::get_if<ESM::CellRef>(&mCellRef.mVariant))
+        {
+            ref->mDoorDest = position;
+            mChanged = true;
+        }
+    }
+
+    void CellRef::setDestCell(const std::string& cellDescription)
+    {
+        if (ESM::CellRef* ref = std::get_if<ESM::CellRef>(&mCellRef.mVariant))
+        {
+            ref->mDestCell = cellDescription;
+            mChanged = true;
+        }
+    }
+    /*
+        End of tes3mp addition
+    */
+
     static const std::string emptyString = "";
 
     ESM::Position CellRef::getDoorDest() const

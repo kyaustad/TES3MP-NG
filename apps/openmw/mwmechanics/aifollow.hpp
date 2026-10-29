@@ -72,6 +72,20 @@ namespace MWMechanics
 
         int getFollowIndex() const;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to allow following from any distance, by treating the target as already spotted
+        */
+        void allowAnyDistance(bool state)
+        {
+            if (state)
+                mActive = true;
+        }
+        /*
+            End of tes3mp addition
+        */
+
         void fastForward(const MWWorld::Ptr& actor, AiState& state) override;
 
         osg::Vec3f getDestination() const override

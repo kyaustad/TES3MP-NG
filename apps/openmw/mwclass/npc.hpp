@@ -76,6 +76,17 @@ namespace MWClass
 
         bool hasInventoryStore(const MWWorld::ConstPtr& ptr) const override { return true; }
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a class has a container store
+        */
+        bool hasContainerStore(const MWWorld::ConstPtr& ptr) const override { return true; }
+        /*
+            End of tes3mp addition
+        */
+
+
         bool evaluateHit(const MWWorld::Ptr& ptr, MWWorld::Ptr& victim, osg::Vec3f& hitPosition) const override;
 
         void hit(const MWWorld::Ptr& ptr, float attackStrength, int type, const MWWorld::Ptr& victim,

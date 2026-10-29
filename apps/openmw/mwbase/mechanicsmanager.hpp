@@ -101,6 +101,17 @@ namespace MWBase
         ///< Calculate the diposition of an NPC toward the player.
 
         virtual int countDeaths(const ESM::RefId& id) const = 0;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set the number of deaths for an actor with the given refId
+        */
+        virtual void setDeaths(const ESM::RefId& id, int number) = 0;
+        /*
+            End of tes3mp addition
+        */
+
         ///< Return the number of deaths for actors with the given ID.
 
         /// Check if \a observer is potentially aware of \a ptr. Does not do a line of sight check!
@@ -285,6 +296,17 @@ namespace MWBase
         virtual bool isItemStolenFrom(const ESM::RefId& itemid, const MWWorld::Ptr& ptr) = 0;
 
         virtual bool isBoundItem(const MWWorld::Ptr& item) = 0;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check if an itemId corresponds to a bound item
+        */
+        virtual bool isBoundItem(const ESM::RefId& itemId) = 0;
+        /*
+            End of tes3mp addition
+        */
+
         virtual bool isAllowedToUse(const MWWorld::Ptr& ptr, const MWWorld::Ptr& target, MWWorld::Ptr& victim) = 0;
 
         /// Turn actor into werewolf or normal form.

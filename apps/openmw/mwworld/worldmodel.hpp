@@ -47,6 +47,18 @@ namespace MWWorld
 
         void clear();
 
+        /*
+            Start of tes3mp addition
+
+            Forget the state of an inactive cell, so that it is loaded again from content files
+            the next time it's needed
+        */
+        void resetCell(CellStore& cell);
+        /*
+            End of tes3mp addition
+        */
+
+
         CellStore& getExterior(ESM::ExteriorCellLocation location, bool forceLoad = true) const;
 
         CellStore* findCell(ESM::RefId id, bool forceLoad = true) const;

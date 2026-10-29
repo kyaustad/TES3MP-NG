@@ -148,6 +148,19 @@ namespace MWGui
 
         void setPtr(const MWWorld::Ptr& actor) override;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to activate any dialogue choice from elsewhere in the code, and to get the Ptr
+            of the actor being talked to
+        */
+        void activateDialogueChoice(unsigned char dialogueChoiceType, const std::string& topic);
+        MWWorld::Ptr getPtr() const { return mPtr; }
+        /*
+            End of tes3mp addition
+        */
+
+
         /// @return true if stale keywords were updated successfully
         bool setKeywords(const std::list<std::string>& keyWord);
 

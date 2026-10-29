@@ -175,6 +175,17 @@ namespace MWPhysics
         Actor* getActor(const MWWorld::Ptr& ptr);
         const Actor* getActor(const MWWorld::ConstPtr& ptr) const;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to set the physics framerate from elsewhere
+        */
+        void setPhysicsFramerate(float physFramerate);
+        /*
+            End of tes3mp addition
+        */
+
+
         const Object* getObject(const MWWorld::ConstPtr& ptr) const;
 
         Projectile* getProjectile(int projectileId) const;

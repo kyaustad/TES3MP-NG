@@ -42,7 +42,34 @@ namespace MWScript
         int findLocalVariableIndex(const ESM::RefId& scriptId, std::string_view name, char type) const;
 
     public:
+        /*
+            Start of tes3mp addition
+
+            Useful boolean for setting whether scripts send packets, set to false by default
+            to avoid massive packet spam
+        */
+        bool sendPackets = false;
+
+        /*
+            Used for tracking and checking the type of this InterpreterContext, as well as
+            its current script
+        */
+        unsigned short mContextType = CONSOLE;
+        ESM::RefId mCurrentScriptName;
+
+        unsigned short getContextType() const override;
+
+        ESM::RefId getCurrentScriptName() const override;
+
+        void trackContextType(unsigned short contextType) override;
+
+        void trackCurrentScriptName(const ESM::RefId& name) override;
+        /*
+            End of tes3mp addition
+        */
+
         InterpreterContext(std::shared_ptr<GlobalScriptDesc> globalScriptDesc);
+
 
         InterpreterContext(MWScript::Locals* locals, const MWWorld::Ptr& reference);
         ///< The ownership of \a locals is not transferred. 0-pointer allowed.

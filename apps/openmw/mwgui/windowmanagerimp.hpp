@@ -182,6 +182,23 @@ namespace MWGui
 
         /// \todo investigate, if we really need to expose every single lousy UI element to the outside world
         MWGui::InventoryWindow* getInventoryWindow() override;
+
+        /*
+            Start of tes3mp addition
+
+            Multiplayer additions, see MWBase::WindowManager
+        */
+        MWGui::ContainerWindow* getContainerWindow() override { return mContainerWindow; }
+        MWGui::DialogueWindow* getDialogueWindow() override { return mDialogueWindow; }
+        void setConsolePtr(const MWWorld::Ptr& object) override;
+        void clearConsolePtr() override;
+        void executeCommandInConsole(const std::string& command) override;
+        void finishDragDrop() override;
+        void setQuickKey(int slot, int quickKeyType, const MWWorld::Ptr& item, const ESM::RefId& spellId = {}) override;
+        /*
+            End of tes3mp addition
+        */
+
         MWGui::CountDialog* getCountDialog() override;
         MWGui::ConfirmationDialog* getConfirmationDialog() override;
         MWGui::TradeWindow* getTradeWindow() override;
@@ -259,6 +276,18 @@ namespace MWGui
         void notifyInputActionBound() override;
 
         void addVisitedLocation(const std::string& name, int x, int y) override;
+
+        /*
+            Start of tes3mp addition
+
+            Allow the setting of the image data for a global map tile from elsewhere
+            in the code
+        */
+        void setGlobalMapImage(int cellX, int cellY, const std::vector<char>& imageData) override;
+        /*
+            End of tes3mp addition
+        */
+
 
         /// Hides dialog and schedules dialog to be deleted.
         void removeDialog(std::unique_ptr<Layout>&& dialog) override;

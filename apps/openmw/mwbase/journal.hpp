@@ -55,6 +55,22 @@ namespace MWBase
         ///< Add a journal entry.
         /// @param actor Used as context for replacing of escape sequences (%name, etc).
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to override current time when adding journal entries, and to check whether
+            a journal entry already exists from elsewhere in the code
+        */
+        virtual void addEntry(
+            const ESM::RefId& id, int index, const MWWorld::Ptr& actor, int daysPassed, int month, int day)
+            = 0;
+
+        virtual bool hasEntry(const ESM::RefId& id, int index) = 0;
+        /*
+            End of tes3mp addition
+        */
+
+
         virtual void setJournalIndex(const ESM::RefId& id, int index) = 0;
         ///< Set the journal index without adding an entry.
 

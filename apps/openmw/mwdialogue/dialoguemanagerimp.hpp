@@ -67,7 +67,6 @@ namespace MWDialogue
         std::vector<ESM::RefId> parseTopicIdsFromText(const std::string& text) const;
         void addTopicsFromText(const std::string& text);
 
-        void updateActorKnownTopics();
         void updateGlobals();
 
         std::optional<Interpreter::Program> compile(const std::string& cmd, const MWWorld::Ptr& actor);
@@ -95,6 +94,22 @@ namespace MWDialogue
         bool inJournal(const ESM::RefId& topicId, const ESM::RefId& infoId) const override;
 
         void addTopic(const ESM::RefId& topic) override;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to check whether a topic is known by the player, to update the topics known by the
+            current actor and to get the caption of a voice dialogue from elsewhere in the code
+        */
+        bool isNewTopic(const ESM::RefId& topic) const override;
+
+        void updateActorKnownTopics() override;
+
+        std::string getVoiceCaption(std::string_view sound) const override;
+        /*
+            End of tes3mp addition
+        */
+
 
         void addChoice(std::string_view text, int choice) override;
         const std::vector<std::pair<std::string, int>>& getChoices() const override;

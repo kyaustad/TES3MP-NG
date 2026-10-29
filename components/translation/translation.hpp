@@ -21,6 +21,19 @@ namespace Translation
         // The phrase that will act as the hyperlink for the given topic ID
         std::string_view topicKeyword(std::string_view phrase) const;
 
+        /*
+            Start of tes3mp addition
+
+            Check whether translation data was loaded, and get the localized version of an English topic ID
+        */
+        bool hasTranslation() const;
+
+        std::string getLocalizedTopicId(std::string_view englishTopicId) const;
+        /*
+            End of tes3mp addition
+        */
+
+
         // Manual population for testing
         void addPhraseForm(std::string_view phrase, std::string_view topicId);
 

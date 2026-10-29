@@ -118,6 +118,15 @@ add_openmw_dir (mwbase
 
 # Main executable
 
+# Start of tes3mp addition
+#
+# The TES3MP multiplayer client layer
+file(GLOB_RECURSE TES3MP_CLIENT_FILES CONFIGURE_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/mwmp/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mwmp/*.hpp)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${TES3MP_CLIENT_FILES})
+# End of tes3mp addition
+
 add_library(openmw-lib STATIC
     ${OPENMW_FILES}
     ${OPENMW_SOURCES}
@@ -167,6 +176,22 @@ endif()
 include_directories(
     ${FFmpeg_INCLUDE_DIRS}
 )
+
+# Start of tes3mp addition
+#
+# The multiplayer layer is its own library so it can be built and iterated on separately; it uses the same
+# include directories, definitions and options as the engine, and the engine and it reference each other
+add_library(tes3mp-client STATIC ${TES3MP_CLIENT_FILES})
+target_include_directories(tes3mp-client PRIVATE $<TARGET_PROPERTY:openmw-lib,INCLUDE_DIRECTORIES>)
+target_compile_definitions(tes3mp-client PRIVATE $<TARGET_PROPERTY:openmw-lib,COMPILE_DEFINITIONS>)
+target_compile_options(tes3mp-client PRIVATE $<TARGET_PROPERTY:openmw-lib,COMPILE_OPTIONS>)
+target_link_libraries(tes3mp-client PUBLIC openmw-mp)
+if (MSVC)
+    # RakNet and mwmp code trigger a lot of conversion warnings
+    target_compile_options(tes3mp-client PRIVATE /wd4244 /wd4267 /wd4996 /wd4305 /bigobj)
+endif()
+target_link_libraries(openmw-lib tes3mp-client openmw-mp)
+# End of tes3mp addition
 
 target_link_libraries(openmw-lib
     # CMake's built-in OSG finder does not use pkgconfig, so we have to

@@ -3,6 +3,7 @@
 
 #include <RakPeerInterface.h>
 #include <BitStream.h>
+#include <components/openmw-mp/WinMacroGuard.hpp>
 #include <string>
 
 #include <components/openmw-mp/NetworkMessages.hpp>

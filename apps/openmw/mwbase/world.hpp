@@ -10,6 +10,17 @@
 #include <vector>
 
 #include <components/misc/rng.hpp>
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <components/esm/esmcommon.hpp>
+#include <components/esm3/variant.hpp>
+/*
+    End of tes3mp addition
+*/
+
 #include <components/vfs/pathutil.hpp>
 
 #include "../mwworld/doorstate.hpp"
@@ -152,6 +163,68 @@ namespace MWBase
         virtual MWWorld::ESMStore& getStore() = 0;
         virtual const MWWorld::ESMStore& getStore() const = 0;
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to get the World's ESMStore as a non-const (kept for TES3MP code;
+            getStore() is non-const in OpenMW 0.49+)
+        */
+        MWWorld::ESMStore& getModifiableStore() { return getStore(); }
+
+        /*
+            Make it possible to check whether global variables exist and to create
+            new ones
+        */
+        virtual bool hasGlobal(std::string_view name) = 0;
+        virtual void createGlobal(std::string_view name, ESM::VarType varType) = 0;
+
+        /*
+            Make it possible to find a Ptr in any active cell based on its refNum and mpNum
+        */
+        virtual MWWorld::Ptr searchPtrViaUniqueIndex(unsigned int refNum, unsigned int mpNum) = 0;
+
+        /*
+            Make it possible to update all Ptrs in active cells that have a certain refId
+        */
+        virtual void updatePtrsWithRefId(const ESM::RefId& refId) = 0;
+
+        /*
+            Make it possible to set a specific weather state for a region from elsewhere
+            in the code, and to control and report whether this client creates weather
+        */
+        virtual void setRegionWeather(const ESM::RefId& region, const int currentWeather, const int nextWeather,
+            const int queuedWeather, const float transitionFactor, bool force)
+            = 0;
+        virtual bool getWeatherCreationState() = 0;
+        virtual void setWeatherCreationState(bool state) = 0;
+        virtual void sendWeather() = 0;
+
+        /*
+            Make it possible to set the inertial force of a Ptr directly, whether it's on the ground,
+            and the physics framerate
+        */
+        virtual void setInertialForce(const MWWorld::Ptr& ptr, const osg::Vec3f& force) = 0;
+        virtual void setOnGround(const MWWorld::Ptr& ptr, bool onGround) = 0;
+        virtual void setPhysicsFramerate(float physFramerate) = 0;
+
+        /*
+            Useful self-contained method for saving door states
+        */
+        virtual void saveDoorState(const MWWorld::Ptr& door, MWWorld::DoorState state) = 0;
+
+        /*
+            Make it possible to check whether a cell is active, to unload one or all active cells,
+            and to clear the CellStore for a specific Cell
+        */
+        virtual bool isCellActive(const ESM::Cell& cell) = 0;
+        virtual void unloadCell(const ESM::Cell& cell) = 0;
+        virtual void unloadActiveCells() = 0;
+        virtual void clearCellStore(const ESM::Cell& cell) = 0;
+        /*
+            End of tes3mp addition
+        */
+
+
         virtual const std::vector<int>& getESMVersions() const = 0;
 
         virtual MWWorld::LocalScripts& getLocalScripts() = 0;
@@ -205,6 +278,29 @@ namespace MWBase
         virtual void disable(const MWWorld::Ptr& ptr) = 0;
 
         virtual void advanceTime(double hours, bool incremental = false) = 0;
+
+        /*
+            Start of tes3mp addition
+
+            This has been declared here so it can be accessed from places
+            other than MWWorld::World
+        */
+        virtual void updateWeather(float duration, bool paused = false) = 0;
+
+        /*
+            Start of tes3mp addition
+
+            This has been declared here so it can be accessed from places
+            other than MWWorld::World
+        */
+        virtual void PCDropped(const MWWorld::Ptr& item) = 0;
+        /*
+            End of tes3mp addition
+        */
+
+        /*
+            End of tes3mp addition
+        */
         ///< Advance in-game time.
 
         virtual MWWorld::TimeStamp getTimeStamp() const = 0;

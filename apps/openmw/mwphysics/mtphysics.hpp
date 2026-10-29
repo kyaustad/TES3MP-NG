@@ -41,6 +41,17 @@ namespace MWPhysics
     {
     public:
         PhysicsTaskScheduler(float physicsDt, btCollisionWorld* collisionWorld, MWRender::DebugDrawer* debugDrawer);
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to change the physics framerate after creation
+        */
+        void setDefaultPhysicsDt(float physicsDt) { mDefaultPhysicsDt = physicsDt; mPhysicsDt = physicsDt; }
+        /*
+            End of tes3mp addition
+        */
+
         ~PhysicsTaskScheduler();
 
         /// @brief move actors taking into account desired movements and collisions

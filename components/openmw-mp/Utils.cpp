@@ -40,6 +40,16 @@ std::string Utils::refIdToString(const ESM::RefId &refId)
     return refId.serializeText();
 }
 
+bool Utils::isDynamicRefId(const ESM::RefId &refId)
+{
+    return refId.is<ESM::GeneratedRefId>() || refId.contains("$dynamic");
+}
+
+bool Utils::isDynamicRefId(std::string_view refId)
+{
+    return refId.starts_with("Generated:") || refId.find("$dynamic") != std::string_view::npos;
+}
+
 const char *Utils::refIdToCString(const ESM::RefId &refId)
 {
     if (refId.empty())
@@ -109,6 +119,13 @@ const char *Utils::getAttributeName(int attributeIndex)
 {
     ESM::RefId id = ESM::Attribute::indexToRefId(attributeIndex);
     return id.empty() ? nullptr : id.getRefIdString().c_str();
+}
+
+ESM::StringRefId Utils::getAttributeId(int attributeIndex)
+{
+    ESM::RefId id = ESM::Attribute::indexToRefId(attributeIndex);
+    const ESM::StringRefId* stringId = id.getIf<ESM::StringRefId>();
+    return stringId != nullptr ? *stringId : ESM::Attribute::Strength;
 }
 
 std::string Utils::convertPath(std::string str)

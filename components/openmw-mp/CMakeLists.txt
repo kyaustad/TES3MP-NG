@@ -12,6 +12,11 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX "openmw-mp" FILES ${OPENMW_
 target_include_directories(openmw-mp PUBLIC ${CMAKE_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/extern)
 target_link_libraries(openmw-mp PUBLIC components RakNet::RakNet)
 
+if (WIN32)
+    # RakNet includes <windows.h>; keep it from defining min/max and pulling in rarely used APIs
+    target_compile_definitions(openmw-mp PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 if (MSVC)
     # RakNet headers trigger a lot of conversion warnings
     target_compile_options(openmw-mp PRIVATE /wd4244 /wd4267 /wd4996)

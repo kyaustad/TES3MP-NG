@@ -142,7 +142,16 @@ namespace MWWorld
         World(const World&) = delete;
         World& operator=(const World&) = delete;
 
-        void updateWeather(float duration, bool paused = false);
+        /*
+            Start of tes3mp change (minor)
+
+            Made public through MWBase::World so it can be accessed from elsewhere
+        */
+        void updateWeather(float duration, bool paused = false) override;
+        /*
+            End of tes3mp change (minor)
+        */
+
 
         void initObjectInCell(const Ptr& ptr, CellStore& cell, bool adjustPos);
         Ptr moveObjectToCell(const Ptr& ptr, CellStore* cell, ESM::Position pos, bool adjustPos);
@@ -154,7 +163,8 @@ namespace MWWorld
 
         MWWorld::Ptr getFocusObject(float maxDistance, bool ignorePlayer = true);
 
-        void PCDropped(const Ptr& item);
+        void PCDropped(const Ptr& item) override; // tes3mp change: made accessible through MWBase::World
+
 
         bool rotateDoor(const Ptr door, DoorState state, float duration);
 
@@ -240,6 +250,33 @@ namespace MWWorld
         MWWorld::ESMStore& getStore() override { return mStore; }
 
         const MWWorld::ESMStore& getStore() const override { return mStore; }
+
+        /*
+            Start of tes3mp addition
+
+            Multiplayer additions, see MWBase::World
+        */
+        bool hasGlobal(std::string_view name) override;
+        void createGlobal(std::string_view name, ESM::VarType varType) override;
+        Ptr searchPtrViaUniqueIndex(unsigned int refNum, unsigned int mpNum) override;
+        void updatePtrsWithRefId(const ESM::RefId& refId) override;
+        void setRegionWeather(const ESM::RefId& region, const int currentWeather, const int nextWeather,
+            const int queuedWeather, const float transitionFactor, bool force) override;
+        bool getWeatherCreationState() override;
+        void setWeatherCreationState(bool state) override;
+        void sendWeather() override;
+        void setInertialForce(const Ptr& ptr, const osg::Vec3f& force) override;
+        void setOnGround(const Ptr& ptr, bool onGround) override;
+        void setPhysicsFramerate(float physFramerate) override;
+        void saveDoorState(const Ptr& door, MWWorld::DoorState state) override;
+        bool isCellActive(const ESM::Cell& cell) override;
+        void unloadCell(const ESM::Cell& cell) override;
+        void unloadActiveCells() override;
+        void clearCellStore(const ESM::Cell& cell) override;
+        /*
+            End of tes3mp addition
+        */
+
 
         const std::vector<int>& getESMVersions() const override;
 

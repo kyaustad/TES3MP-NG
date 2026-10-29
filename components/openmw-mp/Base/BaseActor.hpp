@@ -7,6 +7,7 @@
 
 #include <RakNetTypes.h>
 
+#include <components/openmw-mp/WinMacroGuard.hpp>
 namespace mwmp
 {
     class BaseActor

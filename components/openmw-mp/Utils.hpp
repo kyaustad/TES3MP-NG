@@ -37,6 +37,14 @@ namespace Utils
     const char *refIdToCString(const ESM::RefId &refId);
 
     /*
+        Records created at runtime (enchanted items, custom spells and potions) have ids that are only meaningful on
+        the client that created them: "$dynamic" ids in OpenMW 0.47, generated RefIds in OpenMW 0.49+
+    */
+    bool isDynamicRefId(const ESM::RefId &refId);
+    bool isDynamicRefId(std::string_view refId);
+
+
+    /*
         TES3MP's server API exposes magic effects, skills and attributes by their integer index, while
         OpenMW 0.49+ identifies them by RefId. An active effect's argument is the index of the affected
         skill or attribute (depending on the effect), or -1.
@@ -50,6 +58,8 @@ namespace Utils
     // Skill and attribute names in their usual capitalization ("Block", "Strength"), or nullptr for bad indexes
     const char *getSkillName(int skillIndex);
     const char *getAttributeName(int attributeIndex);
+    // Attribute ids as the typed StringRefId OpenMW's mechanics use for skill increase tracking
+    ESM::StringRefId getAttributeId(int attributeIndex);
     bool doesFileHaveChecksum(std::string filePath, unsigned int requiredChecksum);
 
     void timestamp();

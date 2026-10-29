@@ -100,6 +100,30 @@ namespace Translation
         mPhraseForms.emplace(phrase, topicId);
     }
 
+    /*
+        Start of tes3mp addition
+
+        Check whether translation data was loaded, and get the localized version of an English topic ID
+    */
+    bool Storage::hasTranslation() const
+    {
+        return !mCellNamesTranslations.empty() || !mKeywords.empty() || !mPhraseForms.empty();
+    }
+
+    std::string Storage::getLocalizedTopicId(std::string_view englishTopicId) const
+    {
+        for (const auto& [localized, english] : mKeywords)
+        {
+            if (Misc::StringUtils::ciEqual(englishTopicId, english))
+                return localized;
+        }
+
+        return std::string(englishTopicId);
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void Storage::setEncoder(ToUTF8::Utf8Encoder* encoder)
     {
         mEncoder = encoder;

@@ -443,6 +443,17 @@ namespace MWWorld
 
         virtual void readState(const ESM::InventoryState& state);
 
+        /*
+            Start of tes3mp addition
+
+            Make it possible to mark a container as resolved, so that its leveled lists are not resolved again after
+            its contents were set by the server
+        */
+        void setResolved(bool resolved) { mResolved = resolved; }
+        /*
+            End of tes3mp addition
+        */
+
         bool isResolved() const;
 
         void resolve();

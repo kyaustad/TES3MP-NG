@@ -196,6 +196,25 @@ namespace MWMechanics
         return it == mUsedPowers.end() || it->second + 24 <= MWBase::Environment::get().getWorld()->getTimeStamp();
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to set the timestamp of a power's last use from elsewhere in the code
+    */
+    void Spells::setPowerUseTimestamp(const ESM::Spell* spell, int startDay, float startHour)
+    {
+        const MWWorld::TimeStamp timestamp(startHour, startDay);
+        const auto it = std::find_if(
+            std::begin(mUsedPowers), std::end(mUsedPowers), [&](auto& pair) { return pair.first == spell; });
+        if (it == mUsedPowers.end())
+            mUsedPowers.emplace_back(spell, timestamp);
+        else
+            it->second = timestamp;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void Spells::usePower(const ESM::Spell* spell)
     {
         // Updates or inserts a new entry with the current timestamp.

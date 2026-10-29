@@ -78,8 +78,40 @@ namespace MWDialogue
         mTopics.clear();
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to check whether a journal entry already exists from elsewhere in the code
+    */
+    bool Journal::hasEntry(const ESM::RefId& id, int index)
+    {
+        const ESM::RefId& infoId = JournalEntry::idFromIndex(id, index);
+        for (const JournalEntry& entry : mJournal)
+            if (entry.mTopic == id && entry.mInfoId == infoId)
+                return true;
+
+        return false;
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void Journal::addEntry(const ESM::RefId& id, int index, const MWWorld::Ptr& actor)
     {
+        /*
+            Start of tes3mp change (minor)
+
+            Use the timestamp override version, which keeps the current time when given -1
+        */
+        addEntry(id, index, actor, -1, -1, -1);
+    }
+
+    void Journal::addEntry(
+        const ESM::RefId& id, int index, const MWWorld::Ptr& actor, int daysPassed, int month, int day)
+    {
+        /*
+            End of tes3mp change (minor)
+        */
         // bail out if we already have heard this...
         const ESM::RefId& infoId = JournalEntry::idFromIndex(id, index);
         for (const JournalEntry& entry : mJournal)
@@ -95,7 +127,23 @@ namespace MWDialogue
 
         StampedJournalEntry entry = StampedJournalEntry::makeFromQuest(id, index, actor);
 
+        /*
+            Start of tes3mp addition
+
+            Override the entry's timestamp if provided with valid time arguments
+        */
+        if (daysPassed != -1 && month != -1 && day != -1)
+        {
+            entry.mDay = daysPassed;
+            entry.mMonth = month;
+            entry.mDayOfMonth = day;
+        }
+        /*
+            End of tes3mp addition
+        */
+
         Quest& quest = getOrStartQuest(id);
+
         if (quest.addEntry(entry)) // we are doing slicing on purpose here
         {
             // Restart all "other" quests with the same name as well

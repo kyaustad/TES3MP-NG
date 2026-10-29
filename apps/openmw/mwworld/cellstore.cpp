@@ -1156,6 +1156,62 @@ namespace MWWorld
         }
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to clear the moves to other cells tracked for objects, allowing for
+        on-the-fly cell resets that don't cause crashes
+    */
+    void CellStore::clearMovesToCells()
+    {
+        for (auto& [ref, otherCell] : mMovedHere)
+            otherCell->mMovedToAnotherCell.erase(ref);
+
+        for (auto& [ref, otherCell] : mMovedToAnotherCell)
+            otherCell->mMovedHere.erase(ref);
+
+        mMovedHere.clear();
+        mMovedToAnotherCell.clear();
+        requestMergedRefsUpdate();
+    }
+
+    Ptr CellStore::searchExact(unsigned int refNum, unsigned int mpNum, const ESM::RefId& refId, bool actorsOnly)
+    {
+        // Ensure that all objects searched for have a valid reference number
+        if (refNum == 0 && mpNum == 0)
+            return Ptr();
+
+        Ptr found;
+        forEach([&](const Ptr& ptr) {
+            const MWWorld::CellRef& cellRef = ptr.getCellRef();
+            bool matches;
+            if (mpNum != 0)
+                matches = cellRef.getMpNum() == mpNum;
+            else
+                matches = cellRef.getMpNum() == 0 && cellRef.hasContentFile() && cellRef.getRefNum().mIndex == refNum;
+
+            if (!matches || (actorsOnly && !ptr.getClass().isActor()))
+                return true;
+            if (!refId.empty() && cellRef.getRefId() != refId)
+                return true;
+
+            found = ptr;
+            return false;
+        });
+        return found;
+    }
+
+    std::vector<LiveCellRefBase*>& CellStore::getMergedRefs()
+    {
+        if (mMergedRefsNeedsUpdate)
+            updateMergedRefs();
+        return mMergedRefs;
+    }
+    /*
+        End of tes3mp addition
+    */
+
+
     void CellStore::rest(double hours)
     {
         if (mState == State_Loaded)

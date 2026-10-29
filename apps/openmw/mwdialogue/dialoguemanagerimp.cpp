@@ -341,6 +341,39 @@ namespace MWDialogue
         MWBase::Environment::get().getWorld()->updateDialogueGlobals();
     }
 
+    /*
+        Start of tes3mp addition
+
+        Make it possible to check whether a topic is known by the player and to get the caption of a voice
+        dialogue from elsewhere in the code
+    */
+    bool DialogueManager::isNewTopic(const ESM::RefId& topic) const
+    {
+        return !mKnownTopics.contains(topic);
+    }
+
+    std::string DialogueManager::getVoiceCaption(std::string_view sound) const
+    {
+        const MWWorld::Store<ESM::Dialogue>& dialogues = MWBase::Environment::get().getESMStore()->get<ESM::Dialogue>();
+
+        for (const ESM::Dialogue& dialogue : dialogues)
+        {
+            if (dialogue.mType != ESM::Dialogue::Voice)
+                continue;
+
+            for (const ESM::DialInfo& info : dialogue.mInfo)
+            {
+                if (!info.mSound.empty() && Misc::StringUtils::ciEqual(sound, info.mSound))
+                    return info.mResponse;
+            }
+        }
+
+        return "???";
+    }
+    /*
+        End of tes3mp addition
+    */
+
     void DialogueManager::updateActorKnownTopics()
     {
         updateGlobals();

@@ -1,0 +1,45 @@
+// No include guard on purpose: include this right after RakNet headers, which pull in <windows.h>, to remove
+// Windows macros that collide with OpenMW identifiers (near/far are used as parameter names, for example).
+#ifdef _WIN32
+#undef near
+#undef far
+#undef ERROR
+#undef DELETE
+#undef IN
+#undef OUT
+#undef OPTIONAL
+#undef interface
+#undef PlaySound
+#undef GetObject
+#undef CreateFont
+#undef MessageBox
+#undef DrawText
+#undef LoadImage
+#undef GetCurrentTime
+#undef DrawState
+#undef GetMessage
+#undef SendMessage
+#undef PostMessage
+#undef CreateWindow
+#undef LoadString
+#undef GetClassName
+#undef GetUserName
+#undef CreateDirectory
+#undef DeleteFile
+#undef CopyFile
+#undef MoveFile
+#undef GetCommandLine
+#undef SetCurrentDirectory
+#undef GetCurrentDirectory
+#undef FindText
+#undef ReplaceText
+#undef GetProp
+#undef SetProp
+#undef RemoveProp
+#undef UpdateResource
+#undef Yield
+#undef TRANSPARENT
+#undef OPAQUE
+#undef RELATIVE
+#undef ABSOLUTE
+#endif

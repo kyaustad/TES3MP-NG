@@ -12,6 +12,8 @@
 #include <MyGUI_KeyCode.h>
 
 #include "../mwgui/mode.hpp"
+#include <components/esm/refid.hpp> // tes3mp addition: used in default arguments below
+
 
 #include <components/sdlutil/events.hpp>
 
@@ -156,6 +158,25 @@ namespace MWBase
 
         /// \todo investigate, if we really need to expose every single lousy UI element to the outside world
         virtual MWGui::InventoryWindow* getInventoryWindow() = 0;
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to get the ContainerWindow and DialogueWindow, set and clear the console's Ptr,
+            execute console commands, finish a drag and drop and add quickKeys from elsewhere in the code
+        */
+        virtual MWGui::ContainerWindow* getContainerWindow() = 0;
+        virtual MWGui::DialogueWindow* getDialogueWindow() = 0;
+        virtual void setConsolePtr(const MWWorld::Ptr& object) = 0;
+        virtual void clearConsolePtr() = 0;
+        virtual void executeCommandInConsole(const std::string& command) = 0;
+        virtual void finishDragDrop() = 0;
+        virtual void setQuickKey(int slot, int quickKeyType, const MWWorld::Ptr& item, const ESM::RefId& spellId = {})
+            = 0;
+        /*
+            End of tes3mp addition
+        */
+
         virtual MWGui::CountDialog* getCountDialog() = 0;
         virtual MWGui::ConfirmationDialog* getConfirmationDialog() = 0;
         virtual MWGui::TradeWindow* getTradeWindow() = 0;
@@ -241,6 +262,18 @@ namespace MWBase
         virtual void notifyInputActionBound() = 0;
 
         virtual void addVisitedLocation(const std::string& name, int x, int y) = 0;
+
+        /*
+            Start of tes3mp addition
+
+            Allow the setting of the image data for a global map tile from elsewhere
+            in the code
+        */
+        virtual void setGlobalMapImage(int cellX, int cellY, const std::vector<char>& imageData) = 0;
+        /*
+            End of tes3mp addition
+        */
+
 
         /// Hides dialog and schedules dialog to be deleted.
         virtual void removeDialog(std::unique_ptr<MWGui::Layout>&& dialog) = 0;

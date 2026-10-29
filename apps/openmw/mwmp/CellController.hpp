@@ -69,7 +69,23 @@ namespace mwmp
 
         virtual MWWorld::CellStore *getCellStore(const ESM::Cell& cell);
 
-        bool isSameCell(const ESM::Cell& cell, const ESM::Cell& otherCell);
+        static bool isSameCell(const ESM::Cell& cell, const ESM::Cell& otherCell);
+
+        /*
+            OpenMW 0.49+ wraps cells in MWWorld::Cell, which can also be an ESM4 cell; those are never synchronized
+        */
+        static bool isSameCell(const ESM::Cell& cell, const MWWorld::CellStore& cellStore);
+
+        /*
+            Returns false if ptr is a DedicatedPlayer or DedicatedActor whose last received cell is not cellStore,
+            meaning that the engine should not move it there
+        */
+        static bool isSameCell(const MWWorld::Ptr& ptr, const MWWorld::CellStore& cellStore);
+
+        /*
+            Update the Ptrs of LocalActors, DedicatedPlayers and DedicatedActors after the engine moved them
+        */
+        static void updateMultiplayerPtr(const MWWorld::Ptr& oldPtr, const MWWorld::Ptr& newPtr);
 
         int getCellSize() const;
 

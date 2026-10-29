@@ -38,6 +38,43 @@ namespace MWWorld
         // Set RefNum to its default state.
         void unsetRefNum() { setRefNum({}); }
 
+        /*
+            Start of tes3mp addition
+
+            Set the unique reference number index of a CellRef, needed to
+            make objects retain their uniqueIndex when they are updated
+            after their records are modified on the fly by the server
+        */
+        void setRefNum(unsigned int index);
+
+        /*
+            Get and set the mMpNum (unique multiplayer reference number) of a CellRef
+        */
+        unsigned int getMpNum() const;
+        void setMpNum(unsigned int index);
+
+        /*
+            The refNum index used to identify this object on the network: objects from content files keep their
+            index, while objects created at runtime are identified by their mpNum and report 0, because their
+            RefNum is generated locally on each client
+        */
+        unsigned int getMpRefNumIndex() const
+        {
+            return (getMpNum() == 0 && hasContentFile()) ? getRefNum().mIndex : 0;
+        }
+
+        /*
+            Make it possible to change the teleport state, destination position and destination
+            cell from elsewhere
+        */
+        void setTeleport(bool teleportState);
+        void setDoorDest(const ESM::Position& position);
+        void setDestCell(const std::string& cellDescription);
+        /*
+            End of tes3mp addition
+        */
+
+
         /// Does the RefNum have a content file?
         bool hasContentFile() const { return getRefNum().hasContentFile(); }
 

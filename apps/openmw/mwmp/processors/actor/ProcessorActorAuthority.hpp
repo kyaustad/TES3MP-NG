@@ -38,8 +38,7 @@ namespace mwmp
 
                     // Enable updates for DetourNavigator for advanced pathfinding
                     MWBase::World* world = MWBase::Environment::get().getWorld();
-                    world->getNavigator()->setUpdatesEnabled(true);
-                    world->getNavigator()->update(world->getPlayerPtr().getRefData().getPosition().asVec3());
+                    world->getNavigator()->update(world->getPlayerPtr().getRefData().getPosition().asVec3(), nullptr);
                 }
                 else
                 {
