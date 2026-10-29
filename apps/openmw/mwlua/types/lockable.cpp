@@ -7,6 +7,16 @@
 
 #include "apps/openmw/mwworld/esmstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
 
@@ -34,6 +44,9 @@ namespace MWLua
                 level = object.ptr().getCellRef().getLockLevel();
 
             object.ptr().getCellRef().setLockLevel(level);
+
+            // tes3mp addition: other players see the new lock
+            mwmp::LuaWorldSync::post([object, level] { mwmp::LuaWorldSync::lockChanged(object.ptr(), level); });
         };
         lockable["unlock"] = [](const GObject& object) {
             if (!object.ptr().getCellRef().isLocked())
@@ -41,11 +54,16 @@ namespace MWLua
             object.ptr().getCellRef().setLocked(false);
 
             object.ptr().getCellRef().setLockLevel(-object.ptr().getCellRef().getLockLevel());
+
+            // tes3mp addition: other players see the object unlocked
+            mwmp::LuaWorldSync::post([object] { mwmp::LuaWorldSync::lockChanged(object.ptr(), 0); });
         };
         lockable["setTrapSpell"] = [](const GObject& object, const sol::object& spellOrId) {
             if (spellOrId == sol::nil)
             {
                 object.ptr().getCellRef().setTrap(ESM::RefId()); // remove the trap value
+                // tes3mp addition: other players see the trap disarmed
+                mwmp::LuaWorldSync::post([object] { mwmp::LuaWorldSync::trapDisarmed(object.ptr()); });
                 return;
             }
             if (spellOrId.is<ESM::Spell>())

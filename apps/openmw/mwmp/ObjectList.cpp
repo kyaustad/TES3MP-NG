@@ -2,6 +2,7 @@
 #include "../mwworld/worldmodel.hpp"
 #include "../mwbase/luamanager.hpp"
 #include "ObjectList.hpp"
+#include "LuaWorldSync.hpp"
 #include <components/openmw-mp/Utils.hpp>
 #include "Main.hpp"
 #include "Networking.hpp"
@@ -425,6 +426,16 @@ void ObjectList::placeObjects(MWWorld::CellStore* cellStore)
 
         MWWorld::Ptr ptrFound = cellStore->searchExact(0, baseObject.mpNum);
 
+        // tes3mp addition: an object placed by a Lua script on this client gets its mpNum instead of a duplicate
+        if (!ptrFound && guid == Main::get().getLocalPlayer()->guid)
+        {
+            if (MWWorld::Ptr placed = LuaWorldSync::claimPlacement(baseObject.refId, cellStore, baseObject.position))
+            {
+                placed.getCellRef().setMpNum(baseObject.mpNum);
+                continue;
+            }
+        }
+
         // Only create this object if it doesn't already exist
         if (!ptrFound)
         {
@@ -490,6 +501,16 @@ void ObjectList::spawnObjects(MWWorld::CellStore* cellStore)
         }
 
         MWWorld::Ptr ptrFound = cellStore->searchExact(0, baseObject.mpNum);
+
+        // tes3mp addition: an actor spawned by a Lua script on this client gets its mpNum instead of a duplicate
+        if (!ptrFound && guid == Main::get().getLocalPlayer()->guid)
+        {
+            if (MWWorld::Ptr placed = LuaWorldSync::claimPlacement(baseObject.refId, cellStore, baseObject.position))
+            {
+                placed.getCellRef().setMpNum(baseObject.mpNum);
+                continue;
+            }
+        }
 
         // Only create this object if it doesn't already exist
         if (!ptrFound)

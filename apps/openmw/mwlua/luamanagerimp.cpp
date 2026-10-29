@@ -50,6 +50,9 @@
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
 #include <components/misc/strings/algorithm.hpp>
+#include "../mwmp/CellController.hpp"
+#include "../mwmp/LocalActor.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
 /*
     End of tes3mp addition
 */
@@ -759,6 +762,26 @@ namespace MWLua
         const MWWorld::Ptr& ammo, int attackType, float attackStrength, float damage, bool isHealth,
         const osg::Vec3f& hitPos, bool successful, MWMechanics::DamageSourceType sourceType)
     {
+        /*
+            Start of tes3mp addition
+
+            OpenMW 0.50+ applies hits in Lua, so record the attacker of the LocalPlayer or a LocalActor here: it becomes
+            their killer if the hit kills them
+        */
+        if (mwmp::Main::isInitialized() && successful && !attacker.isEmpty() && attacker != victim)
+        {
+            if (victim == mPlayer)
+            {
+                mwmp::Main::get().getLocalPlayer()->killer = MechanicsHelper::getTarget(attacker);
+                mwmp::Main::get().getLocalPlayer()->killerTime = std::time(nullptr);
+            }
+            else if (mwmp::Main::get().getCellController()->isLocalActor(victim))
+                mwmp::Main::get().getCellController()->getLocalActor(victim)->killer = MechanicsHelper::getTarget(attacker);
+        }
+        /*
+            End of tes3mp addition
+        */
+
         mLua.protectedCall([&](LuaUtil::LuaView& view) {
             sol::table damageTable = view.newTable();
             if (isHealth)

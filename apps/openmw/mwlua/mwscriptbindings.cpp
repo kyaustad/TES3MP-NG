@@ -17,6 +17,16 @@
 
 #include <stdexcept>
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
     struct MWScriptRef
@@ -83,6 +93,9 @@ namespace MWLua
 
     void setGlobalVariableValue(const std::string_view globalId, float value)
     {
+        // tes3mp addition: globals that the server synchronizes are sent once the change is applied
+        mwmp::LuaWorldSync::post([id = std::string(globalId)] { mwmp::LuaWorldSync::globalVariable(id); });
+
         char varType = MWBase::Environment::get().getWorld()->getGlobalVariableType(globalId);
         if (varType == 'f')
         {

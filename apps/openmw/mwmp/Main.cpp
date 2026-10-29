@@ -50,6 +50,16 @@
 #include "MechanicsHelper.hpp"
 #include "RecordHelper.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 using namespace mwmp;
 
 Main *Main::pMain = 0;
@@ -189,6 +199,7 @@ void Main::frame(float dt)
 
     get().getGUIController()->update(dt);
 
+    LuaWorldSync::flush();
     LuaSync::get().update(dt);
 }
 

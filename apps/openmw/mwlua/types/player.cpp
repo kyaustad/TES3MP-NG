@@ -18,6 +18,16 @@
 #include "apps/openmw/mwworld/globals.hpp"
 #include "apps/openmw/mwworld/player.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
     struct Quests
@@ -331,7 +341,10 @@ namespace MWLua
             if (!self.mMutable)
                 throw std::runtime_error("Value can only be changed in global or player scripts!");
             context.mLuaManager->addAction(
-                [self, stage] { MWBase::Environment::get().getJournal()->setJournalIndex(self.mQuestId, stage); },
+                [self, stage] {
+                    MWBase::Environment::get().getJournal()->setJournalIndex(self.mQuestId, stage);
+                    mwmp::LuaWorldSync::playerJournalIndex(self.mQuestId, stage); // tes3mp addition
+                },
                 "setQuestStageAction");
         };
         quest["stage"] = sol::property(getQuestStage, setQuestStage);
@@ -363,6 +376,9 @@ namespace MWLua
                     MWWorld::Ptr actorPtr;
                     if (actor)
                         actorPtr = actor->ptr();
+                    // tes3mp addition: other players' journals are kept by the server
+                    if (!MWBase::Environment::get().getJournal()->hasEntry(q.mQuestId, stage))
+                        mwmp::LuaWorldSync::playerJournalEntry(q.mQuestId, stage, actorPtr);
                     MWBase::Environment::get().getJournal()->addEntry(q.mQuestId, stage, actorPtr);
                 },
                 "addJournalEntryAction");
@@ -414,6 +430,10 @@ namespace MWLua
 
             if (dialogueRecord->mType != ESM::Dialogue::Topic)
                 throw std::runtime_error("Failed to add topic \"" + std::string(topicId) + "\": record is not a topic");
+
+            // tes3mp addition: the server keeps known topics
+            if (MWBase::Environment::get().getDialogueManager()->isNewTopic(topic))
+                mwmp::LuaWorldSync::post([topic] { mwmp::LuaWorldSync::playerTopic(topic); });
 
             MWBase::Environment::get().getDialogueManager()->addTopic(topic);
         };

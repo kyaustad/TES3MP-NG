@@ -23,6 +23,16 @@
 #include "../magicbindings.hpp"
 #include "../stats.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
     using EquipmentItem = std::variant<std::string, ObjectId>;
@@ -438,6 +448,7 @@ namespace MWLua
                 [obj = Object(object), gold] {
                     const MWWorld::Ptr ptr = obj.ptr();
                     ptr.getClass().getCreatureStats(ptr).setGoldPool(gold);
+                    mwmp::LuaWorldSync::barterGold(ptr, gold); // tes3mp addition
                 },
                 "SetBarterGoldAction");
         };

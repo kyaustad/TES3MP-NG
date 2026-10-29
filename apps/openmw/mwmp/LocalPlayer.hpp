@@ -1,6 +1,7 @@
 #ifndef OPENMW_LOCALPLAYER_HPP
 #define OPENMW_LOCALPLAYER_HPP
 
+#include <ctime>
 #include <components/openmw-mp/Base/BasePlayer.hpp>
 #include "../mwmechanics/activespells.hpp"
 #include "../mwworld/ptr.hpp"
@@ -22,6 +23,7 @@ namespace mwmp
         bool receivedCharacter;
 
         bool isUsingBed;
+        std::time_t killerTime = 0; // when the last attacker recorded as the killer hit us
         bool avoidSendingInventoryPackets;
         bool isReceivingQuickKeys;
         bool isPlayingAnimation;

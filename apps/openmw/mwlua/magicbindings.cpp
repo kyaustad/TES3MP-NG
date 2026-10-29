@@ -39,6 +39,16 @@
 #include "objectvariant.hpp"
 #include "recordstore.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace MWLua
 {
     template <typename Store>
@@ -641,7 +651,10 @@ namespace MWLua
             context.mLuaManager->addAction([obj = spells.mActor.object(), spell = toSpell(spellOrId)]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
+                {
                     ptr.getClass().getCreatureStats(ptr).getSpells().add(spell, false);
+                    mwmp::LuaWorldSync::playerSpell(ptr, spell->mId, true); // tes3mp addition
+                }
             });
         };
 
@@ -652,7 +665,10 @@ namespace MWLua
             context.mLuaManager->addAction([obj = spells.mActor.object(), spell = toSpell(spellOrId)]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
+                {
                     ptr.getClass().getCreatureStats(ptr).getSpells().remove(spell, false);
+                    mwmp::LuaWorldSync::playerSpell(ptr, spell->mId, false); // tes3mp addition
+                }
             });
         };
 
@@ -663,7 +679,15 @@ namespace MWLua
             context.mLuaManager->addAction([obj = spells.mActor.object()]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
+                {
+                    // tes3mp addition: send the removal of the local player's spells
+                    std::vector<ESM::RefId> removed;
+                    for (const ESM::Spell* spell : ptr.getClass().getCreatureStats(ptr).getSpells())
+                        removed.push_back(spell->mId);
                     ptr.getClass().getCreatureStats(ptr).getSpells().clear();
+                    for (const ESM::RefId& id : removed)
+                        mwmp::LuaWorldSync::playerSpell(ptr, id, false);
+                }
             });
         };
 

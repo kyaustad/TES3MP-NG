@@ -28,6 +28,16 @@
 #include "luamanagerimp.hpp"
 #include "types/types.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include "../mwmp/LuaWorldSync.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace sol
 {
     template <>
@@ -123,6 +133,7 @@ namespace MWLua
                 stats.setTeleported(true);
             }
             const MWWorld::CellStore* srcCell = ptr.getCell();
+            const mwmp::LuaWorldSync::Location mpFrom = mwmp::LuaWorldSync::capture(ptr); // tes3mp addition
             MWWorld::Ptr newPtr;
             if (srcCell == &wm->getDraftCell())
             {
@@ -155,6 +166,7 @@ namespace MWLua
             }
             if (!newPtr.getRefData().isEnabled())
                 world->enable(newPtr);
+            mwmp::LuaWorldSync::objectMoved(mpFrom, newPtr); // tes3mp addition: other players see it too
             MWBase::Environment::get().getLuaManager()->objectTeleported(newPtr);
         }
 
@@ -375,6 +387,7 @@ namespace MWLua
                             MWBase::Environment::get().getWorld()->enable(object.ptr());
                         else
                             MWBase::Environment::get().getWorld()->disable(object.ptr());
+                        mwmp::LuaWorldSync::objectEnabled(object.ptr(), enable); // tes3mp addition
                     }
                     else
                     {
@@ -393,8 +406,10 @@ namespace MWLua
             if constexpr (std::is_same_v<ObjectT, GObject>)
             { // Only for global scripts
                 objectT["setScale"] = [context](const GObject& object, float scale) {
-                    context.mLuaManager->addAction(
-                        [object, scale] { MWBase::Environment::get().getWorld()->scaleObject(object.ptr(), scale); });
+                    context.mLuaManager->addAction([object, scale] {
+                        MWBase::Environment::get().getWorld()->scaleObject(object.ptr(), scale);
+                        mwmp::LuaWorldSync::objectScaled(object.ptr(), scale); // tes3mp addition
+                    });
                 };
                 objectT["addScript"] = [context](const GObject& object, std::string_view path, sol::object initData) {
                     const LuaUtil::ScriptsConfiguration& cfg = context.mLua->getConfiguration();
@@ -450,16 +465,30 @@ namespace MWLua
                             + std::to_string(currentCount) + " items");
                     ptr.getCellRef().setCount(rawCount - signedCountToRemove); // Immediately change count
                     if (!ptr.getContainerStore() && currentCount > countToRemove)
+                    {
+                        // tes3mp addition: the stack stays with a new count, which other players get as a new placement
+                        mwmp::LuaWorldSync::post([object = GObject(ptr)] {
+                            const MWWorld::Ptr p = object.ptr();
+                            const mwmp::LuaWorldSync::Location from = mwmp::LuaWorldSync::capture(p);
+                            mwmp::LuaWorldSync::objectMoved(from, p);
+                        });
                         return std::nullopt;
+                    }
                     // Delayed action to trigger side effects
                     return [signedCountToRemove](MWWorld::Ptr p) {
                         // Restore the original count
                         p.getCellRef().setCount(p.getCellRef().getCount(false) + signedCountToRemove);
                         // And now remove properly
                         if (p.getContainerStore())
+                        {
+                            // tes3mp addition: containers of objects other than players are replicated here
+                            mwmp::LuaWorldSync::containerChanged(
+                                p.getContainerStore()->getPtr(), p, std::abs(signedCountToRemove), false);
                             p.getContainerStore()->remove(p, std::abs(signedCountToRemove), false);
+                        }
                         else
                         {
+                            mwmp::LuaWorldSync::objectRemoved(p); // tes3mp addition
                             MWBase::Environment::get().getWorld()->disable(p);
                             MWBase::Environment::get().getWorld()->deleteObject(p);
                         }
@@ -502,6 +531,7 @@ namespace MWLua
                         refData.setCount(count); // temporarily undo removal to run ContainerStore::add
                         oldPtr.getRefData().enable();
                         cont.ptr().getClass().getContainerStore(cont.ptr()).add(oldPtr, count, false);
+                        mwmp::LuaWorldSync::containerChanged(cont.ptr(), oldPtr, count, true); // tes3mp addition
                         refData.setCount(0);
                         if (delayedRemovalFn.has_value())
                             (*delayedRemovalFn)(oldPtr);

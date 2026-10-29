@@ -1468,7 +1468,8 @@ void LocalPlayer::setSelectedSpell()
 
 void LocalPlayer::sendDeath(char newDeathState)
 {
-    if (MechanicsHelper::isEmptyTarget(killer))
+    // The last attacker is the killer only if they hit us shortly before; otherwise this was another kind of death
+    if (MechanicsHelper::isEmptyTarget(killer) || std::difftime(std::time(nullptr), killerTime) > 30)
         killer = MechanicsHelper::getTarget(getPlayerPtr());
 
     deathState = newDeathState;

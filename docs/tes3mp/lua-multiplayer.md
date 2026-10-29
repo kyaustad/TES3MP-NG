@@ -152,6 +152,48 @@ TES3MP doesn't use OpenMW saves.
   mirror engine state that multiplayer servers don't persist, so they keep the state of the current session.
   Restoring a state restarts only the scripts it contains, and the others keep running.
 
+## World changes made by Lua scripts
+
+In 0.8.1, changes that mwscript makes to the world are sent with TES3MP's own packets and relayed by CoreScripts.
+Lua bindings do the same (`mwmp/LuaWorldSync`): the change is applied on the client that runs the script, as in
+single player, and sent with the packet the 0.8.1 server already handles. The origin is `CLIENT_SCRIPT_GLOBAL` with
+the client script `lua`, so CoreScripts doesn't apply container changes a second time on the sending client.
+Changes are only sent for objects in cells the server tracks, and for objects that also exist on other clients
+(from a content file, or with an mpNum).
+
+| Lua API | Packet |
+|---|---|
+| `world.createObject` + `teleport`, `moveInto` from a container into the world | ObjectPlace, or ObjectSpawn for actors. The server's reply gives the object its mpNum, and the client keeps the object it already placed. Scale, lock and enabled state set before the reply are sent afterwards |
+| `object:teleport` | Actors: ActorCellChange. Other objects: ObjectDelete and ObjectPlace |
+| `object:remove` | ObjectDelete, or Container REMOVE for an item in a container |
+| `object:moveInto(container)` | Container ADD |
+| `object.enabled = ` | ObjectState |
+| `object:setScale` | ObjectScale |
+| `types.Lockable.lock`, `unlock`, `setTrapSpell(nil)` | ObjectLock, ObjectTrap |
+| `types.Actor.setBarterGold` | ObjectMiscellaneous (gold pool) |
+| `types.Actor.spells(player):add`, `remove`, `clear` | PlayerSpellbook |
+| `types.NPC` faction functions on the player (rank, join, leave, reputation, expel) | PlayerFaction |
+| `types.Player.quests(player)[id].stage`, `addJournalEntry`, `types.Player.addTopic` | PlayerJournal, PlayerTopic |
+| `world.mwscript.getGlobalVariables()[id] = ` | ClientScriptGlobal, for the globals the server synchronizes (`synchronizedClientGlobalIds`) |
+
+These are already synchronized without Lua hooks, because the client polls the values or the engine sends them:
+
+* the player's stats, skills, level, bounty, position and equipment, and inventory changes;
+* the stats, equipment and position of actors this client is the authority of;
+* active spells (`mpOnSpellAdded`), doors opened by `types.Door.activateDoor`, and activation and item use
+  (approved by the server).
+
+Local to each client, by design:
+
+* UI, camera, input, post-processing, ambient sound, sound, VFX and animation APIs;
+* `world.createRecord`: generated record ids are per client, so objects of generated records aren't sent. Mods
+  that place them should create the records on every client, with `client` mode global scripts;
+* the game time and weather, which the server owns: Lua changes to them are overwritten by the server's;
+* `world.players` holds only the local player, because other players are TES3MP DedicatedPlayers.
+
+Global scripts that change the world should run in `authority` mode. In `client` mode, every client runs its own
+copy, so each one makes and sends the same change.
+
 ## Wire format
 
 A single `ID_LUA_MESSAGE` worldstate packet carries a list of messages: `kind`, `flags`, `name`, `key`, `target`,

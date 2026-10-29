@@ -22,6 +22,7 @@
 #include "../luamanagerimp.hpp"
 #include "../racebindings.hpp"
 #include "../stats.hpp"
+#include "../../mwmp/LuaWorldSync.hpp" // tes3mp addition
 
 namespace sol
 {
@@ -191,6 +192,35 @@ namespace
 
 namespace MWLua
 {
+    /*
+        Start of tes3mp addition
+
+        Report changes to the local player's factions once the binding that made them has run
+    */
+    struct MpFactionSync
+    {
+        const MWLua::Object& mActor;
+        std::string_view mFaction;
+
+        ~MpFactionSync()
+        {
+            try
+            {
+                if (mActor.ptr() != MWBase::Environment::get().getWorld()->getPlayerPtr())
+                    return;
+                mwmp::LuaWorldSync::post([faction = ESM::RefId::deserializeText(mFaction)] {
+                    mwmp::LuaWorldSync::playerFaction(faction);
+                });
+            }
+            catch (...)
+            {
+            }
+        }
+    };
+    /*
+        End of tes3mp addition
+    */
+
     void addNpcBindings(sol::table npc, const Context& context)
     {
         addNpcStatsBindings(npc, context);
@@ -320,6 +350,7 @@ namespace MWLua
         };
 
         npc["setFactionRank"] = [](Object& actor, std::string_view faction, int value) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -350,6 +381,7 @@ namespace MWLua
         };
 
         npc["modifyFactionRank"] = [](Object& actor, std::string_view faction, int value) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -396,6 +428,7 @@ namespace MWLua
         };
 
         npc["joinFaction"] = [](Object& actor, std::string_view faction) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -415,6 +448,7 @@ namespace MWLua
         };
 
         npc["leaveFaction"] = [](Object& actor, std::string_view faction) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -438,6 +472,7 @@ namespace MWLua
         };
 
         npc["setFactionReputation"] = [](Object& actor, std::string_view faction, int value) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -448,6 +483,7 @@ namespace MWLua
         };
 
         npc["modifyFactionReputation"] = [](Object& actor, std::string_view faction, int value) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -460,6 +496,7 @@ namespace MWLua
         };
 
         npc["expel"] = [](Object& actor, std::string_view faction) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 
@@ -468,6 +505,7 @@ namespace MWLua
             ptr.getClass().getNpcStats(ptr).expell(factionId, false);
         };
         npc["clearExpelled"] = [](Object& actor, std::string_view faction) {
+            MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
 

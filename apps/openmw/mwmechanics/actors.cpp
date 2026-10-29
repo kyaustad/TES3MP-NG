@@ -900,7 +900,10 @@ namespace MWMechanics
                         {
                             const mwmp::Target killer = MechanicsHelper::getTarget(caster);
                             if (creature == player)
+                            {
                                 mwmp::Main::get().getLocalPlayer()->killer = killer;
+                                mwmp::Main::get().getLocalPlayer()->killerTime = std::time(nullptr);
+                            }
                             else if (mwmp::Main::get().getCellController()->isLocalActor(creature))
                                 mwmp::Main::get().getCellController()->getLocalActor(creature)->killer = killer;
                         }
