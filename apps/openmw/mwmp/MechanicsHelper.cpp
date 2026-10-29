@@ -89,6 +89,13 @@ void MechanicsHelper::spawnLeveledCreatures(MWWorld::CellStore* cellStore)
         objectList->sendObjectSpawn();
 }
 
+bool MechanicsHelper::isNetworkDriven(const MWWorld::Ptr& ptr)
+{
+    if (!mwmp::Main::isInitialized() || ptr.isEmpty())
+        return false;
+    return mwmp::PlayerList::isDedicatedPlayer(ptr) || mwmp::Main::get().getCellController()->isDedicatedActor(ptr);
+}
+
 bool MechanicsHelper::isUsingRangedWeapon(const MWWorld::Ptr& ptr)
 {
     if (ptr.getClass().hasInventoryStore(ptr))

@@ -57,6 +57,26 @@
 #include "steering.hpp"
 #include "summoning.hpp"
 
+/*
+    Start of tes3mp addition
+
+    Include additional headers for multiplayer purposes
+*/
+#include <components/openmw-mp/TimedLog.hpp>
+#include "../mwmp/Main.hpp"
+#include "../mwmp/Networking.hpp"
+#include "../mwmp/LocalPlayer.hpp"
+#include "../mwmp/PlayerList.hpp"
+#include "../mwmp/DedicatedPlayer.hpp"
+#include "../mwmp/CellController.hpp"
+#include "../mwmp/MechanicsHelper.hpp"
+#include "../mwmp/ObjectList.hpp"
+#include <components/openmw-mp/Utils.hpp>
+#include "../mwmp/LocalActor.hpp"
+/*
+    End of tes3mp addition
+*/
+
 namespace
 {
 
@@ -207,7 +227,22 @@ namespace
 
                 // Set the soul on just one of the gems, not the whole stack
                 gem->getContainerStore()->unstack(*gem);
+
+                /*
+                    Start of tes3mp change (minor)
+
+                    Send PlayerInventory packets that replace the original gem with the new one
+                */
+                const bool isPlayerGem = mwmp::Main::isInitialized() && gem->getContainerStore()
+                    == &MWMechanics::getPlayer().getClass().getContainerStore(MWMechanics::getPlayer());
+                if (isPlayerGem)
+                    mwmp::Main::get().getLocalPlayer()->sendItemChange(*gem, 1, mwmp::InventoryChanges::REMOVE);
                 gem->getCellRef().setSoul(creature.getCellRef().getRefId());
+                if (isPlayerGem)
+                    mwmp::Main::get().getLocalPlayer()->sendItemChange(*gem, 1, mwmp::InventoryChanges::ADD);
+                /*
+                    End of tes3mp change (minor)
+                */
 
                 // Restack the gem with other gems with the same soul
                 gem->getContainerStore()->restack(*gem);
@@ -385,6 +420,35 @@ namespace MWMechanics
 
                 stats.setAttackingOrSpell(controls.mUse != AttackType::NoAttack);
                 stats.setAttackType(attackTypeName(controls.mUse));
+
+                /*
+                    Start of tes3mp addition
+
+                    Instead of merely updating the player character's attacking state here,
+                    prepare an Attack packet for the LocalPlayer
+                */
+                if (isPlayer && mwmp::Main::isInitialized()
+                    && stats.getDrawState() == MWMechanics::DrawState::Weapon)
+                {
+                    const bool state = controls.mUse != AttackType::NoAttack;
+                    mwmp::Attack* localAttack = MechanicsHelper::getLocalAttack(ptr);
+                    if (localAttack && localAttack->pressed != state)
+                    {
+                        MechanicsHelper::resetAttack(localAttack);
+                        localAttack->type
+                            = MechanicsHelper::isUsingRangedWeapon(ptr) ? mwmp::Attack::RANGED : mwmp::Attack::MELEE;
+                        localAttack->pressed = state;
+
+                        // Prepare this attack for sending as long as it's not a ranged attack that's being released,
+                        // because we need to get the final attackStrength for that from WeaponAnimation to have the
+                        // correct projectile speed
+                        if (localAttack->type == mwmp::Attack::MELEE || state)
+                            localAttack->shouldSend = true;
+                    }
+                }
+                /*
+                    End of tes3mp addition
+                */
 
                 controls.mChanged = false;
             }
@@ -727,6 +791,18 @@ namespace MWMechanics
                 if (!isPlayerFollowerOrEscorter)
                     aggressive = mechanicsManager->isAggressive(actor1, actor2);
             }
+            /*
+                Start of tes3mp addition
+
+                Make aggressive actors initiate combat with DedicatedPlayers
+            */
+            else if (mwmp::Main::isInitialized() && mwmp::PlayerList::isDedicatedPlayer(actor2))
+            {
+                aggressive = mechanicsManager->isAggressive(actor1, actor2);
+            }
+            /*
+                End of tes3mp addition
+            */
         }
 
         // Make guards go aggressive with creatures and werewolves that are in combat
@@ -815,6 +891,23 @@ namespace MWMechanics
 
                     if (isDamageEffect)
                     {
+                        /*
+                            Start of tes3mp addition
+
+                            If the victim was the LocalPlayer or a LocalActor, record the caster as their killer
+                        */
+                        if (mwmp::Main::isInitialized())
+                        {
+                            const mwmp::Target killer = MechanicsHelper::getTarget(caster);
+                            if (creature == player)
+                                mwmp::Main::get().getLocalPlayer()->killer = killer;
+                            else if (mwmp::Main::get().getCellController()->isLocalActor(creature))
+                                mwmp::Main::get().getCellController()->getLocalActor(creature)->killer = killer;
+                        }
+                        /*
+                            End of tes3mp addition
+                        */
+
                         if (caster.getClass().isNpc() && caster.getClass().getNpcStats(caster).isWerewolf())
                             caster.getClass().getNpcStats(caster).addWerewolfKill();
                         if (caster == player || playerFollowers.find(caster) != playerFollowers.end())
@@ -1035,7 +1128,17 @@ namespace MWMechanics
         /**
          * Automatically equip NPCs torches at night and unequip them at day
          */
-        if (!isPlayer)
+        /*
+            Start of tes3mp change (major)
+
+            We need DedicatedPlayers and DedicatedActors to not automatically
+            equip their light-emitting items, so additional conditions have been
+            added for them
+        */
+        if (!isPlayer && !MechanicsHelper::isNetworkDriven(ptr))
+        /*
+            End of tes3mp change (major)
+        */
         {
             auto torchIter = std::find_if(std::begin(inventoryStore), std::end(inventoryStore), [&](auto entry) {
                 return entry.getType() == ESM::Light::sRecordId && entry.getClass().canBeEquipped(entry, ptr).first;
@@ -1158,7 +1261,17 @@ namespace MWMechanics
             {
                 static const int iCrimeThresholdMultiplier
                     = esmStore.get<ESM::GameSetting>().find("iCrimeThresholdMultiplier")->mValue.getInteger();
-                if (playerStats.getBounty() >= cutoff * iCrimeThresholdMultiplier)
+                /*
+                    Start of tes3mp change (major)
+
+                    Only attack players based on their high bounty if they haven't died since the last
+                    time an attempt was made to arrest them
+                */
+                if (playerStats.getBounty() >= cutoff * iCrimeThresholdMultiplier
+                    && !(mwmp::Main::isInitialized() && mwmp::Main::get().getLocalPlayer()->diedSinceArrestAttempt))
+                /*
+                    End of tes3mp change (major)
+                */
                 {
                     ESM::RefNum playerNum = player.getCellRef().getRefNum();
                     mechanicsManager->startCombat(ptr, player, &cachedAllies.getActorsSidingWith(player));
@@ -1194,6 +1307,31 @@ namespace MWMechanics
                 // Update witness crime id
                 npcStats.setCrimeId(-1);
             }
+            /*
+                Start of tes3mp addition
+
+                If the player has died since their crime was committed, stop combat
+                with them as though they have paid their bounty
+            */
+            else if (mwmp::Main::isInitialized() && mwmp::Main::get().getLocalPlayer()->diedSinceArrestAttempt
+                && creatureStats.getAiSequence().isInCombat(player))
+            {
+                if (difftime(mwmp::Main::get().getLocalPlayer()->deathTime, npcStats.getCrimeTime()) > 0)
+                {
+                    stopCombat(ptr);
+                    creatureStats.setAttacked(false);
+                    creatureStats.setAlarmed(false);
+                    creatureStats.setAiSetting(AiSetting::Fight, ptr.getClass().getBaseFightRating(ptr));
+                    npcStats.setCrimeId(-1);
+                    npcStats.setCrimeTime(time(0));
+                    LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "NPC %s %i-%i has forgiven player's crimes after the player's death",
+                        ptr.getCellRef().getRefId().toDebugString().c_str(), ptr.getCellRef().getMpRefNumIndex(),
+                        ptr.getCellRef().getMpNum());
+                }
+            }
+            /*
+                End of tes3mp addition
+            */
         }
     }
 
@@ -1591,7 +1729,27 @@ namespace MWMechanics
                         return; // for now abort update of the old cell when cell changes by teleportation magic effect
                                 // a better solution might be to apply cell changes at the end of the frame
                     }
-                    if (aiActive && inProcessingRange)
+                    /*
+                        Start of tes3mp change (major)
+
+                        Allow AI processing for LocalActors and partially for DedicatedActors and DedicatedPlayers,
+                        whose AI runs on their authority client; LocalActors aren't limited by the processing range,
+                        because their authority may be far from them
+                    */
+                    const bool isLocalActor = mwmp::Main::isInitialized()
+                        && mwmp::Main::get().getCellController()->isLocalActor(actor.getPtr());
+                    const bool isNetworkDriven = MechanicsHelper::isNetworkDriven(actor.getPtr());
+                    const bool runsAi = (aiActive || isLocalActor) && !isNetworkDriven;
+                    const bool inAiRange = inProcessingRange || isLocalActor;
+                    if (inAiRange && (runsAi || isNetworkDriven))
+                    {
+                        if (mTimerUpdateHeadTrack == 0)
+                            updateHeadTracking(actor.getPtr(), mActors, isPlayer, ctrl);
+                    }
+                    if (runsAi && inAiRange)
+                    /*
+                        End of tes3mp change (major)
+                    */
                     {
                         if (engageCombatTimerStatus == Misc::TimerStatus::Elapsed)
                         {
@@ -1608,9 +1766,6 @@ namespace MWMechanics
                                     actor.getPtr(), otherActor.getPtr(), cachedAllies, otherActor.getPtr() == player);
                             }
                         }
-                        if (mTimerUpdateHeadTrack == 0)
-                            updateHeadTracking(actor.getPtr(), mActors, isPlayer, ctrl);
-
                         if (actor.getPtr().getClass().isNpc() && !isPlayer)
                             updateCrimePursuit(actor.getPtr(), duration, cachedAllies);
 
@@ -1626,7 +1781,7 @@ namespace MWMechanics
                             }
                         }
                     }
-                    else if (aiActive && !isPlayer && isConscious(actor.getPtr())
+                    else if (runsAi && !isPlayer && isConscious(actor.getPtr()) // tes3mp change (minor)
                         && !(luaControls && luaControls->mDisableAI))
                     {
                         CreatureStats& stats = actor.getPtr().getClass().getCreatureStats(actor.getPtr());
@@ -1761,7 +1916,17 @@ namespace MWMechanics
     {
         actor.getClass().getCreatureStats(actor).notifyDied();
 
-        ++mDeathCount[actor.getCellRef().getRefId()];
+        /*
+            Start of tes3mp change (major)
+
+            Don't increment the kill count and expect the server to send a packet to increment
+            it for us instead
+        */
+        if (!mwmp::Main::isInitialized())
+            ++mDeathCount[actor.getCellRef().getRefId()];
+        /*
+            End of tes3mp change (major)
+        */
 
         MWBase::Environment::get().getLuaManager()->actorDied(actor);
     }
@@ -1799,7 +1964,18 @@ namespace MWMechanics
                 // Play dying words
                 // Note: It's not known whether the soundgen tags scream, roar, and moan are reliable
                 // for NPCs since some of the npc death animation files are missing them.
-                MWBase::Environment::get().getDialogueManager()->say(actor.getPtr(), ESM::RefId::stringRefId("hit"));
+                /*
+                    Start of tes3mp change (major)
+
+                    Don't play dying words for NPCs who have already been marked as having
+                    finished their death animations from elsewhere in the code
+                */
+                if (!stats.isDeathAnimationFinished())
+                    MWBase::Environment::get().getDialogueManager()->say(
+                        actor.getPtr(), ESM::RefId::stringRefId("hit"));
+                /*
+                    End of tes3mp change (major)
+                */
 
                 // Apply soultrap
                 if (actor.getPtr().getType() == ESM::Creature::sRecordId)
@@ -1826,7 +2002,17 @@ namespace MWMechanics
                 if (isPlayer)
                 {
                     // player's death animation is over
-                    MWBase::Environment::get().getStateManager()->askLoadRecent();
+                    /*
+                        Start of tes3mp change (major)
+
+                        The main menu no longer opens when the local player dies,
+                        because of automatic respawning by default
+                    */
+                    if (!mwmp::Main::isInitialized())
+                        MWBase::Environment::get().getStateManager()->askLoadRecent();
+                    /*
+                        End of tes3mp change (major)
+                    */
                 }
                 else
                 {
@@ -1842,6 +2028,25 @@ namespace MWMechanics
         const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(creature);
         if (!ptr.isEmpty())
         {
+            /*
+                Start of tes3mp addition
+
+                Send an ID_OBJECT_DELETE packet every time a summoned creature despawns for the local player or for
+                a local actor, so it despawns for everyone
+            */
+            if (mwmp::Main::isInitialized() && ptr.isInCell() && !ptr.getCell()->getCell()->isEsm4()
+                && mwmp::Main::get().getCellController()->hasLocalAuthority(ptr.getCell()->getCell()->getEsm3()))
+            {
+                mwmp::ObjectList* objectList = mwmp::Main::get().getNetworking()->getObjectList();
+                objectList->reset();
+                objectList->packetOrigin = mwmp::CLIENT_GAMEPLAY;
+                objectList->addObjectGeneric(ptr);
+                objectList->sendObjectDelete();
+            }
+            /*
+                End of tes3mp addition
+            */
+
             MWBase::Environment::get().getWorld()->deleteObject(ptr);
 
             const ESM::Static* fx = MWBase::Environment::get().getESMStore()->get<ESM::Static>().search(
@@ -1962,6 +2167,10 @@ namespace MWMechanics
                     continue;
 
                 if (sidingActors.find(observer) != sidingActors.cend())
+                    continue;
+
+                // tes3mp addition: don't make allied players break each other's sneaking
+                if (mwmp::Main::isInitialized() && MechanicsHelper::isTeamMember(observer, player))
                     continue;
 
                 if (world->getLOS(player, observer))
@@ -2131,6 +2340,47 @@ namespace MWMechanics
             if (actor.isInvalid())
                 continue;
             const MWWorld::Ptr& iteratedActor = actor.getPtr();
+
+            /*
+                Start of tes3mp addition
+
+                If we're checking the LocalPlayer and the iteratedActor is a DedicatedPlayer belonging to this one's
+                alliedPlayers, include the iteratedActor in the actors siding with the player
+
+                Alternatively, if we're checking a DedicatedPlayer and the iteratedActor is a LocalPlayer or
+                DedicatedPlayer belonging to their alliedPlayers, include the iteratedActor in the actors siding
+                with them
+            */
+            if (mwmp::Main::isInitialized() && iteratedActor != actorPtr)
+            {
+                if (actorPtr == getPlayer() && mwmp::PlayerList::isDedicatedPlayer(iteratedActor))
+                {
+                    if (Utils::vectorContains(mwmp::Main::get().getLocalPlayer()->alliedPlayers,
+                            mwmp::PlayerList::getPlayer(iteratedActor)->guid))
+                        list.push_back(iteratedActor);
+                    continue;
+                }
+                else if (mwmp::PlayerList::isDedicatedPlayer(actorPtr))
+                {
+                    const auto& allies = mwmp::PlayerList::getPlayer(actorPtr)->alliedPlayers;
+                    if (iteratedActor == getPlayer())
+                    {
+                        if (Utils::vectorContains(allies, mwmp::Main::get().getLocalPlayer()->guid))
+                            list.push_back(iteratedActor);
+                        continue;
+                    }
+                    else if (mwmp::PlayerList::isDedicatedPlayer(iteratedActor))
+                    {
+                        if (Utils::vectorContains(allies, mwmp::PlayerList::getPlayer(iteratedActor)->guid))
+                            list.push_back(iteratedActor);
+                        continue;
+                    }
+                }
+            }
+            /*
+                End of tes3mp addition
+            */
+
             if (iteratedActor == getPlayer())
                 continue;
 

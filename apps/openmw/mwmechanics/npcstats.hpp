@@ -5,6 +5,7 @@
 #include <components/esm/refid.hpp>
 #include <components/esm3/loadclas.hpp>
 #include <components/esm3/loadskil.hpp>
+#include <ctime>
 #include <map>
 #include <set>
 #include <string>
@@ -28,6 +29,7 @@ namespace MWMechanics
 
         int mReputation;
         int mCrimeId;
+        std::time_t mCrimeTime = std::time(nullptr); // tes3mp addition: time of the last crime witnessed
 
         // ----- used by the player only, maybe should be moved at some point -------
         int mBounty;
@@ -65,6 +67,18 @@ namespace MWMechanics
 
         int getCrimeId() const;
         void setCrimeId(int id);
+
+        /*
+            Start of tes3mp addition
+
+            Make it possible to get and set the time of the last crime witnessed by the NPC,
+            used to stop combat with a player after that player dies and is resurrected
+        */
+        std::time_t getCrimeTime() const { return mCrimeTime; }
+        void setCrimeTime(std::time_t crimeTime) { mCrimeTime = crimeTime; }
+        /*
+            End of tes3mp addition
+        */
 
         const SkillValue& getSkill(ESM::RefId id) const;
         SkillValue& getSkill(ESM::RefId id);

@@ -41,6 +41,9 @@ namespace MechanicsHelper
     //       who isn't mutually allied to you
     bool isTeamMember(const MWWorld::Ptr& playerChecked, const MWWorld::Ptr& playerWithTeam);
 
+    // Whether this actor is simulated by another client: a DedicatedPlayer or a DedicatedActor
+    bool isNetworkDriven(const MWWorld::Ptr& ptr);
+
     bool getSpellSuccess(const ESM::RefId& spellId, const MWWorld::Ptr& caster);
 
     void processAttack(mwmp::Attack attack, const MWWorld::Ptr& attacker);
