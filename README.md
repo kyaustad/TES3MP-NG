@@ -1,14 +1,31 @@
 TES3MP-NG
 =========
 
+Copyright (c) 2008-2026, OpenMW Team  
+Copyright (c) 2016-2022, David Cernat & Stanislav Zhukov  
+Copyright (c) 2026, TES3MP-NG contributors
+
 TES3MP-NG is a continuation of [TES3MP](https://github.com/TES3MP/TES3MP), the multiplayer fork of OpenMW, rebased on
 OpenMW 0.51 with synchronization for OpenMW's Lua scripting. It is used with
 [CoreScripts-NG](https://github.com/kyaustad/CoreScripts-NG) on the server.
 
+* **Altered version:** TES3MP-NG is a modified version of TES3MP 0.8.1 and OpenMW 0.51.0, changed from 2026 on. It
+  is not the original TES3MP or OpenMW, and it is not made or endorsed by the TES3MP or OpenMW developers. Changes are
+  marked in the source with `tes3mp addition` and `tes3mp change` comments (TES3MP's convention, also used for
+  TES3MP-NG's own changes), and listed in the [port status](docs/tes3mp/port-status.md) and the git history.
+* **License:** GPLv3 with the additional terms that TES3MP added under section 7 (see [LICENSE](LICENSE)): the
+  disclaimer of warranty, the limitation of liability, legal notices and author attributions that must be kept, no
+  license to the copyright holders' names, logos or trademarks, and indemnification.
+* **Credits:** [OpenMW's authors](AUTHORS.md) and [TES3MP's credits](tes3mp-credits.md).
+* **Third-party code:** [CrabNet](https://github.com/TES3MP/CrabNet), TES3MP's fork of RakNet, is linked into the
+  client, server, browser and master server (BSD license with an additional patent grant, Copyright (c) 2014
+  Oculus VR, Inc.). Binary releases must include CrabNet's `LICENSE` and `PATENTS` files. LuaBridge and PicoSHA2
+  (MIT) keep their license notices in their headers under `extern/`.
+
 * **Versioning:** TES3MP-NG follows OpenMW's version numbers instead of TES3MP's own: version 0.51.x is based on
   OpenMW 0.51.x. This replaces TES3MP's 0.8.x numbering (TES3MP 0.8.1 was based on OpenMW 0.47). The client, the
   server and CoreScripts-NG must share the same major.minor version.
-* **Multiplayer documentation:** [docs/tes3mp](docs/tes3mp), including the
+* **Multiplayer documentation:** [docs/tes3mp](docs/tes3mp), including [building a modlist](docs/tes3mp/modlists.md), the
   [OpenMW Lua multiplayer design](docs/tes3mp/lua-multiplayer.md) and the [port status](docs/tes3mp/port-status.md)
   relative to TES3MP 0.8.1.
 * **Chat key:** the chat window is toggled with F8 instead of F2, which OpenMW uses for its post-processing HUD.
