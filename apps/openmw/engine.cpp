@@ -624,7 +624,7 @@ void OMW::Engine::createWindow()
     {
         while (!mWindow)
         {
-            mWindow = SDL_CreateWindow("TES3MP", posX, posY, width, height, flags); // tes3mp change (minor)
+            mWindow = SDL_CreateWindow("TES3MP-NG", posX, posY, width, height, flags); // tes3mp change (minor)
             if (!mWindow)
             {
                 // Try with a lower AA
@@ -787,7 +787,7 @@ void OMW::Engine::setWindowIcon()
 
         Use TES3MP's logo for the window icon
     */
-    auto windowIcon = mResDir / "mygui" / "tes3mp_logo.png";
+    auto windowIcon = mResDir / "mygui" / "tes3mp-ng_logo.png";
     if (!std::filesystem::exists(windowIcon))
         windowIcon = mResDir / "openmw.png";
     /*

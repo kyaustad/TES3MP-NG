@@ -4,9 +4,14 @@ set(OPENMW_SOURCES
 )
 
 set(OPENMW_RESOURCES
-    ${CMAKE_SOURCE_DIR}/files/windows/openmw.rc
     ${CMAKE_SOURCE_DIR}/files/windows/openmw.exe.manifest
 )
+# tes3mp change (minor): the multiplayer client uses TES3MP-NG's icon
+if (BUILD_TES3MP)
+    list(APPEND OPENMW_RESOURCES ${CMAKE_SOURCE_DIR}/files/tes3mp/tes3mp-ng-client.rc)
+else()
+    list(APPEND OPENMW_RESOURCES ${CMAKE_SOURCE_DIR}/files/windows/openmw.rc)
+endif()
 
 set(OPENMW_HEADERS
     doc.hpp

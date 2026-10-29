@@ -1,6 +1,9 @@
 project(masterserver)
 
 set(SOURCE_FILES main.cpp MasterServer.cpp MasterServer.hpp RestServer.cpp RestServer.hpp)
+if (WIN32)
+    list(APPEND SOURCE_FILES ${CMAKE_SOURCE_DIR}/files/tes3mp/tes3mp-ng.rc)
+endif()
 
 add_executable(masterserver ${SOURCE_FILES})
 target_link_libraries(masterserver openmw-mp)

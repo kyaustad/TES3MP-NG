@@ -89,3 +89,6 @@ venv/
 ## operating system files
 .DS_Store
 Thumbs.db
+
+## TES3MP-NG release archives (CI/package-tes3mp-ng.ps1)
+/release/

@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     }
     catch (const std::exception& e)
     {
-        QMessageBox::critical(nullptr, QObject::tr("TES3MP server browser"), QString::fromStdString(e.what()));
+        QMessageBox::critical(nullptr, QObject::tr("TES3MP-NG server browser"), QString::fromStdString(e.what()));
         return 1;
     }
 

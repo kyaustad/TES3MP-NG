@@ -1,0 +1,2 @@
+IDI_ICON1               ICON    DISCARDABLE     "tes3mp-ng.ico"
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "../windows/openmw.exe.manifest"

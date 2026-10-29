@@ -148,6 +148,10 @@ include_directories(${CMAKE_SOURCE_DIR}/extern)
 
 # Main executable
 
+if (WIN32)
+    list(APPEND SERVER ${CMAKE_SOURCE_DIR}/files/tes3mp/tes3mp-ng.rc)
+endif()
+
 add_executable(tes3mp-server
         ${SERVER} ${SERVER_HEADER}
         ${PROCESSORS_ACTOR} ${PROCESSORS_PLAYER} ${PROCESSORS_OBJECT} ${PROCESSORS_WORLDSTATE} ${PROCESSORS}

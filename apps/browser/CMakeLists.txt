@@ -34,7 +34,7 @@ source_group(browser FILES ${BROWSER} ${BROWSER_HEADER})
 
 if(WIN32)
     set(GUI_TYPE WIN32)
-    list(APPEND BROWSER ${CMAKE_SOURCE_DIR}/files/tes3mp/browser.rc)
+    list(APPEND BROWSER ${CMAKE_SOURCE_DIR}/files/tes3mp/tes3mp-ng.rc)
 endif()
 
 QT_ADD_RESOURCES(RCC_SRCS ${CMAKE_SOURCE_DIR}/files/launcher/launcher.qrc)
