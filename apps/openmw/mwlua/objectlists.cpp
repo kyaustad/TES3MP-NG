@@ -6,7 +6,9 @@
 
 #include "../mwclass/container.hpp"
 
+#include "../mwworld/cellstore.hpp"
 #include "../mwworld/class.hpp"
+#include "../mwworld/scene.hpp"
 #include "../mwworld/worldmodel.hpp"
 
 namespace MWLua
@@ -48,6 +50,26 @@ namespace MWLua
         if (cls.isItem(ptr) || ptr.mRef->getType() == ESM::REC_LIGH)
             return &mItemsInScene;
         return nullptr;
+    }
+
+    void ObjectLists::mpSetPlayers(const MWWorld::Ptr& localPlayer, const std::vector<MWWorld::Ptr>& remotePlayers)
+    {
+        MWWorld::WorldModel* worldModel = MWBase::Environment::get().getWorldModel();
+        MWWorld::Scene* scene = MWBase::Environment::get().getWorldScene();
+        std::vector<ObjectId> all{ getId(localPlayer) };
+        std::vector<ObjectId> nearby{ getId(localPlayer) };
+        for (const MWWorld::Ptr& ptr : remotePlayers)
+        {
+            // Remote players move between cells, active or not
+            worldModel->registerPtr(ptr);
+            all.push_back(getId(ptr));
+            if (scene->isCellActive(*ptr.getCell()))
+                nearby.push_back(getId(ptr));
+        }
+        if (all != *mPlayers)
+            *mPlayers = std::move(all);
+        if (nearby != *mNearbyPlayers)
+            *mNearbyPlayers = std::move(nearby);
     }
 
     void ObjectLists::objectAddedToScene(const MWWorld::Ptr& ptr)

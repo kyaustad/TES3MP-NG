@@ -166,7 +166,7 @@ namespace MWLua
 
         ObjectLists* objectLists = context.mObjectLists;
         api["activeActors"] = GObjectList{ objectLists->getActorsInScene() };
-        api["players"] = GObjectList{ objectLists->getPlayers() };
+        api["players"] = GObjectList{ objectLists->getPlayers() }; // tes3mp change: other players too
 
         api["createObject"] = [lua = context.mLua](std::string_view recordId, sol::optional<int> count) -> GObject {
             checkGameInitialized(lua);

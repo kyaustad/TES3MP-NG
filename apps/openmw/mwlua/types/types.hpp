@@ -18,6 +18,12 @@ namespace MWLua
     // same as `getLiveCellRefType`.
     unsigned int getLiveCellRefType(const MWWorld::LiveCellRefBase* ref);
 
+    // tes3mp addition: the type scripts see. Other players are TES3MP DedicatedPlayers, which are NPCs to the engine
+    // (and get NPC scripts), but they are players to mods: types.Player.objectIsInstance and object.type say so.
+    // Functions that only work on the local player still refuse them.
+    unsigned int getScriptObjectType(const MWWorld::LiveCellRefBase* ref);
+    void mpSetRemotePlayerIds(std::vector<ESM::RefId> ids);
+
     std::string_view getLuaObjectTypeName(ESM::RecNameInts type, std::string_view fallback = "Unknown");
     std::string_view getLuaObjectTypeName(const MWWorld::Ptr& ptr);
     const MWWorld::Ptr& verifyType(ESM::RecNameInts type, const MWWorld::Ptr& ptr);

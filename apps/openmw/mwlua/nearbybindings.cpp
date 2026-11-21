@@ -198,7 +198,7 @@ namespace MWLua
         api["containers"] = LObjectList{ objectLists->getContainersInScene() };
         api["doors"] = LObjectList{ objectLists->getDoorsInScene() };
         api["items"] = LObjectList{ objectLists->getItemsInScene() };
-        api["players"] = LObjectList{ objectLists->getPlayers() };
+        api["players"] = LObjectList{ objectLists->getNearbyPlayers() }; // tes3mp change: other players too
 
         api["NAVIGATOR_FLAGS"]
             = LuaUtil::makeStrictReadOnly(LuaUtil::tableFromPairs<std::string_view, DetourNavigator::Flag>(lua,

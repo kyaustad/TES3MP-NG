@@ -47,6 +47,7 @@
     Include additional headers for multiplayer purposes
 */
 #include "../mwmp/LuaSync.hpp"
+#include "../mwmp/PlayerList.hpp"
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
 #include <components/misc/strings/algorithm.hpp>
@@ -476,6 +477,18 @@ namespace MWLua
             mGlobalScripts.newGameStarted();
         }
         BoolScopeGuard updateGuard(mRunningSynchronizedUpdates);
+
+        // tes3mp addition: the other players, for world.players, nearby.players and types.Player. Updated here, where
+        // scripts don't run, because the network changes them
+        if (mwmp::LuaSync::isEnabled() && !mPlayer.isEmpty())
+        {
+            const std::vector<MWWorld::Ptr> remotePlayers = mwmp::PlayerList::getPlayerPtrs();
+            std::vector<ESM::RefId> ids;
+            for (const MWWorld::Ptr& ptr : remotePlayers)
+                ids.push_back(ptr.getCellRef().getRefId());
+            mpSetRemotePlayerIds(std::move(ids));
+            mObjectLists.mpSetPlayers(mPlayer, remotePlayers);
+        }
 
         MWBase::WindowManager* windowManager = MWBase::Environment::get().getWindowManager();
         PlayerScripts* playerScripts

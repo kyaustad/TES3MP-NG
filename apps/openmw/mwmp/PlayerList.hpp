@@ -40,6 +40,9 @@ namespace mwmp
 
         static bool isDedicatedPlayer(const MWWorld::Ptr &ptr);
 
+        // tes3mp-ng addition: the objects of the other players, for OpenMW Lua
+        static std::vector<MWWorld::Ptr> getPlayerPtrs();
+
         static void enableMarkers(const ESM::Cell& cell);
 
         static void clearHitAttemptActorId(ESM::RefNum actorId);

@@ -21,11 +21,18 @@ namespace MWLua
         ObjectIdList getDoorsInScene() const { return mDoorsInScene.mList; }
         ObjectIdList getItemsInScene() const { return mItemsInScene.mList; }
         ObjectIdList getPlayers() const { return mPlayers; }
+        // tes3mp addition: world.players has every player, nearby.players those in the active cells
+        ObjectIdList getNearbyPlayers() const { return mNearbyPlayers; }
+        void mpSetPlayers(const MWWorld::Ptr& localPlayer, const std::vector<MWWorld::Ptr>& remotePlayers);
 
         void objectAddedToScene(const MWWorld::Ptr& ptr);
         void objectRemovedFromScene(const MWWorld::Ptr& ptr);
 
-        void setPlayer(const MWWorld::Ptr& player) { *mPlayers = { getId(player) }; }
+        void setPlayer(const MWWorld::Ptr& player)
+        {
+            *mPlayers = { getId(player) };
+            *mNearbyPlayers = { getId(player) };
+        }
 
     private:
         struct ObjectGroup
@@ -48,6 +55,7 @@ namespace MWLua
         ObjectGroup mDoorsInScene;
         ObjectGroup mItemsInScene;
         ObjectIdList mPlayers = std::make_shared<std::vector<ObjectId>>();
+        ObjectIdList mNearbyPlayers = std::make_shared<std::vector<ObjectId>>();
     };
 
 }

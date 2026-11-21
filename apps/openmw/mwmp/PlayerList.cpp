@@ -111,6 +111,20 @@ std::vector<RakNet::RakNetGUID> PlayerList::getPlayersInCell(const ESM::Cell& ce
     return playersInCell;
 }
 
+std::vector<MWWorld::Ptr> PlayerList::getPlayerPtrs()
+{
+    std::vector<MWWorld::Ptr> ptrs;
+    for (auto &playerEntry : playerList)
+    {
+        if (playerEntry.second == nullptr)
+            continue;
+        const MWWorld::Ptr ptr = playerEntry.second->getPtr();
+        if (ptr.mRef != nullptr && ptr.isInCell())
+            ptrs.push_back(ptr);
+    }
+    return ptrs;
+}
+
 bool PlayerList::isDedicatedPlayer(const MWWorld::Ptr &ptr)
 {
     if (ptr.mRef == nullptr)

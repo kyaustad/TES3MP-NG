@@ -187,10 +187,18 @@ Local to each client, by design:
 
 * UI, camera, input, post-processing, ambient sound, sound, VFX and animation APIs;
 * the game time and weather, which the server owns: Lua changes to them are overwritten by the server's;
-* `world.players` holds only the local player, because other players are TES3MP DedicatedPlayers.
 
 Global scripts that change the world should run in `authority` mode. In `client` mode, every client runs its own
 copy, so each one makes and sends the same change.
+
+## Other players
+
+`world.players` holds every player, the local one first, and `nearby.players` those in the active cells. Other
+players are TES3MP DedicatedPlayers, which the engine treats as NPCs (they get NPC scripts, not PLAYER scripts), but
+scripts see them as players: `object.type` is `types.Player` and `types.Player.objectIsInstance` is true, so mods can
+tell players from NPCs, send them events (delivered to their own client) and target them with AI packages.
+`types.Player` functions that only make sense for the local player (quests, controls, UI modes, crime level)
+still refuse other players.
 
 ## Records created by Lua
 

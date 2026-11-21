@@ -1,5 +1,7 @@
 #include "types.hpp"
 
+#include <algorithm>
+
 #include <components/lua/luastate.hpp>
 #include <components/misc/resourcehelpers.hpp>
 
@@ -117,6 +119,26 @@ namespace MWLua
         return ref->getType();
     }
 
+    namespace
+    {
+        // Record ids of the other players' objects; set by LuaManager when scripts don't run
+        std::vector<ESM::RefId> sRemotePlayerIds;
+    }
+
+    void mpSetRemotePlayerIds(std::vector<ESM::RefId> ids)
+    {
+        sRemotePlayerIds = std::move(ids);
+    }
+
+    unsigned int getScriptObjectType(const MWWorld::LiveCellRefBase* ref)
+    {
+        const unsigned int type = getLiveCellRefType(ref);
+        if (type == ESM::REC_NPC_
+            && std::find(sRemotePlayerIds.begin(), sRemotePlayerIds.end(), ref->mRef.getRefId()) != sRemotePlayerIds.end())
+            return ESM::REC_INTERNAL_PLAYER;
+        return type;
+    }
+
     std::string_view getLuaObjectTypeName(ESM::RecNameInts type, std::string_view fallback)
     {
         auto it = luaObjectTypeInfo.find(type);
@@ -185,7 +207,7 @@ namespace MWLua
                 table[sol::metatable_key] = baseMeta;
             }
             table["objectIsInstance"] = [types = recTypes](const Object& o) {
-                unsigned int type = getLiveCellRefType(o.ptr().mRef);
+                unsigned int type = getScriptObjectType(o.ptr().mRef); // tes3mp change: other players are players
                 for (ESM::RecNameInts t : types)
                     if (t == type)
                         return true;
