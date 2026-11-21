@@ -45,6 +45,7 @@
     Include additional headers for multiplayer purposes
 */
 #include "../mwmp/LuaWorldSync.hpp"
+#include "../mwmp/LuaRemoteCall.hpp"
 /*
     End of tes3mp addition
 */
@@ -648,6 +649,9 @@ namespace MWLua
         spellsT["add"] = [context](const ActorSpells& spells, const sol::object& spellOrId) {
             if (spells.mActor.isLObject())
                 throw std::runtime_error("Local scripts can modify only spells of the actor they are attached to.");
+            // tes3mp addition: actors simulated by another client get the call there
+            if (mwmp::forwardLuaCall(context, spells.mActor.ptr(), "Actor.spells:add", toSpellId(spellOrId).serializeText()))
+                return;
             context.mLuaManager->addAction([obj = spells.mActor.object(), spell = toSpell(spellOrId)]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
@@ -662,6 +666,9 @@ namespace MWLua
         spellsT["remove"] = [context](const ActorSpells& spells, const sol::object& spellOrId) {
             if (spells.mActor.isLObject())
                 throw std::runtime_error("Local scripts can modify only spells of the actor they are attached to.");
+            if (mwmp::forwardLuaCall(
+                    context, spells.mActor.ptr(), "Actor.spells:remove", toSpellId(spellOrId).serializeText()))
+                return; // tes3mp addition
             context.mLuaManager->addAction([obj = spells.mActor.object(), spell = toSpell(spellOrId)]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
@@ -676,6 +683,8 @@ namespace MWLua
         spellsT["clear"] = [context](const ActorSpells& spells) {
             if (spells.mActor.isLObject())
                 throw std::runtime_error("Local scripts can modify only spells of the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, spells.mActor.ptr(), "Actor.spells:clear"))
+                return; // tes3mp addition
             context.mLuaManager->addAction([obj = spells.mActor.object()]() {
                 const MWWorld::Ptr& ptr = obj.ptr();
                 if (ptr.getClass().isActor())
@@ -735,6 +744,8 @@ namespace MWLua
         activeSpellsT["remove"] = [context](const ActorActiveSpells& spells, std::string_view idStr) {
             if (spells.isLObject())
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, spells.mActor.ptr(), "Actor.activeSpells:remove", std::string(idStr)))
+                return; // tes3mp addition
 
             context.mLuaManager->addAction([spells = spells, id = ESM::RefId::deserializeText(idStr)]() {
                 if (auto* store = spells.getStore())
@@ -752,9 +763,11 @@ namespace MWLua
         };
 
         // types.Actor.activeSpells(o):add(id, spellid, effects, options)
-        activeSpellsT["add"] = [](const ActorActiveSpells& spells, const sol::table& options) {
+        activeSpellsT["add"] = [context](const ActorActiveSpells& spells, const sol::table& options) {
             if (spells.isLObject())
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, spells.mActor.ptr(), "Actor.activeSpells:add", options))
+                return; // tes3mp addition
 
             if (auto* store = spells.getStore())
             {
@@ -897,6 +910,9 @@ namespace MWLua
 
             if (effects.isLObject())
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, effects.mActor.ptr(), "Actor.activeEffects:remove", std::string(idStr),
+                    argStr ? sol::make_object(context.sol(), std::string(*argStr)) : sol::object(sol::lua_nil)))
+                return; // tes3mp addition
 
             MWMechanics::EffectKey key = getEffectKey(idStr, argStr);
 
@@ -911,13 +927,17 @@ namespace MWLua
         };
 
         // types.Actor.activeEffects(o):set(value, id, ?arg)
-        activeEffectsT["set"] = [getEffectKey](const ActorActiveEffects& effects, int value, std::string_view idStr,
-                                    sol::optional<std::string_view> argStr) {
+        activeEffectsT["set"] = [getEffectKey, context](const ActorActiveEffects& effects, int value,
+                                    std::string_view idStr, sol::optional<std::string_view> argStr) {
             if (!effects.isActor())
                 return;
 
             if (effects.isLObject())
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, effects.mActor.ptr(), "Actor.activeEffects:set", value,
+                    std::string(idStr),
+                    argStr ? sol::make_object(context.sol(), std::string(*argStr)) : sol::object(sol::lua_nil)))
+                return; // tes3mp addition
 
             MWMechanics::EffectKey key = getEffectKey(idStr, argStr);
             int currentValue = static_cast<int>(effects.getStore()->getOrDefault(key).getMagnitude());
@@ -925,13 +945,17 @@ namespace MWLua
         };
 
         // types.Actor.activeEffects(o):modify(value, id, ?arg)
-        activeEffectsT["modify"] = [getEffectKey](const ActorActiveEffects& effects, int value, std::string_view idStr,
-                                       sol::optional<std::string_view> argStr) {
+        activeEffectsT["modify"] = [getEffectKey, context](const ActorActiveEffects& effects, int value,
+                                       std::string_view idStr, sol::optional<std::string_view> argStr) {
             if (!effects.isActor())
                 return;
 
             if (effects.isLObject())
                 throw std::runtime_error("Local scripts can modify effect only on the actor they are attached to.");
+            if (mwmp::forwardLuaCall(context, effects.mActor.ptr(), "Actor.activeEffects:modify", value,
+                    std::string(idStr),
+                    argStr ? sol::make_object(context.sol(), std::string(*argStr)) : sol::object(sol::lua_nil)))
+                return; // tes3mp addition
 
             MWMechanics::EffectKey key = getEffectKey(idStr, argStr);
             effects.getStore()->modifyBase(key, value);

@@ -23,6 +23,8 @@
 #include "../racebindings.hpp"
 #include "../stats.hpp"
 #include "../../mwmp/LuaWorldSync.hpp" // tes3mp addition
+#include "../../mwmp/LuaRemoteCall.hpp" // tes3mp addition
+#include "../../mwmp/PlayerList.hpp" // tes3mp addition
 
 namespace sol
 {
@@ -349,7 +351,11 @@ namespace MWLua
             return 0;
         };
 
-        npc["setFactionRank"] = [](Object& actor, std::string_view faction, int value) {
+        npc["setFactionRank"] = [context](Object& actor, std::string_view faction, int value) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.setFactionRank", std::string(faction), value))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -380,7 +386,11 @@ namespace MWLua
             npcStats.setFactionRank(factionId, static_cast<int>(targetRank));
         };
 
-        npc["modifyFactionRank"] = [](Object& actor, std::string_view faction, int value) {
+        npc["modifyFactionRank"] = [context](Object& actor, std::string_view faction, int value) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.modifyFactionRank", std::string(faction), value))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -427,7 +437,11 @@ namespace MWLua
             npcStats.setFactionRank(factionId, std::clamp(currentRank + value, 0, ranksCount - 1));
         };
 
-        npc["joinFaction"] = [](Object& actor, std::string_view faction) {
+        npc["joinFaction"] = [context](Object& actor, std::string_view faction) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.joinFaction", std::string(faction)))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -447,7 +461,11 @@ namespace MWLua
             throw std::runtime_error("Only player can join factions");
         };
 
-        npc["leaveFaction"] = [](Object& actor, std::string_view faction) {
+        npc["leaveFaction"] = [context](Object& actor, std::string_view faction) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.leaveFaction", std::string(faction)))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -471,7 +489,11 @@ namespace MWLua
             return ptr.getClass().getNpcStats(ptr).getFactionReputation(factionId);
         };
 
-        npc["setFactionReputation"] = [](Object& actor, std::string_view faction, int value) {
+        npc["setFactionReputation"] = [context](Object& actor, std::string_view faction, int value) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.setFactionReputation", std::string(faction), value))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -482,7 +504,11 @@ namespace MWLua
             ptr.getClass().getNpcStats(ptr).setFactionReputation(factionId, value);
         };
 
-        npc["modifyFactionReputation"] = [](Object& actor, std::string_view faction, int value) {
+        npc["modifyFactionReputation"] = [context](Object& actor, std::string_view faction, int value) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.modifyFactionReputation", std::string(faction), value))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -495,7 +521,11 @@ namespace MWLua
             npcStats.setFactionReputation(factionId, existingReputation + value);
         };
 
-        npc["expel"] = [](Object& actor, std::string_view faction) {
+        npc["expel"] = [context](Object& actor, std::string_view faction) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.expel", std::string(faction)))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");
@@ -504,7 +534,11 @@ namespace MWLua
             ESM::RefId factionId = parseFactionId(faction);
             ptr.getClass().getNpcStats(ptr).expell(factionId, false);
         };
-        npc["clearExpelled"] = [](Object& actor, std::string_view faction) {
+        npc["clearExpelled"] = [context](Object& actor, std::string_view faction) {
+            // tes3mp addition: other players get the call on their own client
+            if (mwmp::PlayerList::isDedicatedPlayer(actor.ptr())
+                && mwmp::forwardLuaCall(context, actor.ptr(), "NPC.clearExpelled", std::string(faction)))
+                return;
             MpFactionSync mpFactionSync{ actor, faction }; // tes3mp addition
             if (actor.isLObject() && !actor.isSelfObject())
                 throw std::runtime_error("Local scripts can modify only self");

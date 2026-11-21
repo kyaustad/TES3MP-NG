@@ -439,6 +439,7 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
                 break;
             }
             case LuaMessage::LOCAL_EVENT:
+            case LuaMessage::REMOTE_CALL:
                 routeLocalEvent(sender, message);
                 break;
             case LuaMessage::STORAGE_SET:

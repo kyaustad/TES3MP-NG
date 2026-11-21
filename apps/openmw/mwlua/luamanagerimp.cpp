@@ -285,7 +285,11 @@ namespace MWLua
             menuContext.mType = Context::Menu;
 
             for (const auto& [name, package] : initGlobalPackages(globalContext))
+            {
+                if (name == "openmw.types")
+                    mMpGlobalTypes = package; // tes3mp addition, for mpRemoteCall
                 mGlobalScripts.addPackage(name, package);
+            }
             for (const auto& [name, package] : initMenuPackages(menuContext))
                 mMenuScripts.addPackage(name, package);
 
@@ -1526,6 +1530,55 @@ namespace MWLua
         LuaEvents::Local event{ target, std::move(name), std::move(data) };
         event.mFromNetwork = true;
         mLuaEvents.addLocalEvent(std::move(event));
+    }
+
+    void LuaManager::mpRemoteCall(ESM::RefNum target, const std::string& op, std::string_view data)
+    {
+        // "Actor.spells:add" -> types.Actor.spells(object):add(...), "NPC.joinFaction" -> types.NPC.joinFaction(object, ...)
+        const std::size_t dot = op.find('.');
+        if (dot == std::string::npos)
+            return;
+        const std::size_t colon = op.find(':', dot);
+        const std::string typeName = op.substr(0, dot);
+        const std::string function = op.substr(dot + 1, colon == std::string::npos ? std::string::npos : colon - dot - 1);
+        const std::string method = colon == std::string::npos ? std::string() : op.substr(colon + 1);
+
+        const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(target);
+        if (ptr.isEmpty())
+            return;
+
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            if (!mMpRemoteCall.valid())
+            {
+                sol::protected_function make = view.sol().load(R"(
+                    local types = ...
+                    local unpack = table.unpack or unpack
+                    return function(typeName, fn, method, object, args)
+                        local api = types[typeName]
+                        if method == '' then
+                            return api[fn](object, unpack(args, 1, args.n))
+                        end
+                        local store = api[fn](object)
+                        return store[method](store, unpack(args, 1, args.n))
+                    end
+                )", "mpRemoteCall");
+                sol::protected_function_result made = make(mMpGlobalTypes);
+                if (!made.valid())
+                {
+                    sol::error error = made;
+                    throw std::runtime_error(error.what());
+                }
+                mMpRemoteCall = made.get<sol::protected_function>();
+            }
+            sol::object args = LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get());
+            sol::protected_function_result result
+                = mMpRemoteCall(typeName, function, method, GObject(ptr), args);
+            if (!result.valid())
+            {
+                sol::error error = result;
+                Log(Debug::Error) << "Lua call " << op << " from another player failed: " << error.what();
+            }
+        });
     }
 
     void LuaManager::mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data)

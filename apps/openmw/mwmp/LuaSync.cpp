@@ -298,6 +298,32 @@ void LuaSync::onGlobalEvent(const std::string& eventName, const std::string& dat
     queue(std::move(message));
 }
 
+void LuaSync::onRemoteCall(const MWWorld::Ptr& target, const std::string& op, const std::string& data)
+{
+    LuaMessage message;
+    message.kind = LuaMessage::REMOTE_CALL;
+    message.name = op;
+    message.target = toNetObject(target.getCellRef().getRefNum());
+    if (message.target.kind == NetObjectId::NONE)
+    {
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Not sending Lua call %s for %s, which only exists on this client",
+            op.c_str(), target.getCellRef().getRefId().toDebugString().c_str());
+        return;
+    }
+    if (target.isInCell() && !target.getCell()->getCell()->isEsm4())
+        message.cell = target.getCell()->getCell()->getEsm3().getShortDescription();
+    try
+    {
+        message.data = dataToNetwork(data);
+    }
+    catch (const std::exception& e)
+    {
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Not sending Lua call %s: %s", op.c_str(), e.what());
+        return;
+    }
+    queue(std::move(message));
+}
+
 void LuaSync::onLocalEvent(const MWWorld::Ptr& target, const std::string& eventName, const std::string& data)
 {
     // Attacks on objects simulated elsewhere travel as TES3MP attack packets, and the victim's client feeds them
@@ -525,6 +551,13 @@ void LuaSync::updateLua(float dt)
                     const ESM::RefNum target = toLocalObject(message.target);
                     if (target.isSet())
                         lua->mpDeliverLocalEvent(target, message.name, toLocal(message.data));
+                    break;
+                }
+                case LuaMessage::REMOTE_CALL:
+                {
+                    const ESM::RefNum target = toLocalObject(message.target);
+                    if (target.isSet())
+                        lua->mpRemoteCall(target, message.name, toLocal(message.data));
                     break;
                 }
                 case LuaMessage::STORAGE_SET:

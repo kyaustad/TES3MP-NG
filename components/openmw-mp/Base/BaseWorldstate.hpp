@@ -379,7 +379,10 @@ namespace mwmp
             // A record created by Lua (world.createRecord): name is its id, key a hash of its content, data the
             // record as an ESM file. From the server with an empty name: key is the first record id this client
             // may use, so the ids of all clients' records differ
-            RECORD = 10
+            RECORD = 10,
+            // A global script call that changes an actor another client simulates (mwmp/LuaRemoteCall.hpp): name is
+            // the function, target the actor, cell its cell, data the arguments. Routed like LOCAL_EVENT
+            REMOTE_CALL = 11
         };
 
         enum Flags : uint8_t

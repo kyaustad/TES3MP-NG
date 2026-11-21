@@ -191,6 +191,23 @@ Local to each client, by design:
 Global scripts that change the world should run in `authority` mode. In `client` mode, every client runs its own
 copy, so each one makes and sends the same change.
 
+## Changes to actors another client simulates
+
+A global script call that changes an actor another client simulates (an NPC in a cell this client isn't the
+authority of, or another player) is not applied here, where that client's sync would overwrite it. It is sent to
+that client as a `REMOTE_CALL` message, routed like a local event, and that client makes the same call in its own
+global scripts' context; its usual sync shares the result. Forwarded calls:
+
+* `types.Actor.spells(actor)`: `add`, `remove`, `clear`
+* `types.Actor.activeSpells(actor)`: `add`, `remove`
+* `types.Actor.activeEffects(actor)`: `remove`, `set`, `modify`
+* on other players: `types.NPC.setFactionRank`, `modifyFactionRank`, `joinFaction`, `leaveFaction`,
+  `setFactionReputation`, `modifyFactionReputation`, `expel`, `clearExpelled`
+
+Stats, equipment and AI stats can only be changed by the actor's own local scripts (`openmw.self`), which run on
+the client that simulates it, so they need no forwarding. NPC disposition and the factions of NPCs aren't
+synchronized by TES3MP at all; they stay local to the client that changes them.
+
 ## Other players
 
 `world.players` holds every player, the local one first, and `nearby.players` those in the active cells. Other

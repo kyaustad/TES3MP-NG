@@ -195,6 +195,8 @@ namespace MWLua
         std::string mpSaveAuthorityScripts();
         void mpDeliverGlobalEvent(std::string name, std::string data, bool authorityOnly);
         void mpDeliverLocalEvent(ESM::RefNum target, std::string name, std::string data);
+        // Make a global script call that another client sent for an object this client simulates
+        void mpRemoteCall(ESM::RefNum target, const std::string& op, std::string_view data);
         void mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data);
         void mpResetStorageSection(std::string_view section, std::string_view data);
         void mpClearGlobalStorage();
@@ -243,6 +245,10 @@ namespace MWLua
         bool mRunningSynchronizedUpdates = false;
         LuaUtil::ScriptsConfiguration mConfiguration;
         LuaUtil::LuaState mLua;
+        // tes3mp addition: openmw.types of global scripts and the dispatcher of mpRemoteCall; after mLua, so they are
+        // released before it
+        sol::object mMpGlobalTypes;
+        sol::protected_function mMpRemoteCall;
         LuaUi::ResourceManager mUiResourceManager;
         std::map<std::string, sol::object> mLocalPackages;
         std::map<std::string, sol::object> mPlayerPackages;
