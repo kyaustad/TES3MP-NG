@@ -28,6 +28,8 @@
 #include "../mwworld/class.hpp"
 #include "../mwworld/datetimemanager.hpp"
 #include "../mwworld/esmstore.hpp"
+
+#include "../mwmp/LuaRecords.hpp" // tes3mp addition
 #include "../mwworld/manualref.hpp"
 #include "../mwworld/store.hpp"
 #include "../mwworld/worldmodel.hpp"
@@ -186,71 +188,71 @@ namespace MWLua
         api["createRecord"] = sol::overload(
             [lua = context.mLua](const ESM::Activator& activator) -> const ESM::Activator* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(activator);
+                return mwmp::LuaRecords::create(activator); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Armor& armor) -> const ESM::Armor* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(armor);
+                return mwmp::LuaRecords::create(armor); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Clothing& clothing) -> const ESM::Clothing* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(clothing);
+                return mwmp::LuaRecords::create(clothing); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Book& book) -> const ESM::Book* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(book);
+                return mwmp::LuaRecords::create(book); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Enchantment& enchantment) -> const ESM::Enchantment* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(enchantment);
+                return mwmp::LuaRecords::create(enchantment); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Miscellaneous& misc) -> const ESM::Miscellaneous* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(misc);
+                return mwmp::LuaRecords::create(misc); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Potion& potion) -> const ESM::Potion* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(potion);
+                return mwmp::LuaRecords::create(potion); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Probe& probe) -> const ESM::Probe* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(probe);
+                return mwmp::LuaRecords::create(probe); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Spell& spell) -> const ESM::Spell* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(spell);
+                return mwmp::LuaRecords::create(spell); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Static& stat) -> const ESM::Static* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(stat);
+                return mwmp::LuaRecords::create(stat); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::NPC& npc) -> const ESM::NPC* {
                 checkGameInitialized(lua);
                 if (npc.mId.empty())
-                    return MWBase::Environment::get().getESMStore()->insert(npc);
+                    return mwmp::LuaRecords::create(npc); // tes3mp change: shared with other players
                 ESM::NPC copy = npc;
                 copy.mId = {};
-                return MWBase::Environment::get().getESMStore()->insert(copy);
+                return mwmp::LuaRecords::create(copy); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Creature& crea) -> const ESM::Creature* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(crea);
+                return mwmp::LuaRecords::create(crea); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Container& cont) -> const ESM::Container* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(cont);
+                return mwmp::LuaRecords::create(cont); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Door& cont) -> const ESM::Door* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(cont);
+                return mwmp::LuaRecords::create(cont); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Weapon& weapon) -> const ESM::Weapon* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(weapon);
+                return mwmp::LuaRecords::create(weapon); // tes3mp change: shared with other players
             },
             [lua = context.mLua](const ESM::Light& light) -> const ESM::Light* {
                 checkGameInitialized(lua);
-                return MWBase::Environment::get().getESMStore()->insert(light);
+                return mwmp::LuaRecords::create(light); // tes3mp change: shared with other players
             });
 
         api["_runStandardActivationAction"] = [context](const GObject& object, const GObject& actor) {

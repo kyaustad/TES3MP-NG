@@ -164,7 +164,7 @@ Changes are only sent for objects in cells the server tracks, and for objects th
 | Lua API | Packet |
 |---|---|
 | `world.createObject` + `teleport`, `moveInto` from a container into the world | ObjectPlace, or ObjectSpawn for actors. The server's reply gives the object its mpNum, and the client keeps the object it already placed. Scale, lock and enabled state set before the reply are sent afterwards |
-| `object:teleport` | Actors: ActorCellChange. Other objects: ObjectDelete and ObjectPlace |
+| `object:teleport` | Actors: ActorCellChange. Other objects in the same cell: ObjectMove and ObjectRotate, which CoreScripts keeps (`OnObjectMove`, `OnObjectRotate`). To another cell: ObjectDelete and ObjectPlace. A move before the server answered the object's placement is sent after the answer, so placing an object and adjusting it (as Inventory Extender does when dropping items) makes one object |
 | `object:remove` | ObjectDelete, or Container REMOVE for an item in a container |
 | `object:moveInto(container)` | Container ADD |
 | `object.enabled = ` | ObjectState |
@@ -186,13 +186,26 @@ These are already synchronized without Lua hooks, because the client polls the v
 Local to each client, by design:
 
 * UI, camera, input, post-processing, ambient sound, sound, VFX and animation APIs;
-* `world.createRecord`: generated record ids are per client, so objects of generated records aren't sent. Mods
-  that place them should create the records on every client, with `client` mode global scripts;
 * the game time and weather, which the server owns: Lua changes to them are overwritten by the server's;
 * `world.players` holds only the local player, because other players are TES3MP DedicatedPlayers.
 
 Global scripts that change the world should run in `authority` mode. In `client` mode, every client runs its own
 copy, so each one makes and sends the same change.
+
+## Records created by Lua
+
+`world.createRecord` records are shared: the creating client sends the record to the server as an ESM file (a
+`RECORD` message, like a saved game's records), the server keeps it in `data/lua/records.bin` and relays it, and
+sends all of them to each client right after the handshake, before the player's data that may use them. Objects
+and items of these records are then synchronized like any other.
+
+* Ids can't clash: with the handshake, the server gives each connection its own block of 2^32 generated ids
+  (`Generated:0x100000000` and up for the first one), and keeps counting blocks across restarts.
+* A record with the same type and content as a shared one is that record: `createRecord` returns it instead of
+  making another. Mods that create their records each time the game starts, on every client, get the same ids
+  everywhere and don't add copies on the server.
+* Generated ids that aren't shared (records made before the server's id block arrived) stay local to the client,
+  as before: objects and items of them aren't sent.
 
 ## Wire format
 

@@ -1,5 +1,6 @@
 #include "LuaSync.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -28,10 +29,17 @@ std::map<std::string, bool> LuaSync::sPersistentSections;
 std::string LuaSync::sGlobalState;
 std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>> LuaSync::sLocalStates;
 bool LuaSync::sDropCurrentEvent = false;
+std::vector<LuaSync::Record> LuaSync::sRecords;
+std::map<std::string, std::size_t> LuaSync::sRecordIndex;
+uint64_t LuaSync::sNextRecordBlock = 1;
 
 namespace
 {
     constexpr const char* sDefaultPolicy = "{\"default\": \"client\", \"scripts\": {}}";
+    // Every connection gets its own block of 2^32 ids for the records its Lua scripts create
+    constexpr int sRecordBlockBits = 32;
+    // Lua messages in one packet when sending many
+    constexpr std::size_t sMessagesPerPacket = 500;
 
     std::filesystem::path luaDirectory(const std::string& dataDirectory)
     {
@@ -163,8 +171,28 @@ void LuaSync::init(const std::string& dataDirectory)
 
     sGlobalState = readFile(luaDirectory(dataDirectory) / "globalState.bin");
 
-    LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Lua sync: %zu global storage sections, %zu bytes of global script state",
-        sStorage.size(), sGlobalState.size());
+    // Records created by Lua: the next id block, the record count, then each record
+    {
+        std::ifstream in(luaDirectory(dataDirectory) / "records.bin", std::ios::binary);
+        uint32_t count = 0;
+        if (in && in.read(reinterpret_cast<char*>(&sNextRecordBlock), sizeof(sNextRecordBlock))
+            && in.read(reinterpret_cast<char*>(&count), sizeof(count)))
+        {
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                Record record;
+                if (!readString(in, record.id) || !readString(in, record.hash) || !readString(in, record.data))
+                    break;
+                sRecordIndex[record.id] = sRecords.size();
+                sRecords.push_back(std::move(record));
+            }
+        }
+        sNextRecordBlock = std::max<uint64_t>(sNextRecordBlock, 1);
+    }
+
+    LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO,
+        "Lua sync: %zu global storage sections, %zu bytes of global script state, %zu records created by Lua",
+        sStorage.size(), sGlobalState.size(), sRecords.size());
 }
 
 void LuaSync::reloadPolicy()
@@ -197,6 +225,33 @@ void LuaSync::broadcast(std::vector<LuaMessage>&& messages, Player* except)
             continue;
         auto copy = messages;
         send(std::move(copy), player);
+    }
+}
+
+void LuaSync::onHandshake(Player& player)
+{
+    std::vector<LuaMessage> messages;
+
+    LuaMessage block;
+    block.kind = LuaMessage::RECORD;
+    block.key = std::to_string(sNextRecordBlock++ << sRecordBlockBits);
+    messages.push_back(std::move(block));
+    persistRecords();
+
+    for (const Record& record : sRecords)
+    {
+        LuaMessage message;
+        message.kind = LuaMessage::RECORD;
+        message.name = record.id;
+        message.key = record.hash;
+        message.data = record.data;
+        messages.push_back(std::move(message));
+    }
+
+    for (std::size_t start = 0; start < messages.size(); start += sMessagesPerPacket)
+    {
+        const std::size_t end = std::min(messages.size(), start + sMessagesPerPacket);
+        send(std::vector<LuaMessage>(messages.begin() + start, messages.begin() + end), &player);
     }
 }
 
@@ -450,6 +505,25 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
                 persistLocalStates();
                 break;
             }
+            case LuaMessage::RECORD:
+            {
+                // Lua records have generated ids, from the sender's own block
+                if (message.name.rfind("Generated:", 0) != 0 || message.data.empty())
+                {
+                    LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Ignoring invalid Lua record %s from %s",
+                        message.name.c_str(), sender.npc.mName.c_str());
+                    break;
+                }
+                if (sRecordIndex.count(message.name) != 0)
+                    break;
+                LOG_MESSAGE_SIMPLE(TimedLog::LOG_INFO, "Lua record %s created by %s", message.name.c_str(),
+                    sender.npc.mName.c_str());
+                sRecordIndex[message.name] = sRecords.size();
+                sRecords.push_back({ message.name, message.key, message.data });
+                broadcast({ message }, &sender);
+                persistRecords();
+                break;
+            }
             default:
                 LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Unexpected Lua message kind %u from %s", message.kind,
                     sender.npc.mName.c_str());
@@ -590,6 +664,23 @@ void LuaSync::persistLocalStates()
             writeNetObject(out, entry.first);
             writeString(out, entry.second);
         }
+    }
+}
+
+void LuaSync::persistRecords()
+{
+    const std::filesystem::path path = luaDirectory(sDataDirectory) / "records.bin";
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    if (!out)
+        return;
+    out.write(reinterpret_cast<const char*>(&sNextRecordBlock), sizeof(sNextRecordBlock));
+    const uint32_t count = static_cast<uint32_t>(sRecords.size());
+    out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+    for (const Record& record : sRecords)
+    {
+        writeString(out, record.id);
+        writeString(out, record.hash);
+        writeString(out, record.data);
     }
 }
 

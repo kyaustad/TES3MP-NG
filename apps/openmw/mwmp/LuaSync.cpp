@@ -7,7 +7,12 @@
 #include <components/openmw-mp/Lua/LuaData.hpp>
 #include <components/openmw-mp/TimedLog.hpp>
 
+#include <sstream>
+
+#include <components/esm3/esmreader.hpp>
+
 #include "../mwbase/environment.hpp"
+#include "../mwworld/esmstore.hpp"
 #include "../mwbase/world.hpp"
 #include "../mwlua/luamanagerimp.hpp"
 #include "../mwworld/cellstore.hpp"
@@ -355,8 +360,107 @@ void LuaSync::onStorageSectionReplaced(std::string_view section, std::string dat
 
 void LuaSync::receive(const std::vector<LuaMessage>& messages)
 {
+    // Records are added right away: objects and items that use them may arrive in the next packets
+    std::vector<LuaMessage> queued;
+    for (const LuaMessage& message : messages)
+    {
+        if (message.kind == LuaMessage::RECORD)
+            addSharedRecord(message);
+        else
+            queued.push_back(message);
+    }
+
     std::lock_guard lock(mMutex);
-    mIncoming.insert(mIncoming.end(), messages.begin(), messages.end());
+    mIncoming.insert(mIncoming.end(), queued.begin(), queued.end());
+}
+
+bool LuaSync::sharesRecords() const
+{
+    std::lock_guard lock(mRecordMutex);
+    return isEnabled() && mHasRecordBlock;
+}
+
+std::optional<ESM::RefId> LuaSync::findSharedRecord(const std::string& contentHash) const
+{
+    std::lock_guard lock(mRecordMutex);
+    auto found = mSharedRecordsByContent.find(contentHash);
+    if (found == mSharedRecordsByContent.end())
+        return std::nullopt;
+    return found->second;
+}
+
+void LuaSync::onRecordCreated(const ESM::RefId& id, const std::string& contentHash, std::string data)
+{
+    {
+        std::lock_guard lock(mRecordMutex);
+        mSharedRecords.insert(id);
+        mSharedRecordsByContent.emplace(contentHash, id);
+    }
+    LuaMessage message;
+    message.kind = LuaMessage::RECORD;
+    message.name = id.serializeText();
+    message.key = contentHash;
+    message.data = std::move(data);
+    queue(std::move(message));
+}
+
+bool LuaSync::isLocalOnlyRecordId(const ESM::RefId& id)
+{
+    if (!Utils::isDynamicRefId(id))
+        return false;
+    LuaSync& sync = get();
+    std::lock_guard lock(sync.mRecordMutex);
+    return sync.mSharedRecords.count(id) == 0;
+}
+
+bool LuaSync::isLocalOnlyRecordId(std::string_view id)
+{
+    if (!Utils::isDynamicRefId(id))
+        return false;
+    return isLocalOnlyRecordId(ESM::RefId::deserializeText(id));
+}
+
+void LuaSync::addSharedRecord(const LuaMessage& message)
+{
+    MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
+
+    // The first id this client may use for its own records
+    if (message.name.empty())
+    {
+        try
+        {
+            store.raiseDynamicCount(std::stoull(message.key));
+            std::lock_guard lock(mRecordMutex);
+            mHasRecordBlock = true;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_MESSAGE_SIMPLE(TimedLog::LOG_ERROR, "Invalid Lua record id block %s: %s", message.key.c_str(), e.what());
+        }
+        return;
+    }
+
+    try
+    {
+        ESM::ESMReader reader;
+        reader.open(std::make_unique<std::istringstream>(message.data), "Lua record " + message.name);
+        while (reader.hasMoreRecs())
+        {
+            const ESM::NAME type = reader.getRecName();
+            reader.getRecHeader();
+            const ESM::RefId id = store.readSharedRecord(reader, type.toInt());
+            if (id.empty())
+                continue;
+            std::lock_guard lock(mRecordMutex);
+            mSharedRecords.insert(id);
+            if (!message.key.empty())
+                mSharedRecordsByContent.emplace(message.key, id);
+        }
+    }
+    catch (const std::exception& e)
+    {
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_ERROR, "Failed to add Lua record %s: %s", message.name.c_str(), e.what());
+    }
 }
 
 void LuaSync::updateLua(float dt)

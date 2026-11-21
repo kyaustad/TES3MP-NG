@@ -3,6 +3,8 @@
 
 #include <map>
 #include <mutex>
+#include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -57,6 +59,16 @@ namespace mwmp
         // State of an object's local scripts, in network form, saved by MWLua when the object leaves the scene
         void onLocalScriptsSaved(const MWWorld::Ptr& ptr, std::string data);
 
+        // Records created by Lua (world.createRecord) are shared with every client and kept by the server. A record
+        // whose content matches one that exists already is that record, so scripts that create their records each
+        // time the game starts don't fill the server with copies.
+        bool sharesRecords() const;
+        std::optional<ESM::RefId> findSharedRecord(const std::string& contentHash) const;
+        void onRecordCreated(const ESM::RefId& id, const std::string& contentHash, std::string data);
+        // Whether a record id only exists on this client: a generated id that isn't a shared Lua record
+        static bool isLocalOnlyRecordId(const ESM::RefId& id);
+        static bool isLocalOnlyRecordId(std::string_view id);
+
         // Lua data with local RefNums <-> network form with NetObjectIds
         std::string dataToNetwork(std::string_view data) const;
         std::string dataToLocal(std::string_view data) const;
@@ -75,6 +87,7 @@ namespace mwmp
         void applyConfig(const std::string& policyJson);
         void queue(LuaMessage&& message);
         void sendGlobalState();
+        void addSharedRecord(const LuaMessage& message);
 
         bool mHasConfig = false;
         bool mIsAuthority = false;
@@ -93,6 +106,10 @@ namespace mwmp
         float mLocalStateTimer = 0.f;
         std::string mLastPlayerState;
         std::map<std::string, std::size_t> mLastLocalStates; // object -> hash of the last sent state
+        mutable std::mutex mRecordMutex; // guards the shared records, used by Lua and the network
+        bool mHasRecordBlock = false;
+        std::set<ESM::RefId> mSharedRecords;
+        std::map<std::string, ESM::RefId> mSharedRecordsByContent;
     };
 }
 

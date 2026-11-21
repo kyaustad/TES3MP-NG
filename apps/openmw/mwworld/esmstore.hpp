@@ -1,6 +1,7 @@
 #ifndef OPENMW_MWWORLD_ESMSTORE_H
 #define OPENMW_MWWORLD_ESMSTORE_H
 
+#include <algorithm>
 #include <filesystem>
 #include <memory>
 #include <stdexcept>
@@ -209,6 +210,13 @@ namespace MWWorld
         void clearDynamic();
         void rebuildIdsIndex();
         ESM::RefId generateId() { return ESM::RefId::generated(mDynamicCount++); }
+
+        // tes3mp addition: records created by Lua are shared by all clients, so each client generates ids from its
+        // own block
+        void raiseDynamicCount(uint64_t count) { mDynamicCount = std::max(mDynamicCount, count); }
+        // tes3mp addition: add a record created by Lua on another client, read from an ESM file like a saved game's
+        // records. Returns its id, or an empty id for record types Lua can't create
+        ESM::RefId readSharedRecord(ESM::ESMReader& reader, uint32_t typeId);
 
         void movePlayerRecord();
 

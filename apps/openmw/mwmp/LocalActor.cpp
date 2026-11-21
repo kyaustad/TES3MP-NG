@@ -18,6 +18,7 @@
 #include "Networking.hpp"
 #include "ActorList.hpp"
 #include "MechanicsHelper.hpp"
+#include "LuaSync.hpp" // tes3mp addition: records created by Lua
 
 using namespace mwmp;
 
@@ -292,7 +293,7 @@ void LocalActor::sendEquipment()
 void LocalActor::sendSpellsActiveAddition(const std::string id, bool isStackingSpell, const MWMechanics::ActiveSpells::ActiveSpellParams& params)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     spellsActiveChanges.activeSpells.clear();
@@ -323,7 +324,7 @@ void LocalActor::sendSpellsActiveAddition(const std::string id, bool isStackingS
 void LocalActor::sendSpellsActiveRemoval(const std::string id, bool isStackingSpell, MWWorld::TimeStamp timestamp)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     spellsActiveChanges.activeSpells.clear();

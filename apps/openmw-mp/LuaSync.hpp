@@ -25,6 +25,9 @@ class LuaSync
 public:
     static void init(const std::string& dataDirectory);
 
+    // Sends the records created by Lua and the client's block of record ids, before the player's data that may
+    // use them
+    static void onHandshake(Player& player);
     static void onPlayerLoaded(Player& player);
     static void onCellLoaded(Player& player, const std::string& cellDescription);
     static void onPlayerDisconnect(Player& player);
@@ -49,6 +52,7 @@ private:
     static void routeLocalEvent(Player& sender, const mwmp::LuaMessage& message);
     static void persistStorage();
     static void persistState();
+    static void persistRecords();
     static void persistLocalStates();
     static std::filesystem::path playerStatePath(const Player& player);
     static void sendLocalStates(Player& player, const std::string& cellDescription);
@@ -64,6 +68,16 @@ private:
     // Saved state of local scripts: cell short description -> object -> state
     static std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>> sLocalStates;
     static bool sDropCurrentEvent;
+    // Records created by Lua, in creation order: id, content hash, ESM data
+    struct Record
+    {
+        std::string id;
+        std::string hash;
+        std::string data;
+    };
+    static std::vector<Record> sRecords;
+    static std::map<std::string, std::size_t> sRecordIndex; // id -> index in sRecords
+    static uint64_t sNextRecordBlock;
 };
 
 #endif // OPENMW_LUASYNC_HPP

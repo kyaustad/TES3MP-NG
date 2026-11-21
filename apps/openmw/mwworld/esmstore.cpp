@@ -773,6 +773,40 @@ namespace MWWorld
         }
     }
 
+    // tes3mp addition
+    ESM::RefId ESMStore::readSharedRecord(ESM::ESMReader& reader, uint32_t typeId)
+    {
+        const ESM::RecNameInts type = static_cast<ESM::RecNameInts>(typeId);
+        switch (type)
+        {
+            case ESM::REC_ACTI:
+            case ESM::REC_ALCH:
+            case ESM::REC_ARMO:
+            case ESM::REC_BOOK:
+            case ESM::REC_CLOT:
+            case ESM::REC_CONT:
+            case ESM::REC_CREA:
+            case ESM::REC_DOOR:
+            case ESM::REC_ENCH:
+            case ESM::REC_LIGH:
+            case ESM::REC_MISC:
+            case ESM::REC_NPC_:
+            case ESM::REC_PROB:
+            case ESM::REC_SPEL:
+            case ESM::REC_STAT:
+            case ESM::REC_WEAP:
+                break;
+            default:
+                reader.skipRecord();
+                return ESM::RefId();
+        }
+        const RecordId record = mStoreImp->mRecNameToStore[type]->read(reader);
+        if (record.mId.empty() || record.mIsDeleted)
+            return ESM::RefId();
+        setIdType(record.mId, type);
+        return record.mId;
+    }
+
     void ESMStore::checkPlayer()
     {
         const ESM::NPC* player = get<ESM::NPC>().find(ESM::RefId::stringRefId("Player"));

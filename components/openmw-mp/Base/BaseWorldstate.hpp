@@ -375,7 +375,11 @@ namespace mwmp
             GLOBAL_STATE = 6,  // data is the saved state of authority mode global scripts
             REQUEST_STATE = 7, // server -> authority: send GLOBAL_STATE now
             PLAYER_STATE = 8,  // data is the saved state of the player's own PLAYER scripts (server -> client on login)
-            LOCAL_STATE = 9    // data is the saved state of an object's local scripts, target the object, cell its cell
+            LOCAL_STATE = 9,   // data is the saved state of an object's local scripts, target the object, cell its cell
+            // A record created by Lua (world.createRecord): name is its id, key a hash of its content, data the
+            // record as an ESM file. From the server with an empty name: key is the first record id this client
+            // may use, so the ids of all clients' records differ
+            RECORD = 10
         };
 
         enum Flags : uint8_t

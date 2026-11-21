@@ -131,6 +131,7 @@ void Networking::processSystemPacket(RakNet::Packet *packet)
             }
         }
         player->setHandshake();
+        LuaSync::onHandshake(*player); // tes3mp addition: records created by Lua
         return;
     }
 }

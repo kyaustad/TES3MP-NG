@@ -44,7 +44,7 @@ void PacketLuaMessage::Packet(RakNet::BitStream *newBitstream, bool send)
         RW(message.flags, send);
         RW(message.name, send, true);
 
-        if (message.kind == LuaMessage::STORAGE_SET)
+        if (message.kind == LuaMessage::STORAGE_SET || message.kind == LuaMessage::RECORD)
             RW(message.key, send, true);
 
         if (message.kind == LuaMessage::LOCAL_EVENT || message.kind == LuaMessage::AUTHORITY

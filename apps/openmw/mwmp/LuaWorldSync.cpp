@@ -29,6 +29,7 @@
 #include "ObjectList.hpp"
 #include "PlayerList.hpp"
 #include "Worldstate.hpp"
+#include "LuaSync.hpp" // tes3mp addition: records created by Lua
 
 using namespace mwmp;
 
@@ -176,7 +177,7 @@ void LuaWorldSync::objectPlaced(const MWWorld::Ptr& ptr)
         return;
 
     const std::string refId = ptr.getCellRef().getRefId().serializeText();
-    if (Utils::isDynamicRefId(refId))
+    if (LuaSync::isLocalOnlyRecordId(refId))
     {
         // Records created by Lua scripts only exist on the client that created them
         LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Not sending the placement of %s, a record that only exists on this "

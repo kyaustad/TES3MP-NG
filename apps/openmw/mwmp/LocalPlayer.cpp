@@ -47,6 +47,7 @@
 #include "CellController.hpp"
 #include "GUIController.hpp"
 #include "MechanicsHelper.hpp"
+#include "LuaSync.hpp" // tes3mp addition: records created by Lua
 
 using namespace mwmp;
 
@@ -565,7 +566,7 @@ void LocalPlayer::updateInventory(bool forceUpdate)
 
     auto setItem = [](Item &item, const MWWorld::Ptr &iter) {
         item.refId = iter.getCellRef().getRefId().serializeText();
-        if (Utils::isDynamicRefId(item.refId))
+        if (LuaSync::isLocalOnlyRecordId(item.refId))
             return true;
         item.count = iter.getCellRef().getCount();
         item.charge = iter.getCellRef().getCharge();
@@ -1516,7 +1517,7 @@ void LocalPlayer::sendInventory()
         item.refId = iter.getCellRef().getRefId().serializeText();
 
         // Skip any items that somehow have clientside-only dynamic IDs
-        if (Utils::isDynamicRefId(item.refId))
+        if (LuaSync::isLocalOnlyRecordId(item.refId))
             continue;
 
         // Skip bound items
@@ -1624,7 +1625,7 @@ void LocalPlayer::sendSpellbook()
 void LocalPlayer::sendSpellChange(std::string id, unsigned int action)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     spellbookChanges.spells.clear();
@@ -1666,7 +1667,7 @@ void LocalPlayer::sendSpellsActive()
 void LocalPlayer::sendSpellsActiveAddition(const std::string id, bool isStackingSpell, const MWMechanics::ActiveSpells::ActiveSpellParams& params)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     spellsActiveChanges.activeSpells.clear();
@@ -1697,7 +1698,7 @@ void LocalPlayer::sendSpellsActiveAddition(const std::string id, bool isStacking
 void LocalPlayer::sendSpellsActiveRemoval(const std::string id, bool isStackingSpell, MWWorld::TimeStamp timestamp)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     spellsActiveChanges.activeSpells.clear();
@@ -1720,7 +1721,7 @@ void LocalPlayer::sendSpellsActiveRemoval(const std::string id, bool isStackingS
 void LocalPlayer::sendCooldownChange(std::string id, int startTimestampDay, float startTimestampHour)
 {
     // Skip any bugged spells that somehow have clientside-only dynamic IDs
-    if (Utils::isDynamicRefId(id))
+    if (LuaSync::isLocalOnlyRecordId(id))
         return;
 
     cooldownChanges.clear();
