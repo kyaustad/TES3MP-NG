@@ -201,6 +201,8 @@ public:
             {"OnObjectLock",             Callback<unsigned short, const char*>()},
             {"OnObjectDialogueChoice",   Callback<unsigned short, const char*>()},
             {"OnObjectMiscellaneous",    Callback<unsigned short, const char*>()},
+            {"OnObjectMove",             Callback<unsigned short, const char*>()}, // tes3mp-ng addition
+            {"OnObjectRotate",           Callback<unsigned short, const char*>()}, // tes3mp-ng addition
             {"OnObjectRestock",          Callback<unsigned short, const char*>()},
             {"OnObjectScale",            Callback<unsigned short, const char*>()},
             {"OnObjectSound",            Callback<unsigned short, const char*>()},

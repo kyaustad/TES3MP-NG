@@ -68,6 +68,8 @@ namespace mwmp
         void addObjectMiscellaneous(const MWWorld::Ptr& ptr, unsigned int goldPool, float lastGoldRestockHour, int lastGoldRestockDay);
         void addObjectTrap(const MWWorld::Ptr& ptr, const ESM::Position& pos, bool isDisarmed);
         void addObjectScale(const MWWorld::Ptr& ptr, float scale);
+        // tes3mp-ng addition: an object's position and rotation, for ID_OBJECT_MOVE and ID_OBJECT_ROTATE
+        void addObjectMove(const MWWorld::Ptr& ptr);
         void addObjectSound(const MWWorld::Ptr& ptr, std::string soundId, float volume, float pitch);
         void addObjectState(const MWWorld::Ptr& ptr, bool objectState);
         void addObjectAnimPlay(const MWWorld::Ptr& ptr, std::string group, int mode);
@@ -90,6 +92,8 @@ namespace mwmp
         void sendObjectRestock();
         void sendObjectTrap();
         void sendObjectScale();
+        void sendObjectMove();
+        void sendObjectRotate();
         void sendObjectSound();
         void sendObjectState();
         void sendObjectAnimPlay();

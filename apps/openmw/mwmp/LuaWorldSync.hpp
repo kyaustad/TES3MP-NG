@@ -53,6 +53,8 @@ namespace mwmp
         };
         Location capture(const MWWorld::Ptr& ptr);
         void objectMoved(const Location& from, const MWWorld::Ptr& to);
+        // New position and rotation of an object that stays in its cell
+        void sendMoveAndRotate(const MWWorld::Ptr& ptr);
 
         // Containers and inventories of objects other than players
         void containerChanged(const MWWorld::Ptr& container, const MWWorld::Ptr& item, int count, bool added);

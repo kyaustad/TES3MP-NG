@@ -1422,6 +1422,15 @@ void ObjectList::addObjectScale(const MWWorld::Ptr& ptr, float scale)
     addBaseObject(baseObject);
 }
 
+void ObjectList::addObjectMove(const MWWorld::Ptr& ptr)
+{
+    cell = ptr.getCell()->getCell()->getEsm3();
+
+    mwmp::BaseObject baseObject = getBaseObjectFromPtr(ptr);
+    baseObject.position = ptr.getRefData().getPosition();
+    addBaseObject(baseObject);
+}
+
 void ObjectList::addObjectSound(const MWWorld::Ptr& ptr, std::string soundId, float volume, float pitch)
 {
     cell = ptr.getCell()->getCell()->getEsm3();
@@ -1599,6 +1608,18 @@ void ObjectList::sendObjectScale()
 {
     mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_SCALE)->setObjectList(this);
     mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_SCALE)->Send();
+}
+
+void ObjectList::sendObjectMove()
+{
+    mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_MOVE)->setObjectList(this);
+    mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_MOVE)->Send();
+}
+
+void ObjectList::sendObjectRotate()
+{
+    mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_ROTATE)->setObjectList(this);
+    mwmp::Main::get().getNetworking()->getObjectPacket(ID_OBJECT_ROTATE)->Send();
 }
 
 void ObjectList::sendObjectState()

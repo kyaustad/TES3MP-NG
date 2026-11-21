@@ -40,8 +40,11 @@ namespace
         ESM::RefNum mRefNum;
         std::string mRefId;
         std::string mCell;
-        osg::Vec3f mPosition;
+        ESM::Cell mCellData;
+        ESM::Position mPosition;
         std::chrono::steady_clock::time_point mTime;
+        // Moved again before the server answered: its final location is sent once it has an mpNum
+        bool mMoved = false;
     };
 
     std::mutex sMutex;
@@ -49,6 +52,21 @@ namespace
     std::vector<PendingPlacement> sPending;
 
     constexpr const char* sOrigin = "lua";
+
+    /// Mark a placement still waiting for the server as moved. False when the object has none.
+    bool markPendingMoved(const MWWorld::Ptr& ptr)
+    {
+        std::lock_guard lock(sMutex);
+        for (PendingPlacement& pending : sPending)
+        {
+            if (pending.mRefNum == ptr.getCellRef().getRefNum())
+            {
+                pending.mMoved = true;
+                return true;
+            }
+        }
+        return false;
+    }
 
     bool inMultiplayerCell(const MWWorld::Ptr& ptr)
     {
@@ -152,6 +170,11 @@ void LuaWorldSync::objectPlaced(const MWWorld::Ptr& ptr)
     if (!isActive() || !inMultiplayerCell(ptr) || isPlayer(ptr))
         return;
 
+    // Placed once only: moves before the server's answer are sent after it, so mods that place an object and then
+    // adjust it (snapping to the ground, offsets, rotations) don't create a second one
+    if (markPendingMoved(ptr))
+        return;
+
     const std::string refId = ptr.getCellRef().getRefId().serializeText();
     if (Utils::isDynamicRefId(refId))
     {
@@ -163,9 +186,9 @@ void LuaWorldSync::objectPlaced(const MWWorld::Ptr& ptr)
 
     {
         std::lock_guard lock(sMutex);
-        sPending.push_back({ ptr.getCellRef().getRefNum(), refId,
-            ptr.getCell()->getCell()->getEsm3().getShortDescription(), ptr.getRefData().getPosition().asVec3(),
-            std::chrono::steady_clock::now() });
+        const ESM::Cell& cell = ptr.getCell()->getCell()->getEsm3();
+        sPending.push_back({ ptr.getCellRef().getRefNum(), refId, cell.getShortDescription(), cell,
+            ptr.getRefData().getPosition(), std::chrono::steady_clock::now() });
     }
 
     ObjectList* objectList = prepare(ptr);
@@ -228,15 +251,37 @@ void LuaWorldSync::objectMoved(const Location& from, const MWWorld::Ptr& to)
         return;
     }
 
-    // Other objects are removed from where they were and placed again where they are now
-    if (from.mSynced)
+    if (!from.mSynced)
+    {
+        objectPlaced(to);
+        return;
+    }
+
+    // Other objects keep their identity within a cell, and are removed and placed again when they change cells
+    if (inMultiplayerCell(to) && CellController::isSameCell(from.mCell, to.getCell()->getCell()->getEsm3()))
+    {
+        sendMoveAndRotate(to);
+        return;
+    }
     {
         ObjectList* objectList = prepare(MWWorld::Ptr());
         objectList->cell = from.mCell;
         objectList->addBaseObject(from.mObject);
         objectList->sendObjectDelete();
     }
+    // Its placement in the new cell gives it a new mpNum, which the server's answer must be able to claim
+    to.getCellRef().setMpNum(0);
     objectPlaced(to);
+}
+
+void LuaWorldSync::sendMoveAndRotate(const MWWorld::Ptr& ptr)
+{
+    if (!isActive() || !inMultiplayerCell(ptr) || !isSynced(ptr) || isPlayer(ptr))
+        return;
+    ObjectList* objectList = prepare(ptr);
+    objectList->addObjectMove(ptr);
+    objectList->sendObjectMove();
+    objectList->sendObjectRotate();
 }
 
 void LuaWorldSync::containerChanged(const MWWorld::Ptr& container, const MWWorld::Ptr& item, int count, bool added)
@@ -353,20 +398,35 @@ MWWorld::Ptr LuaWorldSync::claimPlacement(
     for (auto it = sPending.begin(); it != sPending.end(); ++it)
     {
         if (!Misc::StringUtils::ciEqual(it->mRefId, refId) || !Misc::StringUtils::ciEqual(it->mCell, cell)
-            || (it->mPosition - position.asVec3()).length() > 1.f)
+            || (it->mPosition.asVec3() - position.asVec3()).length() > 1.f)
             continue;
 
-        const ESM::RefNum refNum = it->mRefNum;
-        const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(refNum);
+        const PendingPlacement pending = *it;
+        const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(pending.mRefNum);
         sPending.erase(it);
         if (ptr.isEmpty() || ptr.getCellRef().getMpNum() != 0)
             return {};
 
         // Changes that scripts made before the object had its mpNum are sent once it has one
-        sPosted.push_back([refNum] {
-            const MWWorld::Ptr placed = MWBase::Environment::get().getWorldModel()->getPtr(refNum);
+        sPosted.push_back([pending] {
+            const MWWorld::Ptr placed = MWBase::Environment::get().getWorldModel()->getPtr(pending.mRefNum);
             if (placed.isEmpty() || placed.getCellRef().getMpNum() == 0)
                 return;
+            if (pending.mMoved && inMultiplayerCell(placed))
+            {
+                // Where the server placed it, and where scripts moved it since
+                Location from;
+                from.mSynced = true;
+                from.mInWorld = true;
+                from.mCell = pending.mCellData;
+                from.mObject = Main::get().getNetworking()->getObjectList()->getBaseObjectFromPtr(placed);
+                from.mObject.position = pending.mPosition;
+                const ESM::Position& now = placed.getRefData().getPosition();
+                if (!CellController::isSameCell(from.mCell, placed.getCell()->getCell()->getEsm3())
+                    || now.asVec3() != pending.mPosition.asVec3()
+                    || now.asRotationVec3() != pending.mPosition.asRotationVec3())
+                    objectMoved(from, placed);
+            }
             if (placed.getCellRef().getScale() != 1.f)
                 objectScaled(placed, placed.getCellRef().getScale());
             if (placed.getCellRef().getLockLevel() > 0)
