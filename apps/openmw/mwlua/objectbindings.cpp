@@ -34,6 +34,7 @@
     Include additional headers for multiplayer purposes
 */
 #include "../mwmp/LuaWorldSync.hpp"
+#include "../mwmp/LuaSync.hpp" // tes3mp addition
 /*
     End of tes3mp addition
 */
@@ -237,6 +238,7 @@ namespace MWLua
                 if (!ownerId)
                 {
                     ptr.getCellRef().setOwner(ESM::RefId());
+                    mwmp::LuaSync::onOwnerChanged(ptr, "owner.recordId", {}); // tes3mp addition
                     return;
                 }
                 ESM::RefId owner = ESM::RefId::deserializeText(*ownerId);
@@ -244,6 +246,7 @@ namespace MWLua
                 if (!store.get<ESM::NPC>().search(owner))
                     throw std::runtime_error("Invalid owner record id");
                 ptr.getCellRef().setOwner(owner);
+                mwmp::LuaSync::onOwnerChanged(ptr, "owner.recordId", std::string(*ownerId)); // tes3mp addition
             };
             ownerT["recordId"] = sol::property(getOwnerRecordId, setOwnerRecordId);
 
@@ -261,6 +264,7 @@ namespace MWLua
                 if (!ownerId)
                 {
                     o.mObj.ptr().getCellRef().setFaction(ESM::RefId());
+                    mwmp::LuaSync::onOwnerChanged(o.mObj.ptr(), "owner.factionId", {}); // tes3mp addition
                     return;
                 }
                 ownerFac = ESM::RefId::deserializeText(*ownerId);
@@ -268,6 +272,7 @@ namespace MWLua
                 if (!store.get<ESM::Faction>().search(ownerFac))
                     throw std::runtime_error("Invalid owner faction id");
                 o.mObj.ptr().getCellRef().setFaction(ownerFac);
+                mwmp::LuaSync::onOwnerChanged(o.mObj.ptr(), "owner.factionId", *ownerId); // tes3mp addition
             };
             ownerT["factionId"] = sol::property(getOwnerFactionId, setOwnerFactionId);
 
@@ -282,6 +287,7 @@ namespace MWLua
                     throw std::runtime_error("Local scripts can set an owner faction rank only on self");
                 int64_t rank = std::max<int64_t>(0, LuaUtil::fromLuaIndex(factionRank.value_or(0)));
                 o.mObj.ptr().getCellRef().setFactionRank(static_cast<int>(rank));
+                mwmp::LuaSync::onOwnerChanged(o.mObj.ptr(), "owner.factionRank", std::to_string(rank)); // tes3mp addition
             };
             ownerT["factionRank"] = sol::property(getOwnerFactionRank, setOwnerFactionRank);
 

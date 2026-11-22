@@ -297,6 +297,12 @@ void LuaSync::onPlayerLoaded(Player& player)
         }
     }
 
+    // The state of the player's client mode global scripts, which start with the policy
+    LuaMessage clientGlobalState;
+    clientGlobalState.kind = LuaMessage::CLIENT_GLOBAL_STATE;
+    clientGlobalState.data = readFile(clientGlobalStatePath(player));
+    messages.push_back(std::move(clientGlobalState));
+
     // The player's own PLAYER script state; empty if there is none yet, so the client knows it may start saving
     LuaMessage playerState;
     playerState.kind = LuaMessage::PLAYER_STATE;
@@ -364,6 +370,13 @@ void LuaSync::sendLocalStates(Player& player, const std::string& cellDescription
         messages.push_back(std::move(state));
     }
     send(std::move(messages), &player);
+}
+
+std::filesystem::path LuaSync::clientGlobalStatePath(const Player& player)
+{
+    std::filesystem::path path = playerStatePath(player);
+    path.replace_extension(".global.bin");
+    return path;
 }
 
 std::filesystem::path LuaSync::playerStatePath(const Player& player)
@@ -517,14 +530,7 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
             }
             case LuaMessage::STORAGE_SET:
             {
-                if (!fromAuthority)
-                {
-                    LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN,
-                        "Ignoring global storage change %s.%s from %s, who isn't the Lua world authority",
-                        message.name.c_str(), message.key.c_str(), sender.npc.mName.c_str());
-                    break;
-                }
-
+                // From the authority's authority mode scripts, or any client's client mode scripts; the last wins
                 if (message.data.empty())
                     sStorage[message.name].erase(message.key);
                 else
@@ -537,8 +543,6 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
             }
             case LuaMessage::STORAGE_RESET:
             {
-                if (!fromAuthority)
-                    break;
                 sStorage.erase(message.name);
                 broadcast({ message }, &sender);
                 persistStorage();
@@ -552,9 +556,12 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
                 persistState();
                 break;
             }
+            case LuaMessage::CLIENT_GLOBAL_STATE:
             case LuaMessage::PLAYER_STATE:
             {
-                const std::filesystem::path path = playerStatePath(sender);
+                const std::filesystem::path path = message.kind == LuaMessage::PLAYER_STATE
+                    ? playerStatePath(sender)
+                    : clientGlobalStatePath(sender);
                 std::error_code ec;
                 std::filesystem::create_directories(path.parent_path(), ec);
                 std::ofstream out(path, std::ios::binary | std::ios::trunc);

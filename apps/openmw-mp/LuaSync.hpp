@@ -57,6 +57,7 @@ private:
     static void persistItemData();
     static void persistLocalStates();
     static std::filesystem::path playerStatePath(const Player& player);
+    static std::filesystem::path clientGlobalStatePath(const Player& player);
     static void sendLocalStates(Player& player, const std::string& cellDescription);
     static Player* getCellAuthority(const std::string& cellDescription);
     static Cell* findCell(const std::string& cellDescription);

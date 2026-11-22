@@ -364,6 +364,12 @@ void LuaSync::onEffect(const MWWorld::Ptr& target, const std::string& op, const 
     queue(std::move(message));
 }
 
+void LuaSync::onOwnerChanged(const MWWorld::Ptr& object, std::string_view property, std::string value)
+{
+    if (isEnabled())
+        get().onItemDataChanged(object, property, value);
+}
+
 void LuaSync::onItemDataChanged(const MWWorld::Ptr& item, std::string_view property, const std::string& data)
 {
     // Items in inventories and containers follow the inventory and container sync
@@ -416,8 +422,12 @@ void LuaSync::onLocalEvent(const MWWorld::Ptr& target, const std::string& eventN
 
 void LuaSync::onStorageValueChanged(std::string_view section, std::string_view key, std::string data, bool persistent)
 {
-    if (!mIsAuthority)
+    // Every client shares its writes, the last one wins; a value this client sent or received already isn't sent
+    const std::size_t hash = std::hash<std::string>{}(data);
+    auto [entry, inserted] = mStorageHashes.try_emplace(std::string(section) + '\x1f' + std::string(key), hash);
+    if (!inserted && entry->second == hash)
         return;
+    entry->second = hash;
 
     LuaMessage message;
     message.kind = LuaMessage::STORAGE_SET;
@@ -430,8 +440,8 @@ void LuaSync::onStorageValueChanged(std::string_view section, std::string_view k
 
 void LuaSync::onStorageSectionReplaced(std::string_view section, std::string data)
 {
-    if (!mIsAuthority)
-        return;
+    const std::string prefix = std::string(section) + '\x1f';
+    std::erase_if(mStorageHashes, [&](const auto& entry) { return entry.first.starts_with(prefix); });
 
     LuaMessage message;
     message.kind = LuaMessage::STORAGE_RESET;
@@ -581,6 +591,12 @@ void LuaSync::updateLua(float dt)
                 case LuaMessage::REQUEST_STATE:
                     sendGlobalState();
                     break;
+                case LuaMessage::CLIENT_GLOBAL_STATE:
+                    // Used when global scripts start, at the end of this update
+                    mPendingClientGlobalState = message.data;
+                    mHasPendingClientGlobalState = true;
+                    mLastClientGlobalState = message.data;
+                    break;
                 case LuaMessage::PLAYER_STATE:
                     lua->mpLoadPlayerScripts(message.data);
                     mLastPlayerState = message.data;
@@ -636,8 +652,12 @@ void LuaSync::updateLua(float dt)
                     break;
                 }
                 case LuaMessage::STORAGE_SET:
-                    lua->mpSetStorageValue(message.name, message.key, toLocal(message.data));
+                {
+                    const std::string data = toLocal(message.data);
+                    mStorageHashes[message.name + '\x1f' + message.key] = std::hash<std::string>{}(data);
+                    lua->mpSetStorageValue(message.name, message.key, data);
                     break;
+                }
                 case LuaMessage::STORAGE_RESET:
                     lua->mpResetStorageSection(message.name, toLocal(message.data));
                     break;
@@ -669,6 +689,19 @@ void LuaSync::updateLua(float dt)
             message.data = std::move(state);
             queue(std::move(message));
         }
+        // Client mode global scripts handle this player's actions on this client, so their state is the player's
+        if (mStartedGlobalScripts)
+        {
+            std::string globalState = lua->mpSaveClientGlobalScripts();
+            if (globalState != mLastClientGlobalState)
+            {
+                mLastClientGlobalState = globalState;
+                LuaMessage message;
+                message.kind = LuaMessage::CLIENT_GLOBAL_STATE;
+                message.data = std::move(globalState);
+                queue(std::move(message));
+            }
+        }
     }
 
     // Local script state of the objects this client simulates
@@ -697,7 +730,10 @@ void LuaSync::updateLua(float dt)
             sendGlobalState();
 
         const std::string* state = (mIsAuthority && mHasPendingAuthorityState) ? &mPendingAuthorityState : nullptr;
-        lua->mpStartGlobalScripts(mIsAuthority, state);
+        const std::string* clientState = mHasPendingClientGlobalState ? &mPendingClientGlobalState : nullptr;
+        lua->mpStartGlobalScripts(mIsAuthority, state, clientState);
+        mHasPendingClientGlobalState = false;
+        mPendingClientGlobalState.clear();
         mStartedGlobalScripts = true;
         mHasPendingAuthorityState = false;
         mPendingAuthorityState.clear();

@@ -389,7 +389,10 @@ namespace mwmp
             EFFECT = 12,
             // A world item's condition, enchantment charge or soul set by Lua: name is the property, target the item,
             // cell its cell, data the value. The server keeps the latest values and sends them with the cell
-            ITEM_DATA = 13
+            ITEM_DATA = 13,
+            // data is the saved state of the player's client mode global scripts (server -> client on login, before
+            // PLAYER_STATE), kept by the server for each player like PLAYER_STATE
+            CLIENT_GLOBAL_STATE = 14
         };
 
         enum Flags : uint8_t

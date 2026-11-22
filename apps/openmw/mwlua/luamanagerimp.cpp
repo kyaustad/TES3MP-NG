@@ -131,8 +131,9 @@ namespace MWLua
         bool active(std::string_view section) const
         {
             // Temporary sections hold per-client runtime data, such as the settings groups that built-in client mode
-            // scripts register on every client
-            return mwmp::LuaSync::isEnabled() && !mManager.mMpApplyingStorage && mwmp::LuaSync::get().isAuthority()
+            // scripts register on every client. Other sections are shared from every client: client mode global
+            // scripts (mods that handle each player's actions on that player's client) keep world data there too
+            return mwmp::LuaSync::isEnabled() && !mManager.mMpApplyingStorage
                 && !mManager.mGlobalStorage.isTemporarySection(section);
         }
 
@@ -1303,7 +1304,8 @@ namespace MWLua
         return conf;
     }
 
-    void LuaManager::mpStartGlobalScripts(bool authority, const std::string* authorityState)
+    void LuaManager::mpStartGlobalScripts(
+        bool authority, const std::string* authorityState, const std::string* clientState)
     {
         const mwmp::LuaSync& sync = mwmp::LuaSync::get();
         auto isAuthorityMode = [&](int scriptId) {
@@ -1318,6 +1320,19 @@ namespace MWLua
             mGlobalScripts.save(saved);
             std::erase_if(
                 saved.mScripts, [&](const ESM::LuaScript& script) { return isAuthorityMode(script.mScriptId); });
+        }
+
+        // The player's client mode scripts, with the state the server kept (sent once, at login)
+        if (clientState != nullptr && !clientState->empty())
+        {
+            ESM::LuaScripts clientScripts = mpDecodeScripts(*clientState, "client mode global");
+            for (ESM::LuaScript& script : clientScripts.mScripts)
+            {
+                if (isAuthorityMode(script.mScriptId) || mpIsEngineScript(script.mScriptId))
+                    continue;
+                std::erase_if(saved.mScripts, [&](const ESM::LuaScript& s) { return s.mScriptId == script.mScriptId; });
+                saved.mScripts.push_back(std::move(script));
+            }
         }
 
         if (authority && authorityState != nullptr && !authorityState->empty())
@@ -1481,6 +1496,21 @@ namespace MWLua
                          << " of them with their saved state";
     }
 
+    std::string LuaManager::mpSaveClientGlobalScripts()
+    {
+        if (!mGlobalScriptsStarted)
+            return {};
+        const mwmp::LuaSync& sync = mwmp::LuaSync::get();
+        ESM::LuaScripts saved;
+        mGlobalScripts.save(saved);
+        std::erase_if(saved.mScripts, [&](const ESM::LuaScript& script) {
+            return mpIsEngineScript(script.mScriptId)
+                || sync.getGlobalScriptMode(mConfiguration[script.mScriptId].mScriptPath.value())
+                == mwmp::LuaSync::Mode::Authority;
+        });
+        return mpEncodeScripts(saved);
+    }
+
     bool LuaManager::mpIsEngineScript(int scriptId) const
     {
         return Misc::StringUtils::ciStartsWith(mConfiguration[scriptId].mScriptPath.value(), "scripts/omw/");
@@ -1602,9 +1632,17 @@ namespace MWLua
         const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(target);
         if (ptr.isEmpty())
             return;
-        mLua.protectedCall([&](LuaUtil::LuaView& view) {
-            mpApplyItemData(ptr, property, LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get()));
-        });
+        // Owners are ids and a rank, as text; empty clears them
+        if (property == "owner.recordId")
+            ptr.getCellRef().setOwner(data.empty() ? ESM::RefId() : ESM::RefId::deserializeText(data));
+        else if (property == "owner.factionId")
+            ptr.getCellRef().setFaction(data.empty() ? ESM::RefId() : ESM::RefId::deserializeText(data));
+        else if (property == "owner.factionRank")
+            ptr.getCellRef().setFactionRank(data.empty() ? 0 : std::stoi(std::string(data)));
+        else
+            mLua.protectedCall([&](LuaUtil::LuaView& view) {
+                mpApplyItemData(ptr, property, LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get()));
+            });
     }
 
     void LuaManager::mpApplyEffect(ESM::RefNum target, const std::string& op, std::string_view data)

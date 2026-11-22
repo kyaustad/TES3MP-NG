@@ -102,12 +102,14 @@ on other clients.
 
 ## Storage
 
-* `storage.globalSection` is written by global scripts. Writes on the authority are replicated: the server keeps the
-  latest value of every key, persists sections with the `Persistent` lifetime, broadcasts changes and sends a full
-  snapshot to joining players.
+* `storage.globalSection` is written by global scripts and replicated from every client: the server keeps the
+  latest value of every key (the last write wins), persists sections with the `Persistent` lifetime, broadcasts
+  changes and sends a full snapshot to joining players. `client` mode scripts, which handle each player's actions
+  on that player's client (Ashlander Architect keeps its settlements this way), share their data like `authority`
+  mode scripts. A client doesn't send a value it sent or received already, so values that every client's copy of
+  a script writes travel once.
   `section:reset()` becomes a reset followed by one write per key.
-* Writes by `client` mode global scripts on other clients stay on that client and are overwritten by the next
-  replicated value. Mods that share state between players need an `authority` mode script to own it.
+* Temporary sections stay on each client: they hold per-client runtime data such as settings groups.
 * In multiplayer the client neither loads nor saves `global_storage.bin`: the server's snapshot replaces it.
 * `storage.playerSection` stays on each client, as in single player.
 
@@ -152,6 +154,10 @@ TES3MP doesn't use OpenMW saves.
   mirror engine state that multiplayer servers don't persist, so they keep the state of the current session.
   Restoring a state restarts only the scripts it contains, and the others keep running.
 
+
+The saved state (`onSave`) of a player's `client` mode global scripts is kept by the server for that player
+(`data/lua/players/<name>.global.bin`), sent with the player state when they log in, and loaded when the global
+scripts start, so mods that run per player keep their data across sessions.
 ## World changes made by Lua scripts
 
 In 0.8.1, changes that mwscript makes to the world are sent with TES3MP's own packets and relayed by CoreScripts.
@@ -194,8 +200,9 @@ The clients that have the cell loaded play the effect too. Scripts that react to
 on every client, so a client skips an effect identical to one it played or received in the last 0.3 seconds.
 
 Item data that global scripts set on world items (`types.Item.itemData(item).condition`, `enchantmentCharge`,
-`soul`) is sent to the players in the cell (`ITEM_DATA` messages); the server keeps it in `data/lua/itemData.bin`
-and sends it with the cell. Items in inventories follow the inventory sync, which compares these values.
+`soul`), and the owners that scripts set on world objects (`object.owner.recordId`, `factionId`, `factionRank`,
+which decide what counts as theft), are sent to the players in the cell (`ITEM_DATA` messages); the server keeps
+them in `data/lua/itemData.bin` and sends them with the cell. Items in inventories follow the inventory sync, which compares these values.
 
 The server owns the game time: `world.setGameTimeScale` and `world.advanceTime` send `MP_SetGameTimeScale` and
 `MP_AdvanceTime` events to the server, where CoreScripts changes the time for every player. Server scripts can

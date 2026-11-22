@@ -63,6 +63,9 @@ namespace mwmp
         void onEffect(const MWWorld::Ptr& target, const std::string& op, const std::string& data);
         // A world item's condition, enchantment charge or soul set by a global script; `data` is the value
         void onItemDataChanged(const MWWorld::Ptr& item, std::string_view property, const std::string& data);
+        // An object's owner set by a global script (owner.recordId, owner.factionId as ids, owner.factionRank as a
+        // number; empty clears it), shared and kept like item data
+        static void onOwnerChanged(const MWWorld::Ptr& object, std::string_view property, std::string value);
         void onStorageValueChanged(std::string_view section, std::string_view key, std::string data, bool persistent);
         void onStorageSectionReplaced(std::string_view section, std::string data);
         // State of an object's local scripts, in network form, saved by MWLua when the object leaves the scene
@@ -115,6 +118,12 @@ namespace mwmp
         float mLocalStateTimer = 0.f;
         std::string mLastPlayerState;
         std::map<std::string, std::size_t> mLastLocalStates; // object -> hash of the last sent state
+        // Global storage: section + key -> hash of the value sent or received last, so values that every client's
+        // copy of a client mode script writes are sent once
+        std::map<std::string, std::size_t> mStorageHashes;
+        std::string mPendingClientGlobalState;
+        bool mHasPendingClientGlobalState = false;
+        std::string mLastClientGlobalState;
         mutable std::mutex mRecordMutex; // guards the shared records, used by Lua and the network
         bool mHasRecordBlock = false;
         std::set<ESM::RefId> mSharedRecords;

@@ -190,7 +190,9 @@ namespace MWLua
         */
         // Starts (or restarts, when this client gains or loses the Lua world authority) the global scripts that run
         // on this client. `authorityState` is the saved state of authority mode scripts, from the server.
-        void mpStartGlobalScripts(bool authority, const std::string* authorityState);
+        // `clientState`: the saved state of this player's client mode global scripts, from the server
+        void mpStartGlobalScripts(bool authority, const std::string* authorityState, const std::string* clientState);
+        std::string mpSaveClientGlobalScripts();
         // Saved state of authority mode scripts, in network form
         std::string mpSaveAuthorityScripts();
         void mpDeliverGlobalEvent(std::string name, std::string data, bool authorityOnly);
