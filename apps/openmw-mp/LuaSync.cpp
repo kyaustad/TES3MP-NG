@@ -166,6 +166,9 @@ void LuaSync::init(const std::string& dataDirectory)
                 std::string key, value;
                 if (!readString(storage, key) || !readString(storage, value))
                     break;
+                // Earlier versions cut values over the message limit, which no client can read
+                if (value.size() > mwmp::maxLuaDataSize)
+                    continue;
                 sStorage[section][key] = value;
             }
         }
@@ -531,6 +534,8 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
             case LuaMessage::STORAGE_SET:
             {
                 // From the authority's authority mode scripts, or any client's client mode scripts; the last wins
+                if (message.data.size() > mwmp::maxLuaDataSize)
+                    break; // cut by a client older than 0.51.2
                 if (message.data.empty())
                     sStorage[message.name].erase(message.key);
                 else

@@ -121,6 +121,7 @@ namespace mwmp
         // Global storage: section + key -> hash of the value sent or received last, so values that every client's
         // copy of a client mode script writes are sent once
         std::map<std::string, std::size_t> mStorageHashes;
+        std::set<std::string> mOversizedWarned; // name + key of values too large to send, warned about once
         std::string mPendingClientGlobalState;
         bool mHasPendingClientGlobalState = false;
         std::string mLastClientGlobalState;

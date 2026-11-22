@@ -21,6 +21,10 @@
 
 namespace mwmp
 {
+    // Largest serialized Lua value a message carries (ID_LUA_MESSAGE). Larger values aren't sent: cutting them would
+    // leave data that no client can read, and the server would keep it
+    constexpr uint32_t maxLuaDataSize = 1024 * 1024 - 1;
+
     struct NetObjectId
     {
         enum Kind : uint8_t

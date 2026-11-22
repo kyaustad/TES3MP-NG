@@ -273,6 +273,16 @@ std::string LuaSync::dataToLocal(std::string_view data) const
 void LuaSync::queue(LuaMessage&& message)
 {
     std::lock_guard lock(mMutex);
+    if (message.data.size() > maxLuaDataSize)
+    {
+        // Every client computes such data itself (openmw-footsteps fills a 4 MB storage section on each client);
+        // a cut copy would only break the others' copy
+        if (mOversizedWarned.insert(message.name + '\x1f' + message.key).second)
+            LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN,
+                "Not sharing Lua %s (%s): %zu bytes is more than the %u a message can carry; each client keeps its "
+                "own", message.name.c_str(), message.key.c_str(), message.data.size(), maxLuaDataSize);
+        return;
+    }
     mOutgoing.push_back(std::move(message));
 }
 

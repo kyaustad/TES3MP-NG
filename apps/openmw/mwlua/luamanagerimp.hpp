@@ -239,6 +239,12 @@ namespace MWLua
         bool mMpApplyingStorage = false;
         // Local scripts of objects in the scene that another client simulates; they are inactive here
         std::set<const LocalScripts*> mMpSuspendedLocalScripts;
+        // Objects whose mod scripts wait for the global scripts, which start once the server sent its script policy:
+        // mods' local scripts read what their global scripts set up (settings, storage). Saved state that the server
+        // sent for them meanwhile is kept until they start
+        std::vector<LuaUtil::ScriptsContainerWeakPtr> mMpDeferredLocalScripts;
+        std::map<const LocalScripts*, ESM::LuaScripts> mMpDeferredLocalState;
+        void mpStartDeferredLocalScripts();
         /*
             End of tes3mp addition
         */

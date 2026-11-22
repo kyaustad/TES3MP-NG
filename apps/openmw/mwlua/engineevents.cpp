@@ -29,6 +29,13 @@ namespace MWLua
             MWWorld::Ptr ptr = getPtr(event.mObject);
             if (ptr.isEmpty())
                 return;
+            /*
+                tes3mp addition: in multiplayer, packets and other players' scripts can move an object into an
+                inventory or out of the world between the event and its delivery; it isn't active then, and mods
+                expect an active object to have a cell
+            */
+            if (!ptr.isInCell())
+                return;
             if (ptr.getCellRef().getRefId() == "player")
                 mGlobalScripts.playerAdded(GObject(ptr));
             else

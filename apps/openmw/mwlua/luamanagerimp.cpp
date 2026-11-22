@@ -1,5 +1,6 @@
 #include "luamanagerimp.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 
@@ -378,11 +379,17 @@ namespace MWLua
                 continue;
             /*
                 tes3mp addition: in multiplayer the player's mod scripts start once the server sent their saved state
-                (mpLoadPlayerScripts), so they start once, with "onLoad". OpenMW's own scripts (camera, controls, UI)
-                start right away
+                (mpLoadPlayerScripts), so they start once, with "onLoad", and other objects' mod scripts start after
+                the global scripts (mpStartDeferredLocalScripts), which they rely on. OpenMW's own scripts (camera,
+                controls, UI, AI) start right away
             */
-            if (mwmp::LuaSync::isEnabled() && scripts == mPlayer.getRefData().getLuaScripts())
+            const bool isPlayer = scripts == mPlayer.getRefData().getLuaScripts();
+            if (mwmp::LuaSync::isEnabled() && (isPlayer || !mGlobalScriptsStarted))
+            {
                 scripts->mpStartScripts([this](int id) { return mpIsEngineScript(id); }, {});
+                if (!isPlayer)
+                    mMpDeferredLocalScripts.push_back(ptr);
+            }
             else
                 scripts->addAutoStartedScripts();
         }
@@ -584,6 +591,8 @@ namespace MWLua
         mGlobalScriptsStarted = false;
         mNewGameStarted = false;
         mMpSuspendedLocalScripts.clear(); // tes3mp addition
+        mMpDeferredLocalScripts.clear(); // tes3mp addition
+        mMpDeferredLocalState.clear(); // tes3mp addition
         mDelayedUiModeChangedArg = std::nullopt;
         if (!mPlayer.isEmpty())
         {
@@ -1365,6 +1374,7 @@ namespace MWLua
             mGlobalScripts.load(saved);
 
         Log(Debug::Info) << "Started global Lua scripts as " << (authority ? "the Lua world authority" : "a client");
+        mpStartDeferredLocalScripts();
 
         if (!mGlobalScriptsStarted)
         {
@@ -1527,6 +1537,28 @@ namespace MWLua
         return mpEncodeScripts(saved);
     }
 
+    void LuaManager::mpStartDeferredLocalScripts()
+    {
+        const LocalScripts* player = mPlayer.isEmpty() ? nullptr : mPlayer.getRefData().getLuaScripts();
+        std::size_t started = 0;
+        for (const LuaUtil::ScriptsContainerWeakPtr& weak : mMpDeferredLocalScripts)
+        {
+            LocalScripts* scripts = asLocal(weak);
+            if (scripts == nullptr || scripts == player)
+                continue;
+            ESM::LuaScripts saved;
+            if (auto it = mMpDeferredLocalState.find(scripts); it != mMpDeferredLocalState.end())
+                saved = std::move(it->second);
+            scripts->mpStartScripts([this](int id) { return !mpIsEngineScript(id); }, saved);
+            ++started;
+        }
+        if (started > 0)
+            Log(Debug::Info) << "Started the mod Lua scripts of " << started
+                             << " objects that were waiting for the global scripts";
+        mMpDeferredLocalScripts.clear();
+        mMpDeferredLocalState.clear();
+    }
+
     void LuaManager::mpLoadLocalScripts(const MWWorld::Ptr& ptr, std::string_view data)
     {
         ESM::LuaScripts saved = mpDecodeScripts(data, "local");
@@ -1536,7 +1568,13 @@ namespace MWLua
 
         if (LocalScripts* scripts = ptr.getRefData().getLuaScripts())
         {
-            scripts->restoreScripts(saved);
+            // Its mod scripts haven't started yet: they start with this state after the global scripts
+            const bool deferred = std::any_of(mMpDeferredLocalScripts.begin(), mMpDeferredLocalScripts.end(),
+                [&](const LuaUtil::ScriptsContainerWeakPtr& weak) { return asLocal(weak) == scripts; });
+            if (deferred)
+                mMpDeferredLocalState[scripts] = std::move(saved);
+            else
+                scripts->restoreScripts(saved);
             return;
         }
 

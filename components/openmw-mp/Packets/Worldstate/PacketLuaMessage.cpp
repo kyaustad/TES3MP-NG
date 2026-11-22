@@ -72,7 +72,7 @@ void PacketLuaMessage::Packet(RakNet::BitStream *newBitstream, bool send)
             RW(message.cell, send, true);
         }
 
-        if (!RWBinary(message.data, send))
+        if (!RWBinary(message.data, send, maxLuaDataSize))
         {
             packetValid = false;
             return;
