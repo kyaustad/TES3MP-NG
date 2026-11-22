@@ -30,6 +30,8 @@
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwmp/LuaRecords.hpp" // tes3mp addition
+#include "../mwmp/LuaSync.hpp" // tes3mp addition
+#include <components/lua/serialization.hpp> // tes3mp addition
 #include "../mwworld/manualref.hpp"
 #include "../mwworld/store.hpp"
 #include "../mwworld/worldmodel.hpp"
@@ -81,9 +83,26 @@ namespace MWLua
                 world->advanceTime(hours);
                 MWBase::Environment::get().getMechanicsManager()->fastForwardAi();
             });
+            // tes3mp addition: the server owns the game time; its scripts advance it for every player
+            if (mwmp::LuaSync::isEnabled())
+            {
+                sol::table data = context.sol().create_table();
+                data["hours"] = static_cast<double>(hours);
+                mwmp::LuaSync::get().sendServerEvent("MP_AdvanceTime", LuaUtil::serialize(data, context.mSerializer));
+            }
         };
 
-        api["setGameTimeScale"] = [timeManager](const FiniteFloat scale) { timeManager->setGameTimeScale(scale); };
+        api["setGameTimeScale"] = [context, timeManager](const FiniteFloat scale) {
+            timeManager->setGameTimeScale(scale);
+            // tes3mp addition: the server owns the game time; its scripts set the time scale for every player
+            if (mwmp::LuaSync::isEnabled())
+            {
+                sol::table data = context.sol().create_table();
+                data["scale"] = static_cast<float>(scale);
+                mwmp::LuaSync::get().sendServerEvent(
+                    "MP_SetGameTimeScale", LuaUtil::serialize(data, context.mSerializer));
+            }
+        };
         api["setSimulationTimeScale"] = [context, timeManager](const FiniteFloat scale) {
             context.mLuaManager->addAction([scale, timeManager] { timeManager->setSimulationTimeScale(scale); });
         };

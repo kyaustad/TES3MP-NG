@@ -179,6 +179,11 @@ namespace LuaUtil
         // and timers), leaving its other scripts running
         void restoreScripts(const ESM::LuaScripts& savedScripts);
 
+        // tes3mp addition: starts the auto started scripts that `filter` accepts and aren't running yet, each once:
+        // with "onLoad" and its timers when `savedScripts` has its state, else with "onInit". Also starts the scripts
+        // of `savedScripts` that were added at runtime, when `filter` accepts them
+        void mpStartScripts(const std::function<bool(int)>& filter, const ESM::LuaScripts& savedScripts);
+
         // Callbacks for serializable timers should be registered in advance.
         // The script with the given path should already present in the container.
         void registerTimerCallback(int scriptId, std::string_view callbackName, sol::main_protected_function callback);
@@ -280,6 +285,9 @@ namespace LuaUtil
         LuaUtil::LuaState& mLua;
 
     private:
+        // tes3mp addition: adds a script and runs "onLoad" with `saved` (and restores its timers), or "onInit"
+        void mpStartScript(LuaView& view, int scriptId, std::string_view initData, const ESM::LuaScript* saved);
+
         struct Script
         {
             std::optional<sol::main_function> mOnSave;

@@ -197,6 +197,10 @@ namespace MWLua
         void mpDeliverLocalEvent(ESM::RefNum target, std::string name, std::string data);
         // Make a global script call that another client sent for an object this client simulates
         void mpRemoteCall(ESM::RefNum target, const std::string& op, std::string_view data);
+        // Play a sound, visual effect or animation that a script of another client played
+        void mpApplyEffect(ESM::RefNum target, const std::string& op, std::string_view data);
+        // Set a world item's condition, enchantment charge or soul that another client changed
+        void mpSetItemData(ESM::RefNum target, const std::string& property, std::string_view data);
         void mpSetStorageValue(std::string_view section, std::string_view key, std::string_view data);
         void mpResetStorageSection(std::string_view section, std::string_view data);
         void mpClearGlobalStorage();
@@ -226,6 +230,7 @@ namespace MWLua
         std::string mpEncodeScripts(const ESM::LuaScripts& saved) const;
         ESM::LuaScripts mpDecodeScripts(std::string_view data, std::string_view what) const;
         void mpRemoveEngineScripts(ESM::LuaScripts& saved) const;
+        bool mpIsEngineScript(int scriptId) const;
 
         class MpStorageListener;
         std::unique_ptr<MpStorageListener> mMpStorageListener;

@@ -7,7 +7,10 @@
 #include "luamanagerimp.hpp"
 #include "objectvariant.hpp"
 
+#include <components/lua/serialization.hpp>
+
 #include "../mwbase/environment.hpp"
+#include "../mwmp/LuaSync.hpp" // tes3mp addition
 #include "../mwmechanics/spellutil.hpp"
 
 #include "../mwworld/class.hpp"
@@ -50,7 +53,13 @@ namespace MWLua
             void set(const Context& context, std::string_view prop, const sol::object& value) const
             {
                 if (mObject.isGObject())
+                {
                     setValue({}, prop, mObject.ptr(), value);
+                    // tes3mp addition: world items change for the other players too
+                    if (mwmp::LuaSync::isEnabled())
+                        mwmp::LuaSync::get().onItemDataChanged(
+                            mObject.ptr(), prop, LuaUtil::serialize(value, context.mSerializer));
+                }
                 else if (mObject.isSelfObject())
                 {
                     SelfObject* obj = mObject.asSelfObject();
@@ -163,6 +172,12 @@ namespace sol
 
 namespace MWLua
 {
+    void mpApplyItemData(const MWWorld::Ptr& ptr, std::string_view property, const sol::object& value)
+    {
+        if (std::find(properties.begin(), properties.end(), property) != properties.end())
+            ItemData::setValue({}, property, ptr, value);
+    }
+
     void addItemDataBindings(sol::table& item, const Context& context)
     {
         item["itemData"] = [](const sol::object& object) -> sol::optional<ItemData> {

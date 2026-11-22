@@ -48,6 +48,8 @@
 */
 #include "../mwmp/LuaSync.hpp"
 #include "../mwmp/PlayerList.hpp"
+#include "../mwmp/LuaEffects.hpp"
+#include "itemdata.hpp"
 #include "../mwmp/Main.hpp"
 #include "../mwmp/LocalPlayer.hpp"
 #include <components/misc/strings/algorithm.hpp>
@@ -370,7 +372,17 @@ namespace MWLua
 
         for (const LuaUtil::ScriptsContainerWeakPtr& ptr : mQueuedAutoStartedScripts)
         {
-            if (LocalScripts* scripts = asLocal(ptr))
+            LocalScripts* scripts = asLocal(ptr);
+            if (scripts == nullptr)
+                continue;
+            /*
+                tes3mp addition: in multiplayer the player's mod scripts start once the server sent their saved state
+                (mpLoadPlayerScripts), so they start once, with "onLoad". OpenMW's own scripts (camera, controls, UI)
+                start right away
+            */
+            if (mwmp::LuaSync::isEnabled() && scripts == mPlayer.getRefData().getLuaScripts())
+                scripts->mpStartScripts([this](int id) { return mpIsEngineScript(id); }, {});
+            else
                 scripts->addAutoStartedScripts();
         }
         mQueuedAutoStartedScripts.clear();
@@ -1442,9 +1454,7 @@ namespace MWLua
     {
         // OpenMW's own scripts (camera, controls, UI, AI, combat) keep the state of the current session: the engine
         // state they mirror isn't persisted by multiplayer servers. Only mods' script state is
-        std::erase_if(saved.mScripts, [&](const ESM::LuaScript& script) {
-            return Misc::StringUtils::ciStartsWith(mConfiguration[script.mScriptId].mScriptPath.value(), "scripts/omw/");
-        });
+        std::erase_if(saved.mScripts, [&](const ESM::LuaScript& script) { return mpIsEngineScript(script.mScriptId); });
     }
 
     std::string LuaManager::mpSavePlayerScripts()
@@ -1464,10 +1474,16 @@ namespace MWLua
             return;
         ESM::LuaScripts saved = mpDecodeScripts(data, "player");
         mpRemoveEngineScripts(saved);
-        if (saved.mScripts.empty())
-            return;
-        scripts->restoreScripts(saved);
-        Log(Debug::Info) << "Loaded the saved state of " << saved.mScripts.size() << " player Lua scripts";
+        // The player's mod scripts start now, each once: restarting a running script would run its top-level code
+        // again, and mods register settings groups and input triggers there
+        scripts->mpStartScripts([this](int id) { return !mpIsEngineScript(id); }, saved);
+        Log(Debug::Info) << "Started the player's mod Lua scripts, " << saved.mScripts.size()
+                         << " of them with their saved state";
+    }
+
+    bool LuaManager::mpIsEngineScript(int scriptId) const
+    {
+        return Misc::StringUtils::ciStartsWith(mConfiguration[scriptId].mScriptPath.value(), "scripts/omw/");
     }
 
     std::string LuaManager::mpSaveLocalScripts(const MWWorld::Ptr& ptr)
@@ -1578,6 +1594,33 @@ namespace MWLua
                 sol::error error = result;
                 Log(Debug::Error) << "Lua call " << op << " from another player failed: " << error.what();
             }
+        });
+    }
+
+    void LuaManager::mpSetItemData(ESM::RefNum target, const std::string& property, std::string_view data)
+    {
+        const MWWorld::Ptr ptr = MWBase::Environment::get().getWorldModel()->getPtr(target);
+        if (ptr.isEmpty())
+            return;
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            mpApplyItemData(ptr, property, LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get()));
+        });
+    }
+
+    void LuaManager::mpApplyEffect(ESM::RefNum target, const std::string& op, std::string_view data)
+    {
+        MWWorld::Ptr ptr;
+        if (target.isSet())
+        {
+            ptr = MWBase::Environment::get().getWorldModel()->getPtr(target);
+            if (ptr.isEmpty() || !ptr.isInCell()
+                || !MWBase::Environment::get().getWorldScene()->isCellActive(*ptr.getCell()))
+                return; // not loaded here
+        }
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::object args = LuaUtil::deserialize(view.sol(), data, mGlobalSerializer.get());
+            if (args.is<sol::table>())
+                mwmp::LuaEffects::apply(op, ptr, args.as<sol::table>(), data);
         });
     }
 

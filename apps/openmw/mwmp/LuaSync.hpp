@@ -53,9 +53,16 @@ namespace mwmp
 
         // Outgoing, called by MWLua; data is in OpenMW's Lua serialization format with local RefNums
         void onGlobalEvent(const std::string& eventName, const std::string& data);
+        // An event for the server's scripts only (names start with "MP_"), such as changes to the game time, which
+        // the server owns
+        void sendServerEvent(const std::string& eventName, const std::string& data);
         void onLocalEvent(const MWWorld::Ptr& target, const std::string& eventName, const std::string& data);
         // A global script call for an actor another client simulates, see LuaRemoteCall.hpp
         void onRemoteCall(const MWWorld::Ptr& target, const std::string& op, const std::string& data);
+        // A sound, visual effect or animation played here, see LuaEffects.hpp; `target` may be empty
+        void onEffect(const MWWorld::Ptr& target, const std::string& op, const std::string& data);
+        // A world item's condition, enchantment charge or soul set by a global script; `data` is the value
+        void onItemDataChanged(const MWWorld::Ptr& item, std::string_view property, const std::string& data);
         void onStorageValueChanged(std::string_view section, std::string_view key, std::string data, bool persistent);
         void onStorageSectionReplaced(std::string_view section, std::string data);
         // State of an object's local scripts, in network form, saved by MWLua when the object leaves the scene

@@ -183,10 +183,28 @@ These are already synchronized without Lua hooks, because the client polls the v
 * active spells (`mpOnSpellAdded`), doors opened by `types.Door.activateDoor`, and activation and item use
   (approved by the server).
 
+Shared with the other players near the object (`EFFECT` messages, `mwmp/LuaEffects.hpp`):
+
+* `core.sound.playSound3d`, `playSoundFile3d`, `stopSound3d`, `stopSoundFile3d`, `say`, `stopSay`;
+* `openmw.animation`: `playBlended`, `playQueued`, `cancel`, `setSpeed` (at most 10 times a second for each
+  object), `setLoopingEnabled`, `clearAnimationQueue`, `addVfx`, `removeVfx`, `removeAllVfx`;
+* `world.vfx.spawn` and `world.vfx.remove`, for the players in the cell of the player whose script played them.
+
+The clients that have the cell loaded play the effect too. Scripts that react to world events in `client` mode run
+on every client, so a client skips an effect identical to one it played or received in the last 0.3 seconds.
+
+Item data that global scripts set on world items (`types.Item.itemData(item).condition`, `enchantmentCharge`,
+`soul`) is sent to the players in the cell (`ITEM_DATA` messages); the server keeps it in `data/lua/itemData.bin`
+and sends it with the cell. Items in inventories follow the inventory sync, which compares these values.
+
+The server owns the game time: `world.setGameTimeScale` and `world.advanceTime` send `MP_SetGameTimeScale` and
+`MP_AdvanceTime` events to the server, where CoreScripts changes the time for every player. Server scripts can
+refuse them with `OnLuaGlobalEvent` validators.
+
 Local to each client, by design:
 
-* UI, camera, input, post-processing, ambient sound, sound, VFX and animation APIs;
-* the game time and weather, which the server owns: Lua changes to them are overwritten by the server's;
+* UI, camera, input, post-processing, ambient (non-3D) sound and music APIs;
+* the weather, which the server owns: Lua changes to it are overwritten by the server's;
 
 Global scripts that change the world should run in `authority` mode. In `client` mode, every client runs its own
 copy, so each one makes and sends the same change.

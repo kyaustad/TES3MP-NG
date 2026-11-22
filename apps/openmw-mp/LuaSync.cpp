@@ -32,6 +32,8 @@ bool LuaSync::sDropCurrentEvent = false;
 std::vector<LuaSync::Record> LuaSync::sRecords;
 std::map<std::string, std::size_t> LuaSync::sRecordIndex;
 uint64_t LuaSync::sNextRecordBlock = 1;
+std::map<std::string, std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>>>
+    LuaSync::sItemData;
 
 namespace
 {
@@ -171,6 +173,24 @@ void LuaSync::init(const std::string& dataDirectory)
 
     sGlobalState = readFile(luaDirectory(dataDirectory) / "globalState.bin");
 
+    // Item data of world items: entry count, then for each its cell, object, property and value
+    {
+        std::ifstream in(luaDirectory(dataDirectory) / "itemData.bin", std::ios::binary);
+        uint32_t count = 0;
+        if (in && in.read(reinterpret_cast<char*>(&count), sizeof(count)))
+        {
+            for (uint32_t i = 0; i < count; ++i)
+            {
+                std::string cell, property, value;
+                mwmp::NetObjectId id;
+                if (!readString(in, cell) || !readNetObject(in, id) || !readString(in, property)
+                    || !readString(in, value))
+                    break;
+                sItemData[cell][id.toString()][property] = { id, value };
+            }
+        }
+    }
+
     // Records created by Lua: the next id block, the record count, then each record
     {
         std::ifstream in(luaDirectory(dataDirectory) / "records.bin", std::ios::binary);
@@ -307,11 +327,33 @@ void LuaSync::onCellLoaded(Player& player, const std::string& cellDescription)
 
 void LuaSync::sendLocalStates(Player& player, const std::string& cellDescription)
 {
+    std::vector<LuaMessage> messages;
+
+    // Item data of the cell's world items
+    if (auto items = sItemData.find(lowerCase(cellDescription)); items != sItemData.end())
+    {
+        for (const auto& [key, properties] : items->second)
+        {
+            for (const auto& [property, entry] : properties)
+            {
+                LuaMessage message;
+                message.kind = LuaMessage::ITEM_DATA;
+                message.name = property;
+                message.target = entry.first;
+                message.cell = cellDescription;
+                message.data = entry.second;
+                messages.push_back(std::move(message));
+            }
+        }
+    }
+
     auto it = sLocalStates.find(lowerCase(cellDescription));
     if (it == sLocalStates.end() || it->second.empty())
+    {
+        send(std::move(messages), &player);
         return;
+    }
 
-    std::vector<LuaMessage> messages;
     for (const auto& [key, entry] : it->second)
     {
         LuaMessage state;
@@ -429,7 +471,8 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
                 Script::Call<Script::CallbackIdentity("OnLuaGlobalEvent")>(
                     sender.getId(), message.name.c_str(), json.c_str());
 
-                if (sDropCurrentEvent || fromAuthority || !sHasAuthority)
+                // Events for the server's scripts only, such as game time changes
+                if (sDropCurrentEvent || fromAuthority || !sHasAuthority || message.name.rfind("MP_", 0) == 0)
                     break;
 
                 // The sender's client mode scripts already handled it; authority mode scripts are on the authority
@@ -442,6 +485,36 @@ void LuaSync::processMessages(Player& sender, const mwmp::BaseWorldstate& worlds
             case LuaMessage::REMOTE_CALL:
                 routeLocalEvent(sender, message);
                 break;
+            case LuaMessage::ITEM_DATA:
+            {
+                if (message.cell.empty() || message.target.kind == mwmp::NetObjectId::NONE)
+                    break;
+                sItemData[lowerCase(message.cell)][message.target.toString()][message.name]
+                    = { message.target, message.data };
+                persistItemData();
+                Cell* cell = findCell(message.cell);
+                if (cell == nullptr)
+                    break;
+                for (Player* player : cell->getPlayers())
+                {
+                    if (player != &sender && isLoaded(player))
+                        send({ message }, player);
+                }
+                break;
+            }
+            case LuaMessage::EFFECT:
+            {
+                // To the other players who have the cell loaded
+                Cell* cell = message.cell.empty() ? nullptr : findCell(message.cell);
+                if (cell == nullptr)
+                    break;
+                for (Player* player : cell->getPlayers())
+                {
+                    if (player != &sender && isLoaded(player))
+                        send({ message }, player);
+                }
+                break;
+            }
             case LuaMessage::STORAGE_SET:
             {
                 if (!fromAuthority)
@@ -634,15 +707,19 @@ void LuaSync::persistStorage()
     }
 }
 
-Player* LuaSync::getCellAuthority(const std::string& cellDescription)
+Cell* LuaSync::findCell(const std::string& cellDescription)
 {
     // Cells are identified by their short description: "x, y" for exteriors, the name for interiors
     static const std::regex exterior(R"(^\s*(-?\d+)\s*,\s*(-?\d+)\s*$)");
     std::smatch match;
-    Cell* cell = std::regex_match(cellDescription, match, exterior)
+    return std::regex_match(cellDescription, match, exterior)
         ? CellController::get()->getCellByXY(std::stoi(match[1]), std::stoi(match[2]))
         : CellController::get()->getCellByName(cellDescription);
+}
 
+Player* LuaSync::getCellAuthority(const std::string& cellDescription)
+{
+    Cell* cell = findCell(cellDescription);
     if (cell == nullptr || cell->getAuthority() == nullptr)
         return nullptr;
     return Players::getPlayer(*cell->getAuthority());
@@ -666,6 +743,27 @@ void LuaSync::persistLocalStates()
             writeString(out, entry.second);
         }
     }
+}
+
+void LuaSync::persistItemData()
+{
+    std::ofstream out(luaDirectory(sDataDirectory) / "itemData.bin", std::ios::binary | std::ios::trunc);
+    if (!out)
+        return;
+    uint32_t count = 0;
+    for (const auto& [cell, objects] : sItemData)
+        for (const auto& [key, properties] : objects)
+            count += static_cast<uint32_t>(properties.size());
+    out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+    for (const auto& [cell, objects] : sItemData)
+        for (const auto& [key, properties] : objects)
+            for (const auto& [property, entry] : properties)
+            {
+                writeString(out, cell);
+                writeNetObject(out, entry.first);
+                writeString(out, property);
+                writeString(out, entry.second);
+            }
 }
 
 void LuaSync::persistRecords()

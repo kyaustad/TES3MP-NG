@@ -12,6 +12,8 @@
 #include "context.hpp"
 #include "luamanagerimp.hpp"
 
+#include "../mwmp/LuaEffects.hpp" // tes3mp addition
+
 namespace MWLua
 {
     namespace
@@ -153,11 +155,37 @@ namespace MWLua
         api["isLoopingAnimation"] = [](const LObject& object, std::string_view groupname) {
             return getConstAnimationOrThrow(object)->isLoopingAnimation(groupname);
         };
-        api["cancel"] = [](const SelfObject& object, std::string_view groupname) {
-            return getMutableAnimationOrThrow(object)->disable(groupname);
+        /*
+            tes3mp change: animations and visual effects that scripts play on objects are seen by the other players
+            near them, see mwmp/LuaEffects.hpp. Each effect has a function that plays it on an object, used here and
+            for the effects of other clients
+        */
+        using mwmp::LuaEffects::pack;
+        using mwmp::LuaEffects::share;
+        mwmp::LuaEffects::add("anim.cancel", [](const MWWorld::Ptr& ptr, const sol::table& a) {
+            getMutableAnimationOrThrow(GObject(ptr))->disable(a.get<std::string>(1));
+        });
+        mwmp::LuaEffects::add("anim.setLoopingEnabled", [](const MWWorld::Ptr& ptr, const sol::table& a) {
+            getMutableAnimationOrThrow(GObject(ptr))->setLoopingEnabled(a.get<std::string>(1), a.get<bool>(2));
+        });
+        mwmp::LuaEffects::add("anim.setSpeed", [](const MWWorld::Ptr& ptr, const sol::table& a) {
+            getMutableAnimationOrThrow(GObject(ptr))->adjustSpeedMult(a.get<std::string>(1), a.get<float>(2));
+        });
+        mwmp::LuaEffects::add("anim.clearAnimationQueue", [mechanics](const MWWorld::Ptr& ptr, const sol::table& a) {
+            mechanics->clearAnimationQueue(getMutablePtrOrThrow(GObject(ptr)), a.get<bool>(1));
+        });
+        mwmp::LuaEffects::add("anim.playQueued", [mechanics](const MWWorld::Ptr& ptr, const sol::table& a) {
+            mechanics->playAnimationGroupLua(getMutablePtrOrThrow(GObject(ptr)), a.get<std::string>(1),
+                a.get<uint32_t>(2), a.get<float>(3), a.get<std::string>(4), a.get<std::string>(5), a.get<bool>(6));
+        });
+
+        api["cancel"] = [context](const SelfObject& object, std::string_view groupname) {
+            getMutableAnimationOrThrow(object)->disable(groupname);
+            share(context, object.ptr(), "anim.cancel", pack(context, std::string(groupname)));
         };
-        api["setLoopingEnabled"] = [](const SelfObject& object, std::string_view groupname, bool enabled) {
-            return getMutableAnimationOrThrow(object)->setLoopingEnabled(groupname, enabled);
+        api["setLoopingEnabled"] = [context](const SelfObject& object, std::string_view groupname, bool enabled) {
+            getMutableAnimationOrThrow(object)->setLoopingEnabled(groupname, enabled);
+            share(context, object.ptr(), "anim.setLoopingEnabled", pack(context, std::string(groupname), enabled));
         };
         // MWRender::Animation::getInfo can also return the current speed multiplier, but this is never used.
         api["getCompletion"] = [](const LObject& object, std::string_view groupname) -> sol::optional<float> {
@@ -178,8 +206,9 @@ namespace MWLua
                 return speed;
             return sol::nullopt;
         };
-        api["setSpeed"] = [](const SelfObject& object, std::string groupname, const FiniteFloat speed) {
+        api["setSpeed"] = [context](const SelfObject& object, std::string groupname, const FiniteFloat speed) {
             getMutableAnimationOrThrow(object)->adjustSpeedMult(groupname, speed);
+            share(context, object.ptr(), "anim.setSpeed", pack(context, groupname, static_cast<float>(speed)));
         };
         api["getActiveGroup"] = [](const LObject& object, MWRender::BoneGroup boneGroup) -> std::string_view {
             if (boneGroup < 0 || boneGroup >= BoneGroup::Num_BoneGroups)
@@ -188,14 +217,15 @@ namespace MWLua
         };
 
         // Clears out the animation queue, and cancel any animation currently playing from the queue
-        api["clearAnimationQueue"] = [mechanics](const SelfObject& object, bool clearScripted) {
+        api["clearAnimationQueue"] = [mechanics, context](const SelfObject& object, bool clearScripted) {
             const MWWorld::Ptr& ptr = getMutablePtrOrThrow(object);
             mechanics->clearAnimationQueue(ptr, clearScripted);
+            share(context, ptr, "anim.clearAnimationQueue", pack(context, clearScripted));
         };
 
         // Extended variant of MWScript's PlayGroup and LoopGroup
         api["playQueued"] = sol::overload(
-            [mechanics](const SelfObject& object, const std::string& groupname, const sol::table& options) {
+            [mechanics, context](const SelfObject& object, const std::string& groupname, const sol::table& options) {
                 uint32_t numberOfLoops = options.get_or("loops", std::numeric_limits<uint32_t>::max());
                 float speed = options.get_or("speed", 1.f);
                 std::string startKey = options.get_or<std::string>("startKey", "start");
@@ -204,14 +234,19 @@ namespace MWLua
 
                 const MWWorld::Ptr& ptr = getMutablePtrOrThrow(object);
                 mechanics->playAnimationGroupLua(ptr, groupname, numberOfLoops, speed, startKey, stopKey, forceLoop);
+                share(context, ptr, "anim.playQueued",
+                    pack(context, groupname, numberOfLoops, speed, startKey, stopKey, forceLoop));
             },
-            [mechanics](const SelfObject& object, const std::string& groupname) {
+            [mechanics, context](const SelfObject& object, const std::string& groupname) {
                 const MWWorld::Ptr& ptr = getMutablePtrOrThrow(object);
                 mechanics->playAnimationGroupLua(
                     ptr, groupname, std::numeric_limits<int>::max(), 1, "start", "stop", false);
+                share(context, ptr, "anim.playQueued",
+                    pack(context, groupname, static_cast<uint32_t>(std::numeric_limits<int>::max()), 1.f,
+                        std::string("start"), std::string("stop"), false));
             });
 
-        api["playBlended"] = [](const SelfObject& object, std::string_view groupName, const sol::table& options) {
+        auto playBlended = [](const Object& object, std::string_view groupName, const sol::table& options) {
             uint32_t loops = options.get_or("loops", 0u);
             MWRender::Animation::AnimPriority priority = getPriorityArgument(options);
             BlendMask blendMask = options.get_or("blendMask", BlendMask::BlendMask_All);
@@ -228,6 +263,14 @@ namespace MWLua
             animation->play(lowerGroup, priority, blendMask, autoDisable, speed, start, stop, startPoint, loops,
                 forceLoop || animation->isLoopingAnimation(lowerGroup));
         };
+        mwmp::LuaEffects::add("anim.playBlended", [playBlended](const MWWorld::Ptr& ptr, const sol::table& a) {
+            playBlended(GObject(ptr), a.get<std::string>(1), a.get<sol::table>(2));
+        });
+        api["playBlended"]
+            = [context, playBlended](const SelfObject& object, std::string_view groupName, const sol::table& options) {
+                  playBlended(object, groupName, options);
+                  share(context, object.ptr(), "anim.playBlended", pack(context, std::string(groupName), options));
+              };
 
         api["hasGroup"] = [](const LObject& object, std::string_view groupname) -> bool {
             const MWRender::Animation* anim = getConstAnimationOrThrow(object);
@@ -240,7 +283,7 @@ namespace MWLua
             return anim->getNode(bonename) != nullptr;
         };
 
-        api["addVfx"] = [context](const SelfObject& object, std::string_view model, sol::optional<sol::table> options) {
+        auto addVfx = [context](const Object& object, std::string_view model, sol::optional<sol::table> options) {
             if (options)
             {
                 context.mLuaManager->addAction(
@@ -265,8 +308,7 @@ namespace MWLua
                     "addVfxAction");
             }
         };
-
-        api["removeVfx"] = [context](const SelfObject& object, std::string_view effectId) {
+        auto removeVfx = [context](const Object& object, std::string_view effectId) {
             context.mLuaManager->addAction(
                 [object = Object(object), effectId = std::string(effectId)] {
                     MWRender::Animation* anim = getMutableAnimationOrThrow(object);
@@ -274,14 +316,37 @@ namespace MWLua
                 },
                 "removeVfxAction");
         };
-
-        api["removeAllVfx"] = [context](const SelfObject& object) {
+        auto removeAllVfx = [context](const Object& object) {
             context.mLuaManager->addAction(
                 [object = Object(object)] {
                     MWRender::Animation* anim = getMutableAnimationOrThrow(object);
                     anim->removeEffects();
                 },
                 "removeVfxAction");
+        };
+        mwmp::LuaEffects::add("anim.addVfx", [addVfx](const MWWorld::Ptr& ptr, const sol::table& a) {
+            addVfx(GObject(ptr), a.get<std::string>(1), a.get<sol::optional<sol::table>>(2));
+        });
+        mwmp::LuaEffects::add("anim.removeVfx", [removeVfx](const MWWorld::Ptr& ptr, const sol::table& a) {
+            removeVfx(GObject(ptr), a.get<std::string>(1));
+        });
+        mwmp::LuaEffects::add("anim.removeAllVfx", [removeAllVfx](const MWWorld::Ptr& ptr, const sol::table&) {
+            removeAllVfx(GObject(ptr));
+        });
+
+        api["addVfx"] = [context, addVfx](
+                            const SelfObject& object, std::string_view model, sol::optional<sol::table> options) {
+            addVfx(object, model, options);
+            share(context, object.ptr(), "anim.addVfx",
+                pack(context, std::string(model), options ? sol::object(*options) : sol::object(sol::lua_nil)));
+        };
+        api["removeVfx"] = [context, removeVfx](const SelfObject& object, std::string_view effectId) {
+            removeVfx(object, effectId);
+            share(context, object.ptr(), "anim.removeVfx", pack(context, std::string(effectId)));
+        };
+        api["removeAllVfx"] = [context, removeAllVfx](const SelfObject& object) {
+            removeAllVfx(object);
+            share(context, object.ptr(), "anim.removeAllVfx", pack(context));
         };
 
         return LuaUtil::makeReadOnly(api);
@@ -291,13 +356,20 @@ namespace MWLua
     {
         sol::table api(context.mLua->unsafeState(), sol::create);
 
-        api["remove"] = [context](std::string vfxId) {
+        auto remove = [context](std::string vfxId) {
             context.mLuaManager->addAction(
                 [vfxId = std::move(vfxId)] { MWBase::Environment::get().getWorld()->removeEffect(vfxId); },
                 "openmw.vfx.remove");
         };
+        mwmp::LuaEffects::add("vfx.remove", [remove](const MWWorld::Ptr&, const sol::table& a) {
+            remove(a.get<std::string>(1));
+        });
+        api["remove"] = [context, remove](std::string vfxId) {
+            remove(vfxId);
+            mwmp::LuaEffects::share(context, MWWorld::Ptr(), "vfx.remove", mwmp::LuaEffects::pack(context, vfxId));
+        };
 
-        api["spawn"]
+        auto spawn
             = [context](std::string_view model, const osg::Vec3f& worldPos, sol::optional<sol::table> options) {
                   if (options)
                   {
@@ -323,6 +395,16 @@ namespace MWLua
                           },
                           "openmw.vfx.spawn");
                   }
+              };
+        mwmp::LuaEffects::add("vfx.spawn", [spawn](const MWWorld::Ptr&, const sol::table& a) {
+            spawn(a.get<std::string>(1), a.get<osg::Vec3f>(2), a.get<sol::optional<sol::table>>(3));
+        });
+        api["spawn"]
+            = [context, spawn](std::string_view model, const osg::Vec3f& worldPos, sol::optional<sol::table> options) {
+                  spawn(model, worldPos, options);
+                  mwmp::LuaEffects::share(context, MWWorld::Ptr(), "vfx.spawn",
+                      mwmp::LuaEffects::pack(context, std::string(model), worldPos,
+                          options ? sol::object(*options) : sol::object(sol::lua_nil)));
               };
 
         return api;

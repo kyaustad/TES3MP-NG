@@ -48,7 +48,8 @@ void PacketLuaMessage::Packet(RakNet::BitStream *newBitstream, bool send)
             RW(message.key, send, true);
 
         if (message.kind == LuaMessage::LOCAL_EVENT || message.kind == LuaMessage::AUTHORITY
-            || message.kind == LuaMessage::LOCAL_STATE || message.kind == LuaMessage::REMOTE_CALL)
+            || message.kind == LuaMessage::LOCAL_STATE || message.kind == LuaMessage::REMOTE_CALL
+            || message.kind == LuaMessage::EFFECT || message.kind == LuaMessage::ITEM_DATA)
         {
             uint8_t kind = message.target.kind;
             RW(kind, send);

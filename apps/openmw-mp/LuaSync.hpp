@@ -11,6 +11,7 @@
 
 #include <components/openmw-mp/Base/BaseWorldstate.hpp>
 
+class Cell;
 class Player;
 
 /*
@@ -53,10 +54,12 @@ private:
     static void persistStorage();
     static void persistState();
     static void persistRecords();
+    static void persistItemData();
     static void persistLocalStates();
     static std::filesystem::path playerStatePath(const Player& player);
     static void sendLocalStates(Player& player, const std::string& cellDescription);
     static Player* getCellAuthority(const std::string& cellDescription);
+    static Cell* findCell(const std::string& cellDescription);
 
     static std::string sDataDirectory;
     static std::string sPolicy;
@@ -78,6 +81,9 @@ private:
     static std::vector<Record> sRecords;
     static std::map<std::string, std::size_t> sRecordIndex; // id -> index in sRecords
     static uint64_t sNextRecordBlock;
+    // Item data set by Lua on world items: cell -> object -> property -> (object, value)
+    static std::map<std::string, std::map<std::string, std::map<std::string, std::pair<mwmp::NetObjectId, std::string>>>>
+        sItemData;
 };
 
 #endif // OPENMW_LUASYNC_HPP

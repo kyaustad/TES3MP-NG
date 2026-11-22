@@ -245,7 +245,12 @@ namespace MWLua
             sol::table res(thisState, sol::create);
             int i = 1;
             for (MWGui::GuiMode m : windowManager->getGuiModeStack())
-                res[i++] = modeToName.at(m);
+            {
+                // tes3mp change: TES3MP's own windows (chat, server menus) use modes Lua has no name for
+                auto name = modeToName.find(m);
+                if (name != modeToName.end())
+                    res[i++] = name->second;
+            }
             return res;
         };
         api["_setUiModeStack"]

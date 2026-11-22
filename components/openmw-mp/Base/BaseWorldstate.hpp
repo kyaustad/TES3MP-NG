@@ -382,7 +382,14 @@ namespace mwmp
             RECORD = 10,
             // A global script call that changes an actor another client simulates (mwmp/LuaRemoteCall.hpp): name is
             // the function, target the actor, cell its cell, data the arguments. Routed like LOCAL_EVENT
-            REMOTE_CALL = 11
+            REMOTE_CALL = 11,
+            // A sound, visual effect or animation a Lua script played (mwmp/LuaEffects.hpp): name is the effect,
+            // target the object (none for effects at a position), cell the cell, data the arguments. Sent to the
+            // other players who have the cell loaded
+            EFFECT = 12,
+            // A world item's condition, enchantment charge or soul set by Lua: name is the property, target the item,
+            // cell its cell, data the value. The server keeps the latest values and sends them with the cell
+            ITEM_DATA = 13
         };
 
         enum Flags : uint8_t

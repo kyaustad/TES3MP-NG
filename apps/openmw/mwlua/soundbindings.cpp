@@ -15,6 +15,8 @@
 #include <components/vfs/pathutil.hpp>
 
 #include "luamanagerimp.hpp"
+
+#include "../mwmp/LuaEffects.hpp" // tes3mp addition
 #include "objectvariant.hpp"
 
 namespace
@@ -215,35 +217,74 @@ namespace MWLua
 
         api["isEnabled"] = []() { return MWBase::Environment::get().getSoundManager()->isEnabled(); };
 
-        api["playSound3d"]
-            = [](std::string_view soundId, const sol::object& object, const sol::optional<sol::table>& options) {
+        /*
+            tes3mp change: sounds played on objects are heard by the other players near them, see mwmp/LuaEffects.hpp
+        */
+        auto playSound3d = [](const MWWorld::Ptr& ptr, std::string_view soundId, const sol::optional<sol::table>& options) {
+            auto args = getPlaySoundArgs(options);
+            auto playMode = getPlayMode(args, true);
+            MWBase::Environment::get().getSoundManager()->playSound3D(ptr, ESM::RefId::deserializeText(soundId),
+                args.mVolume, args.mPitch, MWSound::Type::Sfx, playMode, args.mTimeOffset);
+        };
+        auto playSoundFile3d
+            = [](const MWWorld::Ptr& ptr, std::string_view fileName, const sol::optional<sol::table>& options) {
                   auto args = getPlaySoundArgs(options);
                   auto playMode = getPlayMode(args, true);
-
-                  ESM::RefId sound = ESM::RefId::deserializeText(soundId);
-                  MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
-
-                  MWBase::Environment::get().getSoundManager()->playSound3D(
-                      ptr, sound, args.mVolume, args.mPitch, MWSound::Type::Sfx, playMode, args.mTimeOffset);
-              };
-        api["playSoundFile3d"]
-            = [](std::string_view fileName, const sol::object& object, const sol::optional<sol::table>& options) {
-                  auto args = getPlaySoundArgs(options);
-                  auto playMode = getPlayMode(args, true);
-                  MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
-
                   MWBase::Environment::get().getSoundManager()->playSound3D(ptr, VFS::Path::Normalized(fileName),
                       args.mVolume, args.mPitch, MWSound::Type::Sfx, playMode, args.mTimeOffset);
               };
-
-        api["stopSound3d"] = [](std::string_view soundId, const sol::object& object) {
-            ESM::RefId sound = ESM::RefId::deserializeText(soundId);
-            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
-            MWBase::Environment::get().getSoundManager()->stopSound3D(ptr, sound);
+        auto stopSound3d = [](const MWWorld::Ptr& ptr, std::string_view soundId) {
+            MWBase::Environment::get().getSoundManager()->stopSound3D(ptr, ESM::RefId::deserializeText(soundId));
         };
-        api["stopSoundFile3d"] = [](std::string_view fileName, const sol::object& object) {
-            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+        auto stopSoundFile3d = [](const MWWorld::Ptr& ptr, std::string_view fileName) {
             MWBase::Environment::get().getSoundManager()->stopSound3D(ptr, VFS::Path::Normalized(fileName));
+        };
+        auto optionsArg = [lua](const sol::optional<sol::table>& options) {
+            return options ? sol::object(*options) : sol::object(lua, sol::lua_nil);
+        };
+        auto tableArg = [](const sol::table& args, int index) { return args.get<sol::optional<sol::table>>(index); };
+        mwmp::LuaEffects::add("sound3d", [=](const MWWorld::Ptr& ptr, const sol::table& a) {
+            if (!ptr.isEmpty())
+                playSound3d(ptr, a.get<std::string>(1), tableArg(a, 2));
+        });
+        mwmp::LuaEffects::add("soundFile3d", [=](const MWWorld::Ptr& ptr, const sol::table& a) {
+            if (!ptr.isEmpty())
+                playSoundFile3d(ptr, a.get<std::string>(1), tableArg(a, 2));
+        });
+        mwmp::LuaEffects::add("stopSound3d", [=](const MWWorld::Ptr& ptr, const sol::table& a) {
+            if (!ptr.isEmpty())
+                stopSound3d(ptr, a.get<std::string>(1));
+        });
+        mwmp::LuaEffects::add("stopSoundFile3d", [=](const MWWorld::Ptr& ptr, const sol::table& a) {
+            if (!ptr.isEmpty())
+                stopSoundFile3d(ptr, a.get<std::string>(1));
+        });
+
+        api["playSound3d"] = [=](std::string_view soundId, const sol::object& object,
+                                 const sol::optional<sol::table>& options) {
+            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+            playSound3d(ptr, soundId, options);
+            mwmp::LuaEffects::share(
+                context, ptr, "sound3d", mwmp::LuaEffects::pack(context, std::string(soundId), optionsArg(options)));
+        };
+        api["playSoundFile3d"] = [=](std::string_view fileName, const sol::object& object,
+                                     const sol::optional<sol::table>& options) {
+            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+            playSoundFile3d(ptr, fileName, options);
+            mwmp::LuaEffects::share(context, ptr, "soundFile3d",
+                mwmp::LuaEffects::pack(context, std::string(fileName), optionsArg(options)));
+        };
+
+        api["stopSound3d"] = [=](std::string_view soundId, const sol::object& object) {
+            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+            stopSound3d(ptr, soundId);
+            mwmp::LuaEffects::share(context, ptr, "stopSound3d", mwmp::LuaEffects::pack(context, std::string(soundId)));
+        };
+        api["stopSoundFile3d"] = [=](std::string_view fileName, const sol::object& object) {
+            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+            stopSoundFile3d(ptr, fileName);
+            mwmp::LuaEffects::share(
+                context, ptr, "stopSoundFile3d", mwmp::LuaEffects::pack(context, std::string(fileName)));
         };
 
         api["isSoundPlaying"] = [](std::string_view soundId, const sol::object& object) {
@@ -256,16 +297,31 @@ namespace MWLua
             return MWBase::Environment::get().getSoundManager()->getSoundPlaying(ptr, VFS::Path::Normalized(fileName));
         };
 
-        api["say"] = [luaManager = context.mLuaManager](
-                         std::string_view fileName, const sol::object& object, sol::optional<std::string_view> text) {
-            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+        auto say = [luaManager = context.mLuaManager](
+                       const MWWorld::Ptr& ptr, std::string_view fileName, sol::optional<std::string_view> text) {
             MWBase::Environment::get().getSoundManager()->say(ptr, VFS::Path::Normalized(fileName));
             if (text && Settings::gui().mSubtitles)
                 luaManager->addUIMessage(*text);
         };
-        api["stopSay"] = [](const sol::object& object) {
+        mwmp::LuaEffects::add("say", [=](const MWWorld::Ptr& ptr, const sol::table& a) {
+            if (!ptr.isEmpty())
+                say(ptr, a.get<std::string>(1), a.get<sol::optional<std::string_view>>(2));
+        });
+        mwmp::LuaEffects::add("stopSay", [](const MWWorld::Ptr& ptr, const sol::table&) {
+            if (!ptr.isEmpty())
+                MWBase::Environment::get().getSoundManager()->stopSay(ptr);
+        });
+        api["say"] = [=](std::string_view fileName, const sol::object& object, sol::optional<std::string_view> text) {
+            MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
+            say(ptr, fileName, text);
+            mwmp::LuaEffects::share(context, ptr, "say",
+                mwmp::LuaEffects::pack(context, std::string(fileName),
+                    text ? sol::make_object(lua, std::string(*text)) : sol::object(lua, sol::lua_nil)));
+        };
+        api["stopSay"] = [=](const sol::object& object) {
             MWWorld::Ptr ptr = getMutablePtrOrThrow(ObjectVariant(object));
             MWBase::Environment::get().getSoundManager()->stopSay(ptr);
+            mwmp::LuaEffects::share(context, ptr, "stopSay", mwmp::LuaEffects::pack(context));
         };
         api["isSayActive"] = [](const sol::object& object) {
             const MWWorld::Ptr& ptr = getPtrOrThrow(ObjectVariant(object));

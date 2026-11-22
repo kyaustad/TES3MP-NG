@@ -276,6 +276,17 @@ void LuaSync::queue(LuaMessage&& message)
     mOutgoing.push_back(std::move(message));
 }
 
+void LuaSync::sendServerEvent(const std::string& eventName, const std::string& data)
+{
+    if (!mHasConfig)
+        return;
+    LuaMessage message;
+    message.kind = LuaMessage::GLOBAL_EVENT;
+    message.name = eventName;
+    message.data = data;
+    queue(std::move(message));
+}
+
 void LuaSync::onGlobalEvent(const std::string& eventName, const std::string& data)
 {
     // Client mode scripts already received the event here; only authority mode scripts and server scripts can
@@ -321,6 +332,51 @@ void LuaSync::onRemoteCall(const MWWorld::Ptr& target, const std::string& op, co
         LOG_MESSAGE_SIMPLE(TimedLog::LOG_WARN, "Not sending Lua call %s: %s", op.c_str(), e.what());
         return;
     }
+    queue(std::move(message));
+}
+
+void LuaSync::onEffect(const MWWorld::Ptr& target, const std::string& op, const std::string& data)
+{
+    LuaMessage message;
+    message.kind = LuaMessage::EFFECT;
+    message.name = op;
+    MWWorld::Ptr where = target;
+    if (!target.isEmpty())
+    {
+        message.target = toNetObject(target.getCellRef().getRefNum());
+        if (message.target.kind == NetObjectId::NONE)
+            return; // only exists on this client
+    }
+    else
+        where = MWBase::Environment::get().getWorld()->getPlayerPtr(); // effects at a position, near the player
+    if (!where.isInCell() || where.getCell()->getCell()->isEsm4())
+        return;
+    message.cell = where.getCell()->getCell()->getEsm3().getShortDescription();
+    try
+    {
+        message.data = dataToNetwork(data);
+    }
+    catch (const std::exception& e)
+    {
+        LOG_MESSAGE_SIMPLE(TimedLog::LOG_VERBOSE, "Not sharing Lua effect %s: %s", op.c_str(), e.what());
+        return;
+    }
+    queue(std::move(message));
+}
+
+void LuaSync::onItemDataChanged(const MWWorld::Ptr& item, std::string_view property, const std::string& data)
+{
+    // Items in inventories and containers follow the inventory and container sync
+    if (!mHasConfig || !item.isInCell() || item.getCell()->getCell()->isEsm4())
+        return;
+    LuaMessage message;
+    message.kind = LuaMessage::ITEM_DATA;
+    message.name = property;
+    message.target = toNetObject(item.getCellRef().getRefNum());
+    if (message.target.kind == NetObjectId::NONE)
+        return;
+    message.cell = item.getCell()->getCell()->getEsm3().getShortDescription();
+    message.data = data;
     queue(std::move(message));
 }
 
@@ -551,6 +607,25 @@ void LuaSync::updateLua(float dt)
                     const ESM::RefNum target = toLocalObject(message.target);
                     if (target.isSet())
                         lua->mpDeliverLocalEvent(target, message.name, toLocal(message.data));
+                    break;
+                }
+                case LuaMessage::ITEM_DATA:
+                {
+                    const ESM::RefNum target = toLocalObject(message.target);
+                    if (target.isSet())
+                        lua->mpSetItemData(target, message.name, message.data);
+                    break;
+                }
+                case LuaMessage::EFFECT:
+                {
+                    ESM::RefNum target;
+                    if (message.target.kind != NetObjectId::NONE)
+                    {
+                        target = toLocalObject(message.target);
+                        if (!target.isSet())
+                            break;
+                    }
+                    lua->mpApplyEffect(target, message.name, toLocal(message.data));
                     break;
                 }
                 case LuaMessage::REMOTE_CALL:
